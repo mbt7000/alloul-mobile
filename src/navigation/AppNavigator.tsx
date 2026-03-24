@@ -20,7 +20,16 @@ import ServicesHubScreen from "../screens/workspace/ServicesHubScreen";
 import MediaBridgeScreen from "../screens/workspace/MediaBridgeScreen";
 import TeamScreen from "../screens/workspace/TeamScreen";
 import ProjectsScreen from "../screens/workspace/ProjectsScreen";
+import HandoverScreen from "../screens/workspace/HandoverScreen";
+import DealsScreen from "../screens/workspace/DealsScreen";
+import WorkspaceAdsScreen from "../screens/workspace/WorkspaceAdsScreen";
+import MeetingsInfoScreen from "../screens/workspace/MeetingsInfoScreen";
+import AiAssistantScreen from "../screens/workspace/AiAssistantScreen";
+import SavedPostsScreen from "../screens/media/SavedPostsScreen";
+import CommunitiesScreen from "../screens/media/CommunitiesScreen";
+import MarketplaceScreen from "../screens/media/MarketplaceScreen";
 import SettingsScreen from "../screens/shared/SettingsScreen";
+import InfoPlaceholderScreen from "../screens/shared/InfoPlaceholderScreen";
 import WorkspaceTabBar from "./WorkspaceTabBar";
 
 // ── Types ──
@@ -105,6 +114,11 @@ function WorkspaceStackNavigator() {
       <Stack.Screen name="WorkspaceMain" component={WorkspaceTabNavigator} />
       <Stack.Screen name="Team" component={TeamScreen} />
       <Stack.Screen name="Projects" component={ProjectsScreen} />
+      <Stack.Screen name="Handover" component={HandoverScreen} />
+      <Stack.Screen name="Deals" component={DealsScreen} />
+      <Stack.Screen name="MeetingsInfo" component={MeetingsInfoScreen} />
+      <Stack.Screen name="AiAssistant" component={AiAssistantScreen} />
+      <Stack.Screen name="WorkspaceAds" component={WorkspaceAdsScreen} />
     </Stack.Navigator>
   );
 }
@@ -121,14 +135,70 @@ function DrawerContent(props: any) {
 
   const initials = (user?.name || user?.username || "U").slice(0, 2).toUpperCase();
 
-  const mediaItems = [
-    { key: "mHome", label: t("drawer.mHome"), icon: "home-outline" as const, screen: "MediaTabs" },
-    { key: "mExplore", label: t("drawer.mExplore"), icon: "compass-outline" as const, screen: "MediaTabs" },
-    { key: "mCommunities", label: t("drawer.mCommunities"), icon: "people-outline" as const, screen: "MediaTabs" },
-    { key: "mJobs", label: t("drawer.mJobs"), icon: "briefcase-outline" as const, screen: "MediaTabs" },
-    { key: "mMarketplace", label: t("drawer.mMarketplace"), icon: "storefront-outline" as const, screen: "MediaTabs" },
-    { key: "mMessages", label: t("drawer.mMessages"), icon: "chatbubble-outline" as const, screen: "MediaTabs" },
-    { key: "mSaved", label: t("drawer.mSaved"), icon: "bookmark-outline" as const, screen: "MediaTabs" },
+  const mediaItems: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }[] = [
+    {
+      key: "mHome",
+      label: t("drawer.mHome"),
+      icon: "home-outline",
+      onPress: () => {
+        setMode("media");
+        props.navigation.navigate("MediaTabs", { screen: "Feed" });
+      },
+    },
+    {
+      key: "mExplore",
+      label: t("drawer.mExplore"),
+      icon: "compass-outline",
+      onPress: () => {
+        setMode("media");
+        props.navigation.navigate("MediaTabs", { screen: "Explore" });
+      },
+    },
+    {
+      key: "mCommunities",
+      label: t("drawer.mCommunities"),
+      icon: "people-outline",
+      onPress: () => {
+        setMode("media");
+        props.navigation.navigate("CommunitiesList");
+      },
+    },
+    {
+      key: "mJobs",
+      label: t("drawer.mJobs"),
+      icon: "briefcase-outline",
+      onPress: () => {
+        setMode("media");
+        props.navigation.navigate("Jobs");
+      },
+    },
+    {
+      key: "mMarketplace",
+      label: t("drawer.mMarketplace"),
+      icon: "storefront-outline",
+      onPress: () => {
+        setMode("media");
+        props.navigation.navigate("MarketplaceList");
+      },
+    },
+    {
+      key: "mMessages",
+      label: t("drawer.mMessages"),
+      icon: "chatbubble-outline",
+      onPress: () => {
+        setMode("media");
+        props.navigation.navigate("MessagesHub");
+      },
+    },
+    {
+      key: "mSaved",
+      label: t("drawer.mSaved"),
+      icon: "bookmark-outline",
+      onPress: () => {
+        setMode("media");
+        props.navigation.navigate("SavedFeed");
+      },
+    },
   ];
 
   const goWorkspace = (params?: { screen: string; params?: object }) => {
@@ -174,11 +244,11 @@ function DrawerContent(props: any) {
     },
     { key: "wTeam", label: t("drawer.wTeam"), icon: "people-outline", onPress: () => goWorkspace({ screen: "Team" }) },
     { key: "wProjects", label: t("drawer.wProjects"), icon: "folder-outline", onPress: () => goWorkspace({ screen: "Projects" }) },
-    { key: "wHandover", label: t("drawer.wHandover"), icon: "swap-horizontal-outline", onPress: () => goWorkspace({ screen: "WorkspaceMain", params: { screen: "WorkHome" } }) },
-    { key: "wDeals", label: t("drawer.wDeals"), icon: "card-outline", onPress: () => goWorkspace({ screen: "WorkspaceMain", params: { screen: "WorkHome" } }) },
-    { key: "wMeetings", label: t("drawer.wMeetings"), icon: "videocam-outline", onPress: () => goWorkspace({ screen: "WorkspaceMain", params: { screen: "WorkHome" } }) },
-    { key: "wAi", label: t("drawer.wAi"), icon: "sparkles-outline", onPress: () => goWorkspace({ screen: "WorkspaceMain", params: { screen: "WorkHome" } }) },
-    { key: "wAds", label: t("drawer.wAds"), icon: "megaphone-outline", onPress: () => goWorkspace({ screen: "WorkspaceMain", params: { screen: "WorkHome" } }) },
+    { key: "wHandover", label: t("drawer.wHandover"), icon: "swap-horizontal-outline", onPress: () => goWorkspace({ screen: "Handover" }) },
+    { key: "wDeals", label: t("drawer.wDeals"), icon: "card-outline", onPress: () => goWorkspace({ screen: "Deals" }) },
+    { key: "wMeetings", label: t("drawer.wMeetings"), icon: "videocam-outline", onPress: () => goWorkspace({ screen: "MeetingsInfo" }) },
+    { key: "wAi", label: t("drawer.wAi"), icon: "sparkles-outline", onPress: () => goWorkspace({ screen: "AiAssistant" }) },
+    { key: "wAds", label: t("drawer.wAds"), icon: "megaphone-outline", onPress: () => goWorkspace({ screen: "WorkspaceAds" }) },
   ];
 
   const items = mode === "media" ? mediaItems : workspaceItems;
@@ -249,13 +319,7 @@ function DrawerContent(props: any) {
       <View style={styles.navSection}>
         <Text style={styles.navSectionTitle}>{mode === "media" ? t("drawer.sectionMedia") : t("drawer.sectionWorkspace")}</Text>
         {items.map((item) => (
-          <TouchableOpacity
-            key={(item as { key: string }).key}
-            style={styles.navItem}
-            onPress={() =>
-              "onPress" in item ? item.onPress() : props.navigation.navigate((item as { screen: string }).screen)
-            }
-          >
+          <TouchableOpacity key={item.key} style={styles.navItem} onPress={() => item.onPress()}>
             <Ionicons name={item.icon} size={20} color={colors.textSecondary} />
             <Text style={styles.navLabel}>{item.label}</Text>
           </TouchableOpacity>
@@ -295,6 +359,11 @@ export default function AppNavigator() {
     >
       <Drawer.Screen name="MediaTabs" component={MediaTabs} />
       <Drawer.Screen name="WorkspaceTabs" component={WorkspaceStackNavigator} />
+      <Drawer.Screen name="SavedFeed" component={SavedPostsScreen} />
+      <Drawer.Screen name="CommunitiesList" component={CommunitiesScreen} />
+      <Drawer.Screen name="MarketplaceList" component={MarketplaceScreen} />
+      <Drawer.Screen name="Jobs" component={InfoPlaceholderScreen} initialParams={{ titleKey: "jobs.title", bodyKey: "jobs.body" }} />
+      <Drawer.Screen name="MessagesHub" component={InfoPlaceholderScreen} initialParams={{ titleKey: "messages.title", bodyKey: "messages.body" }} />
       <Drawer.Screen name="Settings" component={SettingsScreen} />
     </Drawer.Navigator>
   );

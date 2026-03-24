@@ -1,26 +1,18 @@
 import React, { useCallback, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-  RefreshControl,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { colors } from "../../theme/colors";
 import GlassCard from "../../components/glass/GlassCard";
-import { getCompanyMembers, type CompanyMemberRow } from "../../lib/api";
+import { getDeals, type DealRow } from "../../lib/api";
 
-export default function TeamScreen() {
+export default function DealsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const [items, setItems] = useState<CompanyMemberRow[]>([]);
+  const [items, setItems] = useState<DealRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,11 +20,10 @@ export default function TeamScreen() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const list = await getCompanyMembers();
+      const list = await getDeals();
       setItems(Array.isArray(list) ? list : []);
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Error";
+      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Err";
       setError(msg);
       setItems([]);
     } finally {
@@ -49,15 +40,14 @@ export default function TeamScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={12}>
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.title}>{t("team.title")}</Text>
+        <Text style={styles.title}>{t("deals.title")}</Text>
         <View style={{ width: 40 }} />
       </View>
-
       {loading && !refreshing ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.accentCyan} />
@@ -65,9 +55,8 @@ export default function TeamScreen() {
       ) : error ? (
         <View style={styles.center}>
           <Text style={styles.err}>{error}</Text>
-          <Text style={styles.errHint}>{t("team.errorHint")}</Text>
           <TouchableOpacity style={styles.retry} onPress={() => { setLoading(true); void load(); }}>
-            <Text style={styles.retryText}>{t("common.retry")}</Text>
+            <Text style={styles.retryTxt}>{t("common.retry")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -76,30 +65,18 @@ export default function TeamScreen() {
           keyExtractor={(it) => String(it.id)}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                void load();
-              }}
-              tintColor={colors.accentCyan}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.accentCyan} />
           }
-          ListEmptyComponent={<Text style={styles.empty}>{t("team.empty")}</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>{t("deals.empty")}</Text>}
           renderItem={({ item }) => (
             <GlassCard style={styles.card}>
-              <View style={styles.cardTop}>
-                <View style={styles.avatarPh}>
-                  <Text style={styles.avatarTxt}>{item.i_code?.slice(0, 2).toUpperCase() || "?"}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.role}>{item.role}</Text>
-                  <Text style={styles.meta}>
-                    {t("team.userId")}: {item.user_id} · i_code {item.i_code}
-                  </Text>
-                  {item.job_title ? <Text style={styles.job}>{item.job_title}</Text> : null}
-                </View>
+              <Text style={styles.company}>{item.company}</Text>
+              <View style={styles.row}>
+                <Text style={styles.stage}>{item.stage}</Text>
+                <Text style={styles.prob}>{item.probability}%</Text>
               </View>
+              <Text style={styles.value}>{t("deals.valueLabel", { value: item.value })}</Text>
+              {item.contact ? <Text style={styles.meta}>{item.contact}</Text> : null}
             </GlassCard>
           )}
         />
@@ -109,7 +86,7 @@ export default function TeamScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -121,11 +98,9 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   title: { color: colors.textPrimary, fontSize: 20, fontWeight: "800" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 10 },
-  err: { color: colors.danger, textAlign: "center", fontSize: 14 },
-  errHint: { color: colors.textMuted, textAlign: "center", fontSize: 13, lineHeight: 20 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
+  err: { color: colors.danger, textAlign: "center" },
   retry: {
-    marginTop: 8,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 12,
@@ -133,21 +108,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.bgCard,
   },
-  retryText: { color: colors.accentBlue, fontWeight: "700" },
+  retryTxt: { color: colors.accentBlue, fontWeight: "700" },
   list: { padding: 16, paddingBottom: 100 },
   card: { padding: 14, marginBottom: 10 },
-  cardTop: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
-  avatarPh: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "rgba(76,111,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarTxt: { color: colors.accentBlue, fontSize: 14, fontWeight: "800" },
-  role: { color: colors.textPrimary, fontSize: 16, fontWeight: "800", textTransform: "capitalize" },
-  meta: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
-  job: { color: colors.textSecondary, fontSize: 13, marginTop: 6 },
+  company: { color: colors.textPrimary, fontSize: 17, fontWeight: "800" },
+  row: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
+  stage: { color: colors.accentTeal, fontSize: 13, fontWeight: "700", textTransform: "capitalize" },
+  prob: { color: colors.textMuted, fontSize: 13 },
+  value: { color: colors.textSecondary, fontSize: 14, marginTop: 8 },
+  meta: { color: colors.textMuted, fontSize: 12, marginTop: 6 },
   empty: { color: colors.textMuted, textAlign: "center", marginTop: 40 },
 });

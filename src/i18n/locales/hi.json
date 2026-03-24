@@ -162,19 +162,48 @@
     "loadingWorkspace": "लोड हो रहा है…",
     "statsUnavailable": "आँकड़े उपलब्ध नहीं।"
   },
-  "team": { "title": "टीम" },
+  "team": {
+    "title": "टीम",
+    "empty": "कोई सदस्य नहीं — कंपनी एक्सेस चाहिए हो सकता है।",
+    "errorHint": "साइन इन करें और कंपनी से जुड़ें।",
+    "userId": "यूज़र"
+  },
   "projects": {
     "title": "प्रोजेक्ट",
     "empty": "सर्वर से अभी कोई प्रोजेक्ट नहीं।",
     "tasksProgress": "{{done}} / {{total}} टास्क"
   },
-  "explore": { "title": "खोजें" },
+  "explore": {
+    "title": "खोजें",
+    "searchPlaceholder": "लोग, पोस्ट, कंपनियाँ खोजें…",
+    "search": "खोज",
+    "hint": "API से एकीकृत खोज।",
+    "noResults": "कोई परिणाम नहीं।"
+  },
   "notifications": {
     "title": "सूचनाएँ",
     "empty": "अभी कोई सूचना नहीं।",
     "markAllRead": "सब पढ़ा हुआ"
   },
-  "profile": { "title": "प्रोफ़ाइल" },
+  "profile": {
+    "title": "प्रोफ़ाइल",
+    "signInHint": "प्रोफ़ाइल देखने के लिए साइन इन करें।",
+    "posts": "पोस्ट",
+    "followers": "फॉलोअर्स",
+    "following": "फॉलोइंग",
+    "bio": "बायो",
+    "openSettings": "सेटिंग्स और भाषा"
+  },
+  "handover": { "title": "हैंडओवर", "empty": "कोई रिकॉर्ड नहीं।", "tasks": "{{done}} / {{total}} टास्क" },
+  "deals": { "title": "डील्स", "empty": "कोई डील नहीं।", "valueLabel": "मूल्य: {{value}}" },
+  "saved": { "title": "सहेजे", "empty": "कोई पोस्ट नहीं।" },
+  "communities": { "title": "समुदाय", "empty": "कोई समुदाय नहीं।", "members": "{{count}} सदस्य" },
+  "marketplace": { "title": "मार्केट", "empty": "कोई कंपनी नहीं।", "searchPh": "फ़िल्टर…" },
+  "workspaceAds": { "title": "विज्ञापन", "empty": "कोई विज्ञापन नहीं।", "impressions": "{{n}} इंप्रेशन" },
+  "meetings": { "title": "मीटिंग", "body": "वीडियो मीटिंग जल्द। अभी वेब उपयोग करें।" },
+  "aiAssistant": { "title": "AI सहायक", "empty": "कोई इतिहास नहीं।" },
+  "jobs": { "title": "नौकरियाँ", "body": "नौकरियाँ: जल्द या वेब पर।" },
+  "messages": { "title": "संदेश", "body": "चैट इस बिल्ड में नहीं। वेब उपयोग करें।" },
   "settings": {
     "title": "सेटिंग्स",
     "language": "भाषा",

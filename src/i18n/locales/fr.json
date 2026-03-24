@@ -162,19 +162,48 @@
     "loadingWorkspace": "Chargement…",
     "statsUnavailable": "Statistiques indisponibles."
   },
-  "team": { "title": "Équipe" },
+  "team": {
+    "title": "Équipe",
+    "empty": "Aucun membre — accès entreprise requis peut-être.",
+    "errorHint": "Connectez-vous et rejoignez une entreprise.",
+    "userId": "Utilisateur"
+  },
   "projects": {
     "title": "Projets",
     "empty": "Aucun projet renvoyé par le serveur.",
     "tasksProgress": "{{done}} / {{total}} tâches"
   },
-  "explore": { "title": "Explorer" },
+  "explore": {
+    "title": "Explorer",
+    "searchPlaceholder": "Rechercher personnes, posts, entreprises…",
+    "search": "Rechercher",
+    "hint": "Recherche unifiée via l’API.",
+    "noResults": "Aucun résultat."
+  },
   "notifications": {
     "title": "Notifications",
     "empty": "Aucune notification.",
     "markAllRead": "Tout marquer lu"
   },
-  "profile": { "title": "Profil" },
+  "profile": {
+    "title": "Profil",
+    "signInHint": "Connectez-vous pour voir votre profil.",
+    "posts": "Posts",
+    "followers": "Abonnés",
+    "following": "Abonnements",
+    "bio": "Bio",
+    "openSettings": "Réglages et langue"
+  },
+  "handover": { "title": "Passation", "empty": "Aucune passation.", "tasks": "{{done}} / {{total}} tâches" },
+  "deals": { "title": "Affaires", "empty": "Aucune affaire.", "valueLabel": "Valeur : {{value}}" },
+  "saved": { "title": "Enregistrés", "empty": "Aucun post enregistré." },
+  "communities": { "title": "Communautés", "empty": "Aucune communauté.", "members": "{{count}} membres" },
+  "marketplace": { "title": "Marketplace", "empty": "Aucune entreprise.", "searchPh": "Filtrer…" },
+  "workspaceAds": { "title": "Annonces", "empty": "Aucune annonce.", "impressions": "{{n}} impressions" },
+  "meetings": { "title": "Réunions", "body": "Les réunions vidéo arriveront ici. Utilisez le web pour l’instant." },
+  "aiAssistant": { "title": "Assistant IA", "empty": "Pas d’historique." },
+  "jobs": { "title": "Emplois", "body": "Offres d’emploi : bientôt ou via le web." },
+  "messages": { "title": "Messages", "body": "Chat non branché dans cette version. Utilisez le web." },
   "settings": {
     "title": "Réglages",
     "language": "Langue",

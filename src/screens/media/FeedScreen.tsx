@@ -23,7 +23,7 @@ function timeAgo(dateStr?: string | null): string {
   return `${Math.floor(hrs / 24)}d`;
 }
 
-function PostCard({ post, onLike }: { post: ApiPost; onLike: (id: number) => void }) {
+export function PostCard({ post, onLike }: { post: ApiPost; onLike: (id: number) => void }) {
   const initials = (post.author_name || "U").slice(0, 2).toUpperCase();
   return (
     <GlassCard style={styles.postCard}>

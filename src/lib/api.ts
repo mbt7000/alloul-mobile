@@ -256,3 +256,131 @@ export const getCompanyStats = () => apiFetch<CompanyStats>("/companies/stats");
 
 export const markAllNotificationsRead = () =>
   apiFetch("/notifications/read-all", { method: "POST" });
+
+// ── Search (explore) ──
+export interface SearchResultItem {
+  type: string;
+  id: string;
+  title: string;
+  description?: string;
+  avatar_url?: string | null;
+  relevance_score?: number;
+}
+
+export const unifiedSearch = (q: string) => {
+  const trimmed = q.trim();
+  if (!trimmed) return Promise.resolve([] as SearchResultItem[]);
+  return apiFetch<SearchResultItem[]>(`/search?q=${encodeURIComponent(trimmed)}`);
+};
+
+// ── Company team ──
+export interface CompanyMemberRow {
+  id: number;
+  company_id: number;
+  user_id: number;
+  role: string;
+  department_id?: number | null;
+  i_code: string;
+  manager_id?: number | null;
+  job_title?: string | null;
+}
+
+export const getCompanyMembers = () => apiFetch<CompanyMemberRow[]>("/companies/members");
+
+// ── Handover ──
+export interface HandoverRow {
+  id: number;
+  user_id: number;
+  title: string;
+  from_person?: string | null;
+  to_person?: string | null;
+  department?: string | null;
+  status: string;
+  content?: string | null;
+  score: number;
+  tasks: number;
+  completed_tasks: number;
+  created_at?: string | null;
+}
+
+export const getHandovers = () => apiFetch<HandoverRow[]>("/handover/");
+
+// ── Deals ──
+export interface DealRow {
+  id: number;
+  user_id: number;
+  company: string;
+  value: number;
+  stage: string;
+  probability: number;
+  contact?: string | null;
+  notes?: string | null;
+  created_at?: string | null;
+}
+
+export const getDeals = () => apiFetch<DealRow[]>("/deals/");
+
+export const getSavedPosts = (limit = 30, offset = 0) =>
+  apiFetch<ApiPost[]>(`/posts/saved?limit=${limit}&offset=${offset}`);
+
+// ── Communities ──
+export interface CommunityRow {
+  id: number;
+  name: string;
+  description?: string | null;
+  avatar_url?: string | null;
+  cover_url?: string | null;
+  creator_id: number;
+  creator_name?: string | null;
+  members_count?: number;
+  is_member?: boolean;
+  created_at?: string | null;
+}
+
+export const getCommunities = (limit = 20, offset = 0) =>
+  apiFetch<CommunityRow[]>(`/communities/?limit=${limit}&offset=${offset}`);
+
+// ── Marketplace ──
+export interface MarketplaceCompanyRow {
+  id: string;
+  name: string;
+  industry?: string | null;
+  size?: string | null;
+  location?: string | null;
+  verified?: boolean;
+  description?: string | null;
+}
+
+export const getMarketplaceCompanies = (search?: string) => {
+  const s = search?.trim();
+  return apiFetch<MarketplaceCompanyRow[]>(
+    s ? `/marketplace/?search=${encodeURIComponent(s)}` : "/marketplace/"
+  );
+};
+
+// ── Workspace ads ──
+export interface AdRow {
+  id: number;
+  company_id: number;
+  ad_type: string;
+  content?: string | null;
+  image_url?: string | null;
+  status: string;
+  impressions: number;
+  company_name?: string | null;
+}
+
+export const getWorkspaceAds = () => apiFetch<AdRow[]>("/ads/");
+
+// ── AI assistant (history) ──
+export interface AgentMessageRow {
+  id: string;
+  role: string;
+  content: string;
+  created_at?: string | null;
+}
+
+export const getAgentHistory = (mode?: string) => {
+  const q = mode?.trim() ? `?mode=${encodeURIComponent(mode.trim())}` : "";
+  return apiFetch<AgentMessageRow[]>(`/agent/history${q}`);
+};

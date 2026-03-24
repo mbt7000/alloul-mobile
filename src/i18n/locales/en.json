@@ -162,19 +162,83 @@
     "loadingWorkspace": "Loading workspace…",
     "statsUnavailable": "Company stats unavailable."
   },
-  "team": { "title": "Team" },
+  "team": {
+    "title": "Team",
+    "empty": "No members returned — you may need company access.",
+    "errorHint": "You must belong to a company and be signed in.",
+    "userId": "User"
+  },
   "projects": {
     "title": "Projects",
     "empty": "No projects from the server yet.",
     "tasksProgress": "{{done}} / {{total}} tasks"
   },
-  "explore": { "title": "Explore" },
+  "explore": {
+    "title": "Explore",
+    "searchPlaceholder": "Search people, posts, companies…",
+    "search": "Search",
+    "hint": "Search across the platform. Results come from the live API.",
+    "noResults": "No results for this query."
+  },
   "notifications": {
     "title": "Notifications",
     "empty": "No notifications yet.",
     "markAllRead": "Mark all read"
   },
-  "profile": { "title": "Profile" },
+  "profile": {
+    "title": "Profile",
+    "signInHint": "Sign in to see your profile.",
+    "posts": "Posts",
+    "followers": "Followers",
+    "following": "Following",
+    "bio": "Bio",
+    "openSettings": "Settings & language"
+  },
+  "handover": {
+    "title": "Handover",
+    "empty": "No handovers yet.",
+    "tasks": "{{done}} / {{total}} tasks"
+  },
+  "deals": {
+    "title": "Deals",
+    "empty": "No deals yet.",
+    "valueLabel": "Value: {{value}}"
+  },
+  "saved": {
+    "title": "Saved",
+    "empty": "No saved posts."
+  },
+  "communities": {
+    "title": "Communities",
+    "empty": "No communities.",
+    "members": "{{count}} members"
+  },
+  "marketplace": {
+    "title": "Marketplace",
+    "empty": "No companies listed.",
+    "searchPh": "Filter companies…"
+  },
+  "workspaceAds": {
+    "title": "Ads",
+    "empty": "No ads for your workspace.",
+    "impressions": "{{n}} impressions"
+  },
+  "meetings": {
+    "title": "Meetings",
+    "body": "Video meetings and calendar sync will connect here. Use the web app for full meeting features until mobile integration ships."
+  },
+  "aiAssistant": {
+    "title": "AI Assistant",
+    "empty": "No conversation history from the server yet."
+  },
+  "jobs": {
+    "title": "Jobs",
+    "body": "Job listings are not available in the mobile app yet. Check back soon or use the Alloul web app."
+  },
+  "messages": {
+    "title": "Messages",
+    "body": "Chat (Sendbird / Stream) is not wired in this build yet. Use the web app for messaging."
+  },
   "settings": {
     "title": "Settings",
     "language": "Language",

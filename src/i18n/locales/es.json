@@ -162,19 +162,48 @@
     "loadingWorkspace": "Cargando…",
     "statsUnavailable": "Estadísticas no disponibles."
   },
-  "team": { "title": "Equipo" },
+  "team": {
+    "title": "Equipo",
+    "empty": "Sin miembros — quizá necesitas acceso a la empresa.",
+    "errorHint": "Inicia sesión y pertenece a una empresa.",
+    "userId": "Usuario"
+  },
   "projects": {
     "title": "Proyectos",
     "empty": "Aún no hay proyectos del servidor.",
     "tasksProgress": "{{done}} / {{total}} tareas"
   },
-  "explore": { "title": "Explorar" },
+  "explore": {
+    "title": "Explorar",
+    "searchPlaceholder": "Buscar personas, posts, empresas…",
+    "search": "Buscar",
+    "hint": "Búsqueda unificada vía API.",
+    "noResults": "Sin resultados."
+  },
   "notifications": {
     "title": "Avisos",
     "empty": "Sin notificaciones.",
     "markAllRead": "Marcar todo leído"
   },
-  "profile": { "title": "Perfil" },
+  "profile": {
+    "title": "Perfil",
+    "signInHint": "Inicia sesión para ver tu perfil.",
+    "posts": "Publicaciones",
+    "followers": "Seguidores",
+    "following": "Siguiendo",
+    "bio": "Bio",
+    "openSettings": "Ajustes e idioma"
+  },
+  "handover": { "title": "Traspaso", "empty": "Sin traspasos.", "tasks": "{{done}} / {{total}} tareas" },
+  "deals": { "title": "Negocios", "empty": "Sin negocios.", "valueLabel": "Valor: {{value}}" },
+  "saved": { "title": "Guardados", "empty": "Sin posts guardados." },
+  "communities": { "title": "Comunidades", "empty": "Sin comunidades.", "members": "{{count}} miembros" },
+  "marketplace": { "title": "Mercado", "empty": "Sin empresas.", "searchPh": "Filtrar…" },
+  "workspaceAds": { "title": "Anuncios", "empty": "Sin anuncios.", "impressions": "{{n}} impresiones" },
+  "meetings": { "title": "Reuniones", "body": "Videollamadas: usa la web por ahora." },
+  "aiAssistant": { "title": "Asistente IA", "empty": "Sin historial." },
+  "jobs": { "title": "Empleos", "body": "Empleos: pronto o en la web." },
+  "messages": { "title": "Mensajes", "body": "Chat no conectado. Usa la web." },
   "settings": {
     "title": "Ajustes",
     "language": "Idioma",
