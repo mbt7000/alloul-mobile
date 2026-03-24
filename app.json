@@ -1,30 +1,64 @@
 {
   "expo": {
-    "name": "alloul-mobile",
-    "slug": "alloul-mobile",
+    "name": "Alloul One",
+    "slug": "alloul-one",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "scheme": [
+      "alloul",
+      "com.googleusercontent.apps.1084542316298-qo916npu1t9tqecijcamup70o7fk1hds"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#04070f"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.alloul.one",
+      "buildNumber": "2",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Upload photos and stories",
+        "NSPhotoLibraryUsageDescription": "Share photos in posts",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.alloul.one",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+        "backgroundColor": "#04070f",
+        "foregroundImage": "./assets/icon.png"
+      }
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "extra": {
+      "apiUrl": "https://api.alloul.app",
+      "apiDocsUrl": "https://api.alloul.app/docs",
+      "apiOpenapiUrl": "https://api.alloul.app/openapi.json",
+      "firebase": {
+        "apiKey": "AIzaSyDJ3ekWJLQXVZuTfqOFxNqFSIlKyIe5CiU",
+        "authDomain": "alloul.firebaseapp.com",
+        "projectId": "alloul",
+        "storageBucket": "alloul.firebasestorage.app",
+        "messagingSenderId": "458917264125",
+        "appId": "1:458917264125:web:12e01e5c281f9ef5411c94"
+      },
+      "googleAuth": {
+        "iosClientId": "1084542316298-qo916npu1t9tqecijcamup70o7fk1hds.apps.googleusercontent.com",
+        "androidClientId": "",
+        "webClientId": "1084542316298-eta8kdgj0r9fl77435168km0c7uh3r1d.apps.googleusercontent.com"
+      },
+      "microsoftAuth": {
+        "clientId": "",
+        "tenantId": ""
+      },
+      "eas": {
+        "projectId": "17794375-d9c2-403a-890a-9c6037cb9990"
+      }
     }
   }
 }

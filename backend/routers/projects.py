@@ -1,0 +1,276 @@
+from __future__ import annotations
+
+from typing import Annotated, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+
+from auth import get_current_user
+from database import get_db
+from models import User, Project, ProjectTask
+
+router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+class ProjectCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    company_id: Optional[int] = None
+
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+
+
+class TaskCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    assignee_id: Optional[int] = None
+    due_date: Optional[str] = None
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    status: Optional[str] = None
+    assignee_id: Optional[int] = None
+    due_date: Optional[str] = None
+
+
+class TaskResponse(BaseModel):
+    id: int
+    project_id: int
+    title: str
+    description: Optional[str] = None
+    assignee_id: Optional[int] = None
+    assignee_name: Optional[str] = None
+    status: str
+    due_date: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class ProjectResponse(BaseModel):
+    id: int
+    user_id: int
+    company_id: Optional[int] = None
+    name: str
+    description: Optional[str] = None
+    status: str
+    tasks_count: int = 0
+    completed_count: int = 0
+    created_at: Optional[str] = None
+
+
+def _project_response(p: Project, db: Session) -> ProjectResponse:
+    total = db.query(ProjectTask).filter(ProjectTask.project_id == p.id).count()
+    done = db.query(ProjectTask).filter(
+        ProjectTask.project_id == p.id, ProjectTask.status == "done"
+    ).count()
+    return ProjectResponse(
+        id=p.id,
+        user_id=p.user_id,
+        company_id=p.company_id,
+        name=p.name,
+        description=p.description,
+        status=p.status,
+        tasks_count=total,
+        completed_count=done,
+        created_at=p.created_at.isoformat() if p.created_at else None,
+    )
+
+
+@router.get("/", response_model=list[ProjectResponse])
+def list_projects(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    projects = (
+        db.query(Project)
+        .filter(Project.user_id == current_user.id)
+        .order_by(Project.created_at.desc())
+        .all()
+    )
+    return [_project_response(p, db) for p in projects]
+
+
+@router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+def create_project(
+    body: ProjectCreate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    project = Project(
+        user_id=current_user.id,
+        name=body.name.strip(),
+        description=body.description,
+        company_id=body.company_id,
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return _project_response(project, db)
+
+
+@router.get("/{project_id}", response_model=ProjectResponse)
+def get_project(
+    project_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return _project_response(project, db)
+
+
+@router.patch("/{project_id}", response_model=ProjectResponse)
+def update_project(
+    project_id: int,
+    body: ProjectUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    project = db.query(Project).filter(Project.id == project_id, Project.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if body.name is not None:
+        project.name = body.name
+    if body.description is not None:
+        project.description = body.description
+    if body.status is not None:
+        project.status = body.status
+    db.commit()
+    db.refresh(project)
+    return _project_response(project, db)
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(
+    project_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    project = db.query(Project).filter(Project.id == project_id, Project.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    db.delete(project)
+    db.commit()
+
+
+# ─── Tasks ───────────────────────────────────────────────────────────────────
+
+@router.get("/{project_id}/tasks", response_model=list[TaskResponse])
+def list_tasks(
+    project_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    tasks = (
+        db.query(ProjectTask)
+        .filter(ProjectTask.project_id == project_id)
+        .order_by(ProjectTask.created_at.desc())
+        .all()
+    )
+    return [
+        TaskResponse(
+            id=t.id,
+            project_id=t.project_id,
+            title=t.title,
+            description=t.description,
+            assignee_id=t.assignee_id,
+            assignee_name=t.assignee.name if t.assignee else None,
+            status=t.status,
+            due_date=t.due_date,
+            created_at=t.created_at.isoformat() if t.created_at else None,
+        )
+        for t in tasks
+    ]
+
+
+@router.post("/{project_id}/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
+def create_task(
+    project_id: int,
+    body: TaskCreate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    task = ProjectTask(
+        project_id=project_id,
+        title=body.title.strip(),
+        description=body.description,
+        assignee_id=body.assignee_id,
+        due_date=body.due_date,
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return TaskResponse(
+        id=task.id,
+        project_id=task.project_id,
+        title=task.title,
+        description=task.description,
+        assignee_id=task.assignee_id,
+        assignee_name=task.assignee.name if task.assignee else None,
+        status=task.status,
+        due_date=task.due_date,
+        created_at=task.created_at.isoformat() if task.created_at else None,
+    )
+
+
+@router.patch("/{project_id}/tasks/{task_id}", response_model=TaskResponse)
+def update_task(
+    project_id: int,
+    task_id: int,
+    body: TaskUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    task = db.query(ProjectTask).filter(
+        ProjectTask.id == task_id, ProjectTask.project_id == project_id
+    ).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if body.title is not None:
+        task.title = body.title
+    if body.status is not None:
+        task.status = body.status
+    if body.assignee_id is not None:
+        task.assignee_id = body.assignee_id
+    if body.due_date is not None:
+        task.due_date = body.due_date
+    db.commit()
+    db.refresh(task)
+    return TaskResponse(
+        id=task.id,
+        project_id=task.project_id,
+        title=task.title,
+        description=task.description,
+        assignee_id=task.assignee_id,
+        assignee_name=task.assignee.name if task.assignee else None,
+        status=task.status,
+        due_date=task.due_date,
+        created_at=task.created_at.isoformat() if task.created_at else None,
+    )
+
+
+@router.delete("/{project_id}/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(
+    project_id: int,
+    task_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    task = db.query(ProjectTask).filter(
+        ProjectTask.id == task_id, ProjectTask.project_id == project_id
+    ).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    project = db.query(Project).filter(Project.id == project_id, Project.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=403, detail="Not your project")
+    db.delete(task)
+    db.commit()
