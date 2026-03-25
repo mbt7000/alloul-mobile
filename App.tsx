@@ -47,14 +47,14 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <LanguageSync />
-          <NavigationContainer theme={DarkTheme}>
-            <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-            <AuthProvider>
-              <CompanyProvider>
+          <AuthProvider>
+            <CompanyProvider>
+              <NavigationContainer theme={DarkTheme}>
+                <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
                 <RootNavigator />
-              </CompanyProvider>
-            </AuthProvider>
-          </NavigationContainer>
+              </NavigationContainer>
+            </CompanyProvider>
+          </AuthProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </I18nextProvider>

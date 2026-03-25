@@ -79,6 +79,8 @@
     "googleTokenMissing": "Falta el token de Google",
     "microsoftTokenMissing": "Falta el id_token de Microsoft",
     "networkError": "No se puede conectar al servidor. Revisa la red y EXPO_PUBLIC_API_URL en el build EAS.",
+    "socialPaused": "Google y Microsoft están desactivados en esta versión. Usa correo y contraseña.",
+    "emailLoginActive": "Acceso: correo y contraseña (activo).",
     "googleNotInBuild": "Google requiere Firebase y claves en el build. Vuelve a compilar con EXPO_PUBLIC_*."
   },
   "feed": {

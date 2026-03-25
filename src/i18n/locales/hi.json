@@ -79,6 +79,8 @@
     "googleTokenMissing": "Google टोकन गायब",
     "microsoftTokenMissing": "Microsoft id_token गायब",
     "networkError": "सर्वर तक नहीं पहुँच सके। इंटरनेट और EAS में EXPO_PUBLIC_API_URL जाँचें।",
+    "socialPaused": "इस बिल्ड में Google और Microsoft बंद हैं। ईमेल और पासवर्ड उपयोग करें।",
+    "emailLoginActive": "साइन-इन: ईमेल और पासवर्ड (सक्रिय)।",
     "googleNotInBuild": "Google के लिए Firebase और EXPO_PUBLIC_* कुंजियाँ बिल्ड में चाहिए। पुनः बिल्ड करें।"
   },
   "feed": {

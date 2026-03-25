@@ -2,14 +2,17 @@ import * as SecureStore from "expo-secure-store";
 import i18n from "../i18n";
 import { getApiBaseUrl, getApiDocsUrl, getApiOpenapiUrl } from "./apiConfig";
 
-const API_URL = getApiBaseUrl();
-
 export { getApiBaseUrl, getApiDocsUrl, getApiOpenapiUrl };
+
+/** Base URL for this request — always read from Expo config (not cached at module load). */
+function apiBaseUrl(): string {
+  return getApiBaseUrl();
+}
 
 /** Quick check — no auth. Backend must expose GET /health */
 export async function pingApiHealth(): Promise<{ ok: boolean; detail: string }> {
   try {
-    const res = await fetch(`${API_URL}/health`, { method: "GET" });
+    const res = await fetch(`${apiBaseUrl()}/health`, { method: "GET" });
     if (!res.ok) return { ok: false, detail: `HTTP ${res.status}` };
     const j = await res.json().catch(() => ({}));
     return { ok: true, detail: typeof j?.status === "string" ? j.status : "ok" };
@@ -42,7 +45,7 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
 
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+    res = await fetch(`${apiBaseUrl()}${endpoint}`, { ...options, headers });
   } catch {
     throw { message: "NETWORK_UNREACHABLE", status: 0 };
   }

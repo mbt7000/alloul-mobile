@@ -79,6 +79,8 @@
     "googleTokenMissing": "Google token missing",
     "microsoftTokenMissing": "Microsoft id_token is missing",
     "networkError": "Cannot reach the server. Check internet and that EXPO_PUBLIC_API_URL is correct in your EAS build.",
+    "socialPaused": "Google and Microsoft sign-in are paused in this build. Use email and password.",
+    "emailLoginActive": "Sign-in: email & password (active).",
     "googleNotInBuild": "Google sign-in needs Firebase + Google client IDs in the EAS build (EXPO_PUBLIC_*). Rebuild the app after setting secrets."
   },
   "feed": {

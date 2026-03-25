@@ -18,12 +18,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.alloul.one",
-      "buildNumber": "3",
       "infoPlist": {
         "NSCameraUsageDescription": "Upload photos and stories",
         "NSPhotoLibraryUsageDescription": "Share photos in posts",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "2"
     },
     "android": {
       "package": "com.alloul.one",

@@ -79,6 +79,8 @@
     "googleTokenMissing": "رمز Google مفقود",
     "microsoftTokenMissing": "رمز Microsoft مفقود",
     "networkError": "تعذر الاتصال بالخادم. تحقق من الإنترنت ومن ضبط EXPO_PUBLIC_API_URL في بناء EAS.",
+    "socialPaused": "تسجيل Google وMicrosoft متوقف مؤقتاً في هذا البناء. استخدم البريد وكلمة المرور.",
+    "emailLoginActive": "تسجيل الدخول: البريد وكلمة المرور (مفعّل).",
     "googleNotInBuild": "دخول Google يحتاج Firebase ومفاتيح Google في البناء (EXPO_PUBLIC_*). أعد بناء التطبيق بعد ضبط الأسرار."
   },
   "feed": {
