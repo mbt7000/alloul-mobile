@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import Screen from "../../../shared/layout/Screen";
 import AppHeader from "../../../shared/layout/AppHeader";
@@ -24,7 +24,8 @@ import {
   type DashboardActivityItem,
   type DashboardStats,
 } from "../../../api";
-import { colors } from "../../../theme/colors";
+import { useAppTheme } from "../../../theme/ThemeContext";
+import { useThemedStyles } from "../../../theme/useThemedStyles";
 
 type CompanyModule = {
   key: string;
@@ -47,6 +48,26 @@ const REQUIRED_MODULES: CompanyModule[] = [
 export default function ServicesHubScreen() {
   const navigation = useNavigation<any>();
   const { company } = useCompany();
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(() => ({
+    content: {
+      padding: 16,
+      paddingBottom: 110,
+    },
+    statRow: {
+      flexDirection: "row" as const,
+      gap: 10,
+      marginTop: 10,
+    },
+    listCards: { marginTop: 8 },
+    loadingWrap: {
+      paddingVertical: 24,
+      alignItems: "center" as const,
+    },
+    listWrap: {
+      gap: 10,
+    },
+  }));
   const [stats, setStats] = useState<CompanyStats | null>(null);
   const [dash, setDash] = useState<DashboardStats | null>(null);
   const [activity, setActivity] = useState<DashboardActivityItem[]>([]);
@@ -194,23 +215,3 @@ export default function ServicesHubScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    padding: 16,
-    paddingBottom: 110,
-  },
-  statRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 10,
-  },
-  listCards: { marginTop: 8 },
-  loadingWrap: {
-    paddingVertical: 24,
-    alignItems: "center",
-  },
-  listWrap: {
-    gap: 10,
-  },
-});

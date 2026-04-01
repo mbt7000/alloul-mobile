@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import Screen from "../../../shared/layout/Screen";
 import AppHeader from "../../../shared/layout/AppHeader";
@@ -15,10 +15,55 @@ import {
 } from "../components/CompanyBlocks";
 import { useCompany } from "../../../state/company/CompanyContext";
 import { getCompanyMembers, type CompanyMemberRow } from "../../../api";
-import { colors } from "../../../theme/colors";
+import { useAppTheme } from "../../../theme/ThemeContext";
+import { useThemedStyles } from "../../../theme/useThemedStyles";
 
 export default function TeamScreen() {
   const navigation = useNavigation<any>();
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles((c) => ({
+    content: {
+      padding: 16,
+      paddingBottom: 110,
+    },
+    statRow: {
+      flexDirection: "row" as const,
+      gap: 10,
+      marginTop: 10,
+    },
+    loadingWrap: {
+      paddingVertical: 24,
+      alignItems: "center" as const,
+    },
+    listWrap: {
+      gap: 10,
+    },
+    card: {
+      padding: 14,
+    },
+    cardHead: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 12,
+    },
+    avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      backgroundColor: "rgba(76,111,255,0.18)",
+      borderWidth: 1,
+      borderColor: "rgba(76,111,255,0.26)",
+    },
+    metaWrap: {
+      gap: 8,
+      marginTop: 12,
+    },
+    innerRow: {
+      backgroundColor: c.bgSurface,
+    },
+  }));
   const { company } = useCompany();
   const [items, setItems] = useState<CompanyMemberRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,47 +201,3 @@ export default function TeamScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    padding: 16,
-    paddingBottom: 110,
-  },
-  statRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 10,
-  },
-  loadingWrap: {
-    paddingVertical: 24,
-    alignItems: "center",
-  },
-  listWrap: {
-    gap: 10,
-  },
-  card: {
-    padding: 14,
-  },
-  cardHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(76,111,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(76,111,255,0.26)",
-  },
-  metaWrap: {
-    gap: 8,
-    marginTop: 12,
-  },
-  innerRow: {
-    backgroundColor: colors.bgSurface,
-  },
-});

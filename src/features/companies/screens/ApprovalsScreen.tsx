@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { View, StyleSheet, Pressable, FlatList, RefreshControl } from "react-native";
+import { View, Pressable, FlatList, RefreshControl } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
-import { colors } from "../../../theme/colors";
+import { useAppTheme } from "../../../theme/ThemeContext";
+import { useThemedStyles } from "../../../theme/useThemedStyles";
 import Screen from "../../../shared/layout/Screen";
 import SegmentedControl from "../../../shared/ui/SegmentedControl";
 import GlassCard from "../../../shared/components/GlassCard";
@@ -128,6 +129,32 @@ function makeMockApprovals(t: (k: string, o?: any) => string): InboxRow[] {
 export default function ApprovalsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<any>();
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles((c) => ({
+    list: { paddingHorizontal: 16, paddingBottom: 110 },
+    header: { flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "space-between" as const, paddingVertical: 8 },
+    headerActions: { flexDirection: "row" as const, gap: 8 },
+    markReadBtn: {
+      borderColor: "rgba(56,232,255,0.28)",
+      backgroundColor: "rgba(56,232,255,0.08)",
+    },
+    iconBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      backgroundColor: c.bgCard,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    iconBtnDisabled: { opacity: 0.35 },
+    segWrap: { paddingTop: 12, paddingBottom: 10 },
+    search: {},
+    filtersRow: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 8, marginTop: 10 },
+    sectionSpacer: { height: 12 },
+    emptyCard: { padding: 20, marginTop: 8 },
+  }));
   const {
     notifications,
     refresh,
@@ -342,6 +369,20 @@ export default function ApprovalsScreen() {
 }
 
 function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const styles = useThemedStyles((c) => ({
+    chip: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: "rgba(255,255,255,0.03)",
+    },
+    chipActive: {
+      backgroundColor: "rgba(56,232,255,0.10)",
+      borderColor: "rgba(56,232,255,0.35)",
+    },
+  }));
   return (
     <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
       <AppText variant="micro" weight="bold" tone={active ? "primary" : "muted"}>
@@ -352,6 +393,45 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 }
 
 function InboxItem({ row, onPress }: { row: InboxRow; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles((c) => ({
+    item: {
+      flexDirection: "row" as const,
+      gap: 12,
+      padding: 14,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.bgCard,
+      marginBottom: 10,
+    },
+    itemPressed: { transform: [{ scale: 0.99 }], opacity: 0.92, backgroundColor: "rgba(255,255,255,0.08)" },
+    itemIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 16,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      borderWidth: 1,
+    },
+    itemTopRow: { flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "space-between" as const, gap: 10 },
+    typeRow: { flexDirection: "row" as const, alignItems: "center" as const, gap: 8, marginTop: 8 },
+    typePill: {
+      alignSelf: "flex-start" as const,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.10)",
+      backgroundColor: "rgba(255,255,255,0.04)",
+    },
+    unreadDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: c.accentCyan,
+    },
+  }));
   const icon =
     row.kind === "chat"
       ? ("chatbubble-ellipses-outline" as const)
@@ -403,78 +483,3 @@ function InboxItem({ row, onPress }: { row: InboxRow; onPress: () => void }) {
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  list: { paddingHorizontal: 16, paddingBottom: 110 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8 },
-  headerActions: { flexDirection: "row", gap: 8 },
-  markReadBtn: {
-    borderColor: "rgba(56,232,255,0.28)",
-    backgroundColor: "rgba(56,232,255,0.08)",
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconBtnDisabled: { opacity: 0.35 },
-  segWrap: { paddingTop: 12, paddingBottom: 10 },
-  search: {},
-  filtersRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "rgba(255,255,255,0.03)",
-  },
-  chipActive: {
-    backgroundColor: "rgba(56,232,255,0.10)",
-    borderColor: "rgba(56,232,255,0.35)",
-  },
-  sectionSpacer: { height: 12 },
-
-  item: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgCard,
-    marginBottom: 10,
-  },
-  itemPressed: { transform: [{ scale: 0.99 }], opacity: 0.92, backgroundColor: "rgba(255,255,255,0.08)" },
-  itemIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-  },
-  itemTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  typeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
-  typePill: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-    backgroundColor: "rgba(255,255,255,0.04)",
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.accentCyan,
-  },
-  emptyCard: { padding: 20, marginTop: 8 },
-});

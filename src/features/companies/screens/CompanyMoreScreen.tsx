@@ -7,11 +7,54 @@ import Screen from "../../../shared/layout/Screen";
 import GlassCard from "../../../shared/components/GlassCard";
 import AppText from "../../../shared/ui/AppText";
 import ListRow from "../../../shared/ui/ListRow";
-import { colors } from "../../../theme/colors";
+import { useAppTheme } from "../../../theme/ThemeContext";
+import { useThemedStyles } from "../../../theme/useThemedStyles";
 import { radius } from "../../../theme/radius";
 
 export default function CompanyMoreScreen() {
   const navigation = useNavigation<any>();
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles((c) => ({
+    topStrip: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
+    },
+    greenSq: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: c.accentNeonGreen,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    sunBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: c.accentBlue,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    },
+    content: { padding: 16, gap: 14 },
+    profileCard: { padding: 16, borderRadius: radius.xl },
+    profileRow: { flexDirection: "row" as const, alignItems: "center" as const, gap: 14 },
+    coverPh: {
+      width: 72,
+      height: 72,
+      borderRadius: radius.md,
+      backgroundColor: c.cardElevated,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    card: { padding: 14 },
+    kicker: { letterSpacing: 0.8, textTransform: "uppercase" as const },
+  }));
   const { user } = useAuth();
   const displayName = user?.name || user?.username || "عضو";
   const roleLine = user?.bio?.split("\n")[0]?.slice(0, 48) || "مساحة العمل";
@@ -60,45 +103,3 @@ export default function CompanyMoreScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  topStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  greenSq: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.accentNeonGreen,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sunBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.accentBlue,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  content: { padding: 16, gap: 14 },
-  profileCard: { padding: 16, borderRadius: radius.xl },
-  profileRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  coverPh: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.md,
-    backgroundColor: colors.cardElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  card: { padding: 14 },
-  kicker: { letterSpacing: 0.8, textTransform: "uppercase" },
-});

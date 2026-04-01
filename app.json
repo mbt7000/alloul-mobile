@@ -9,7 +9,7 @@
     "userInterfaceStyle": "dark",
     "scheme": [
       "alloul",
-      "com.googleusercontent.apps.1084542316298-qo916npu1t9tqecijcamup70o7fk1hds"
+      "com.googleusercontent.apps.1084542316298-eta8kdgj0r9fl77435168km0c7uh3r1d"
     ],
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -24,14 +24,16 @@
         "NSPhotoLibraryUsageDescription": "Share photos in posts",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "32"
+      "buildNumber": "35"
     },
     "android": {
       "package": "com.alloul.one",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#04070f",
         "foregroundImage": "./assets/icon.png"
-      }
+      },
+      "versionCode": 2
     },
     "plugins": [
       "expo-secure-store"
@@ -49,7 +51,7 @@
         "appId": "1:458917264125:web:12e01e5c281f9ef5411c94"
       },
       "googleAuth": {
-        "iosClientId": "1084542316298-qo916npu1t9tqecijcamup70o7fk1hds.apps.googleusercontent.com",
+        "iosClientId": "1084542316298-eta8kdgj0r9fl77435168km0c7uh3r1d.apps.googleusercontent.com",
         "androidClientId": "",
         "webClientId": "1084542316298-eta8kdgj0r9fl77435168km0c7uh3r1d.apps.googleusercontent.com"
       },

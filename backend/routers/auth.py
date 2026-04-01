@@ -11,6 +11,7 @@ from database import get_db
 from firebase_verify import verify_firebase_token, is_firebase_configured
 from azure_ad_verify import verify_azure_ad_token
 from config import settings
+from admin_access import user_is_admin
 from models import User
 from schemas import (
     AzureAdRequest,
@@ -59,6 +60,7 @@ def _user_to_response(user: User) -> UserResponse:
         following_count=user.following_count or 0,
         posts_count=user.posts_count or 0,
         created_at=user.created_at.isoformat() if user.created_at else None,
+        is_admin=user_is_admin(user),
     )
 
 

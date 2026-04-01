@@ -1,13 +1,19 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Screen from "../../../shared/layout/Screen";
 import AppHeader from "../../../shared/layout/AppHeader";
 import GlassCard from "../../../shared/components/GlassCard";
 import AppText from "../../../shared/ui/AppText";
-import { colors } from "../../../theme/colors";
+import { useAppTheme } from "../../../theme/ThemeContext";
+import { useThemedStyles } from "../../../theme/useThemedStyles";
 
 export default function ApprovalDetailScreen() {
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles(() => ({
+    body: { padding: 16 },
+    card: { padding: 18 },
+  }));
   return (
     <Screen style={{ backgroundColor: colors.mediaCanvas }}>
       <AppHeader title="Approval" />
@@ -27,9 +33,4 @@ export default function ApprovalDetailScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  body: { padding: 16 },
-  card: { padding: 18 },
-});
 

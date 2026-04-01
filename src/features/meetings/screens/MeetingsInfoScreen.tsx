@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from "react-native";
+import { View, ScrollView, RefreshControl, ActivityIndicator, type ViewStyle } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { colors } from "../../../theme/colors";
+import { useAppTheme } from "../../../theme/ThemeContext";
+import { useThemedStyles } from "../../../theme/useThemedStyles";
 import Screen from "../../../shared/layout/Screen";
 import AppHeader from "../../../shared/layout/AppHeader";
 import GlassCard from "../../../shared/components/GlassCard";
@@ -12,6 +13,32 @@ import { getDashboardActivity, getHandoverWorkItems, getProjects, type Dashboard
 
 export default function MeetingsInfoScreen() {
   const navigation = useNavigation<any>();
+  const { colors } = useAppTheme();
+  const styles = useThemedStyles((c) => ({
+    scroll: { padding: 16, paddingBottom: 110, gap: 12 },
+    card: { padding: 16 },
+    summaryRow: {
+      flexDirection: "row" as const,
+      gap: 8,
+      marginTop: 12,
+    },
+    miniStat: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      backgroundColor: c.bgCard,
+    },
+    actionsRow: {
+      flexDirection: "row" as const,
+      gap: 8,
+      marginTop: 12,
+    },
+    listWrap: { gap: 10 },
+    loadingWrap: { paddingVertical: 24, alignItems: "center" as const },
+  }));
   const [activity, setActivity] = useState<DashboardActivityItem[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [handoverItems, setHandoverItems] = useState<HandoverWorkItem[]>([]);
@@ -84,9 +111,9 @@ export default function MeetingsInfoScreen() {
             Keep weekly meetings tied to projects, handovers, and current activity.
           </AppText>
           <View style={styles.summaryRow}>
-            <MiniStat label="Today" value={loading ? "..." : String(todayCount)} />
-            <MiniStat label="This week" value={loading ? "..." : String(weekCount)} />
-            <MiniStat label="Projects" value={loading ? "..." : String(projects.length)} />
+            <MiniStat label="Today" value={loading ? "..." : String(todayCount)} style={styles.miniStat} />
+            <MiniStat label="This week" value={loading ? "..." : String(weekCount)} style={styles.miniStat} />
+            <MiniStat label="Projects" value={loading ? "..." : String(projects.length)} style={styles.miniStat} />
           </View>
           <View style={styles.actionsRow}>
             <AppButton label="Handover" tone="glass" size="sm" onPress={() => navigation.navigate("Handover")} />
@@ -130,9 +157,9 @@ export default function MeetingsInfoScreen() {
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function MiniStat({ label, value, style }: { label: string; value: string; style: ViewStyle }) {
   return (
-    <View style={styles.miniStat}>
+    <View style={style}>
       <AppText variant="micro" tone="muted" weight="bold">
         {label}
       </AppText>
@@ -142,29 +169,3 @@ function MiniStat({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: { padding: 16, paddingBottom: 110, gap: 12 },
-  card: { padding: 16 },
-  summaryRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 12,
-  },
-  miniStat: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    backgroundColor: colors.bgCard,
-  },
-  actionsRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 12,
-  },
-  listWrap: { gap: 10 },
-  loadingWrap: { paddingVertical: 24, alignItems: "center" },
-});

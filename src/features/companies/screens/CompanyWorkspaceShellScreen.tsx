@@ -15,7 +15,8 @@ import Screen from "../../../shared/layout/Screen";
 import GlassCard from "../../../shared/components/GlassCard";
 import AppText from "../../../shared/ui/AppText";
 import AppButton from "../../../shared/ui/AppButton";
-import { colors } from "../../../theme/colors";
+import { useAppTheme } from "../../../theme/ThemeContext";
+import { useThemedStyles } from "../../../theme/useThemedStyles";
 import { useCompany } from "../../../state/company/CompanyContext";
 import {
   getAgentHistory,
@@ -252,6 +253,8 @@ function sectionTitle(key: CompanySectionKey): string {
 
 export default function CompanyWorkspaceShellScreen() {
   const navigation = useNavigation<any>();
+  const { colors } = useAppTheme();
+  const styles = useWorkspaceShellStyles();
   const { width } = useWindowDimensions();
   const wide = width >= 768;
 
@@ -671,6 +674,9 @@ function DashboardSection({
   nav: any;
   data: WorkspaceData;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useWorkspaceShellStyles();
+
   const tasks = loading ? "…" : String(dash?.pending_tasks ?? "—");
   const ho = loading ? "…" : String(dash?.total_handovers ?? "—");
   const activeProjects = data.projects.filter((p) => !isDoneProjectStatus(p.status)).length;
@@ -849,6 +855,8 @@ function TeamsSection({
   data: WorkspaceData;
   nav: any;
 }) {
+  const styles = useWorkspaceShellStyles();
+
   const emp = loading ? "…" : String(stats?.total_members ?? "—");
   const teamCount = countUniqueTeams(data.members);
   return (
@@ -923,6 +931,8 @@ function ProjectsSection({
   data: WorkspaceData;
   nav: any;
 }) {
+  const styles = useWorkspaceShellStyles();
+
   const risk = loading ? "…" : String(dash?.critical_risks ?? "0");
   const activeProjects = data.projects.filter((p) => !isDoneProjectStatus(p.status)).length;
   const completedProjects = data.projects.filter((p) => isDoneProjectStatus(p.status)).length;
@@ -998,6 +1008,9 @@ function TasksSection({
   dash: DashboardStats | null;
   nav: any;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useWorkspaceShellStyles();
+
   const taskBuckets = buildTaskBuckets(data, dash);
   return (
     <View style={{ gap: 12 }}>
@@ -1047,6 +1060,8 @@ function HandoverSection({
   data: WorkspaceData;
   nav: any;
 }) {
+  const styles = useWorkspaceShellStyles();
+
   const totalApi = loading ? "…" : dash?.total_handovers == null ? "—" : String(dash.total_handovers);
   const reviewCount = data.handoverItems.filter((i) => i.status === "open" || i.status === "in_progress").length;
   const doneCount = data.handoverItems.filter((i) => i.status === "submitted" || i.status === "accepted" || i.status === "closed").length;
@@ -1152,6 +1167,8 @@ function MeetingsLikeSection({
   rows?: { title: string; meta: string; icon: keyof typeof Ionicons.glyphMap }[];
   listEmpty?: { title: string; subtitle: string; cta: string; onCta: () => void };
 }) {
+  const styles = useWorkspaceShellStyles();
+
   return (
     <View style={{ gap: 12 }}>
       <GlassCard style={styles.sectionCard}>
@@ -1213,6 +1230,9 @@ function ProjectCardRow({
   risk: boolean;
   onPress?: () => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useWorkspaceShellStyles();
+
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.95 }]}>
       <GlassCard style={styles.listItemCard}>
@@ -1263,6 +1283,8 @@ function TaskColumn({
   tasks: { id: string; title: string }[];
   onPress?: () => void;
 }) {
+  const styles = useWorkspaceShellStyles();
+
   return (
     <View style={styles.taskCol}>
       <View style={[styles.taskColHead, { borderColor: `${tone}44` }]}>
@@ -1310,6 +1332,9 @@ function HandoverCardRow({
   state: "review" | "action" | "done";
   onPress?: () => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useWorkspaceShellStyles();
+
   const pill =
     state === "review"
       ? { label: "Review", bg: "rgba(56,232,255,0.12)", color: colors.accentCyan }
@@ -1350,6 +1375,9 @@ function TeamCardRow({
   sublabel?: string;
   onPress?: () => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useWorkspaceShellStyles();
+
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.95 }]}>
       <GlassCard style={styles.listItemCard}>
@@ -1381,6 +1409,9 @@ function ListRowItem({
   meta: string;
   icon: keyof typeof Ionicons.glyphMap;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useWorkspaceShellStyles();
+
   return (
     <Pressable style={({ pressed }) => [styles.listRow, pressed && { opacity: 0.92 }]}>
       <View style={styles.listRowIcon}>
@@ -1408,6 +1439,9 @@ function SummaryCard({
   value: string;
   icon: keyof typeof Ionicons.glyphMap;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useWorkspaceShellStyles();
+
   return (
     <GlassCard style={styles.summaryCard}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -1438,6 +1472,9 @@ function EmptyState({
   actionLabel: string;
   onAction: () => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useWorkspaceShellStyles();
+
   return (
     <View style={{ alignItems: "center", paddingVertical: 8 }}>
       <View style={styles.emptyIcon}>
@@ -1468,6 +1505,9 @@ function CompanyIdentityCard({
   loading: boolean;
   compact?: boolean;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useWorkspaceShellStyles();
+
   return (
     <GlassCard strength="strong" style={[styles.companyCard, compact && { marginBottom: 12 }]}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
@@ -1493,6 +1533,8 @@ function CompanyIdentityCard({
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
+  const styles = useWorkspaceShellStyles();
+
   return (
     <View style={styles.miniStat}>
       <AppText variant="micro" tone="muted" weight="bold" numberOfLines={1}>
@@ -1514,6 +1556,9 @@ function QuickAction({
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useWorkspaceShellStyles();
+
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.quickCell, pressed && { opacity: 0.92, transform: [{ scale: 0.99 }] }]}>
       <View style={styles.quickIcon}>
@@ -1526,27 +1571,28 @@ function QuickAction({
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1 },
+function useWorkspaceShellStyles() {
+  return useThemedStyles((c) => ({
+    root: { flex: 1 },
   topbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "space-between" as const,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    borderBottomColor: c.border,
     gap: 8,
   },
-  topbarLeft: { flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "36%" },
+  topbarLeft: { flexDirection: "row" as const, alignItems: "center" as const, gap: 8, maxWidth: "36%" },
   greenDocBtn: {
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: colors.accentNeonGreen,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colors.accentNeonGreen,
+    backgroundColor: c.accentNeonGreen,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    shadowColor: c.accentNeonGreen,
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 4,
@@ -1555,10 +1601,10 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 16,
-    backgroundColor: colors.accentBlue,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colors.accentBlue,
+    backgroundColor: c.accentBlue,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    shadowColor: c.accentBlue,
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 4,
@@ -1568,15 +1614,15 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgCard,
-    alignItems: "center",
-    justifyContent: "center",
+    borderColor: c.border,
+    backgroundColor: c.bgCard,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     marginRight: 10,
   },
   switchBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -1585,12 +1631,12 @@ const styles = StyleSheet.create({
     borderColor: "rgba(56,232,255,0.35)",
     backgroundColor: "rgba(56,232,255,0.10)",
   },
-  body: { flex: 1, flexDirection: "row" },
+  body: { flex: 1, flexDirection: "row" as const },
   sidebarFixed: {
     padding: 16,
     borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: colors.border,
-    backgroundColor: colors.bgSurface,
+    borderRightColor: c.border,
+    backgroundColor: c.bgSurface,
   },
   content: { flex: 1, padding: 16 },
   companyCard: { padding: 14 },
@@ -1598,8 +1644,8 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     backgroundColor: "rgba(45,226,199,0.10)",
     borderWidth: 1,
     borderColor: "rgba(45,226,199,0.18)",
@@ -1613,40 +1659,40 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(56,232,255,0.08)",
   },
   frame: { padding: 14, overflow: "hidden" },
-  frameHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12 },
+  frameHeader: { flexDirection: "row" as const, alignItems: "flex-start" as const, justifyContent: "space-between" as const, gap: 12, marginBottom: 12 },
   statsRowWrap: { maxWidth: "52%" },
-  statsRowScroll: { flexDirection: "row", gap: 12, alignItems: "flex-end", paddingLeft: 4 },
+  statsRowScroll: { flexDirection: "row" as const, gap: 12, alignItems: "flex-end", paddingLeft: 4 },
   miniStat: { alignItems: "flex-end", minWidth: 56, paddingVertical: 2 },
   sectionCard: { padding: 14 },
-  sectionTopRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
-  quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  summaryRow: { flexDirection: "row", gap: 10 },
+  sectionTopRow: { flexDirection: "row" as const, alignItems: "flex-start" as const, justifyContent: "space-between" as const, gap: 12 },
+  quickGrid: { flexDirection: "row" as const, flexWrap: "wrap", gap: 10 },
+  summaryRow: { flexDirection: "row" as const, gap: 10 },
   summaryCard: {
     flex: 1,
     padding: 14,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgCard,
+    borderColor: c.border,
+    backgroundColor: c.bgCard,
   },
   summaryIcon: {
     width: 36,
     height: 36,
     borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     backgroundColor: "rgba(56,232,255,0.08)",
     borderWidth: 1,
     borderColor: "rgba(56,232,255,0.18)",
     marginLeft: 12,
   },
-  kicker: { letterSpacing: 0.8, textTransform: "uppercase" },
+  kicker: { letterSpacing: 0.8, textTransform: "uppercase" as const },
   emptyIcon: {
     width: 40,
     height: 40,
     borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.10)",
@@ -1657,17 +1703,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgCard,
-    alignItems: "center",
+    borderColor: c.border,
+    backgroundColor: c.bgCard,
+    alignItems: "center" as const,
     gap: 8,
   },
   quickIcon: {
     width: 36,
     height: 36,
     borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     backgroundColor: "rgba(56,232,255,0.08)",
     borderWidth: 1,
     borderColor: "rgba(56,232,255,0.18)",
@@ -1675,48 +1721,48 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "flex-start",
+    justifyContent: "flex-start" as const,
   },
   sidebarSheet: {
     marginTop: 0,
     height: "100%",
-    backgroundColor: colors.bgSurface,
+    backgroundColor: c.bgSurface,
     borderRightWidth: 1,
-    borderRightColor: colors.border,
+    borderRightColor: c.border,
     padding: 16,
   },
-  kanbanRow: { flexDirection: "row", gap: 10 },
+  kanbanRow: { flexDirection: "row" as const, gap: 10 },
   taskCol: { flex: 1, minWidth: 0 },
   taskColHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "space-between" as const,
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     marginBottom: 8,
-    backgroundColor: colors.bgCard,
+    backgroundColor: c.bgCard,
   },
   countDot: {
     minWidth: 22,
     height: 22,
     borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     paddingHorizontal: 6,
   },
   taskRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
     gap: 8,
     paddingVertical: 10,
     paddingHorizontal: 10,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgSurface,
+    borderColor: c.border,
+    backgroundColor: c.bgSurface,
   },
   taskDot: { width: 6, height: 6, borderRadius: 3 },
   listItemCard: { padding: 12, borderRadius: 16 },
@@ -1730,7 +1776,7 @@ const styles = StyleSheet.create({
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: colors.accentCyan,
+    backgroundColor: c.accentCyan,
   },
   riskPill: {
     paddingHorizontal: 8,
@@ -1749,15 +1795,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     backgroundColor: "rgba(56,232,255,0.10)",
     borderWidth: 1,
     borderColor: "rgba(56,232,255,0.20)",
   },
   listRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
     gap: 10,
     paddingVertical: 10,
     paddingHorizontal: 4,
@@ -1767,11 +1813,12 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
     backgroundColor: "rgba(56,232,255,0.08)",
     borderWidth: 1,
     borderColor: "rgba(56,232,255,0.16)",
   },
-});
+  }));
+}
 

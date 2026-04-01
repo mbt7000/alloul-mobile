@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 import random
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
 import database
 from config import settings
@@ -20,43 +24,87 @@ from routers import (
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     _validate_runtime_safety()
-    _seed_admin()
+    _seed_bootstrap_users()
     yield
 
 
-def _seed_admin():
-    """Create admin user if explicitly enabled by env."""
-    if not settings.SEED_ADMIN_ENABLED:
-        return
-    if not settings.SEED_ADMIN_EMAIL or not settings.SEED_ADMIN_PASSWORD:
-        raise RuntimeError(
-            "SEED_ADMIN_ENABLED=true requires both SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD"
-        )
-    if len(settings.SEED_ADMIN_PASSWORD) < 12:
-        raise RuntimeError("SEED_ADMIN_PASSWORD must be at least 12 characters")
+def _generate_user_icode(db) -> str:
+    from models import User
 
+    for _ in range(100):
+        code = str(random.randint(100000, 999999))
+        if not db.query(User).filter(User.i_code == code).first():
+            return code
+    raise RuntimeError("Unable to generate unique i_code")
+
+
+def _create_password_user_if_missing(
+    db,
+    *,
+    email: str,
+    username: str,
+    password: str,
+    display_name: str,
+) -> None:
+    """Idempotent: skip if username or email already exists."""
     from auth import get_password_hash
     from models import User
 
+    if db.query(User).filter(User.username == username).first():
+        return
+    if db.query(User).filter(User.email == email).first():
+        return
+    user = User(
+        email=email,
+        username=username,
+        hashed_password=get_password_hash(password),
+        name=display_name,
+        i_code=_generate_user_icode(db),
+    )
+    db.add(user)
+    db.commit()
+
+
+def _seed_bootstrap_users():
+    """Create seeded users when enabled (admin + optional second account for multi-device QA)."""
     db = next(database.get_db())
     try:
-        existing = db.query(User).filter(User.username == settings.SEED_ADMIN_USERNAME).first()
-        if not existing:
-            for _ in range(100):
-                code = str(random.randint(100000, 999999))
-                if not db.query(User).filter(User.i_code == code).first():
-                    break
-            admin = User(
-                email=settings.SEED_ADMIN_EMAIL,
-                username=settings.SEED_ADMIN_USERNAME,
-                hashed_password=get_password_hash(settings.SEED_ADMIN_PASSWORD),
-                name="Admin",
-                i_code=code,
-            )
-            db.add(admin)
-            db.commit()
-    except Exception:
-        db.rollback()
+        if settings.SEED_ADMIN_ENABLED:
+            if not settings.SEED_ADMIN_EMAIL or not settings.SEED_ADMIN_PASSWORD:
+                raise RuntimeError(
+                    "SEED_ADMIN_ENABLED=true requires both SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD"
+                )
+            if len(settings.SEED_ADMIN_PASSWORD) < 12:
+                raise RuntimeError("SEED_ADMIN_PASSWORD must be at least 12 characters")
+            try:
+                _create_password_user_if_missing(
+                    db,
+                    email=settings.SEED_ADMIN_EMAIL,
+                    username=settings.SEED_ADMIN_USERNAME,
+                    password=settings.SEED_ADMIN_PASSWORD,
+                    display_name="Admin",
+                )
+            except Exception:
+                db.rollback()
+
+        if settings.SEED_SECOND_USER_ENABLED:
+            if not settings.SEED_SECOND_USER_EMAIL or not settings.SEED_SECOND_USER_PASSWORD:
+                raise RuntimeError(
+                    "SEED_SECOND_USER_ENABLED=true requires SEED_SECOND_USER_EMAIL and SEED_SECOND_USER_PASSWORD"
+                )
+            if len(settings.SEED_SECOND_USER_PASSWORD) < 8:
+                raise RuntimeError("SEED_SECOND_USER_PASSWORD must be at least 8 characters")
+            name = settings.SEED_SECOND_USER_NAME or settings.SEED_SECOND_USER_USERNAME
+            try:
+                _create_password_user_if_missing(
+                    db,
+                    email=settings.SEED_SECOND_USER_EMAIL,
+                    username=settings.SEED_SECOND_USER_USERNAME,
+                    password=settings.SEED_SECOND_USER_PASSWORD,
+                    display_name=name,
+                )
+            except Exception:
+                db.rollback()
     finally:
         db.close()
 

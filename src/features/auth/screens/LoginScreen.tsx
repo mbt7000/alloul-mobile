@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { login, register, loginWithFirebase, getApiBaseUrl, pingApiHealth } from "../../../api";
 import { useAuth } from "../../../state/auth/AuthContext";
-import { colors } from "../../../theme/colors";
+import { useAppTheme } from "../../../theme/ThemeContext";
 import Constants from "expo-constants";
 import { useTranslation } from "react-i18next";
 import { exchangeGoogleIdTokenForFirebaseIdToken } from "../../../shared/utils/firebaseAuth";
@@ -33,6 +33,7 @@ const GOOGLE_DISCOVERY = {
 export default function LoginScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
   const { refresh, sessionNotice, consumeSessionNotice } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState("");
@@ -55,7 +56,8 @@ export default function LoginScreen() {
   const expoClientId = googleWebClientId;
   const expoOwner = Constants.expoConfig?.owner;
   const expoSlug = Constants.expoConfig?.slug;
-  const googleIosClientBaseId = googleIosClientId?.replace(".apps.googleusercontent.com", "");
+  const googleNativeIosClientId = googleIosClientId || googleWebClientId;
+  const googleIosClientBaseId = googleNativeIosClientId?.replace(".apps.googleusercontent.com", "");
   const googleIosNativeRedirect = googleIosClientBaseId
     ? `com.googleusercontent.apps.${googleIosClientBaseId}:/oauthredirect`
     : undefined;
@@ -63,7 +65,7 @@ export default function LoginScreen() {
     Platform.OS === "ios"
       ? isExpoGo
         ? googleWebClientId
-        : googleIosClientId
+        : googleNativeIosClientId
       : isExpoGo
         ? googleWebClientId
         : googleAndroidClientId || googleWebClientId;
@@ -82,7 +84,7 @@ export default function LoginScreen() {
     expoClientId: expoClientId || "",
     clientId: googleClientId || "",
     webClientId: googleWebClientId || "",
-    iosClientId: googleIosClientId || "",
+    iosClientId: googleNativeIosClientId || "",
     androidClientId: googleAndroidClientId || "",
     redirectUri: googleRedirectUri,
     responseType: AuthSession.ResponseType.Code,
@@ -155,6 +157,8 @@ export default function LoginScreen() {
     } catch (err: unknown) {
       const e = err as { message?: string; status?: number };
       if (e?.message === "NETWORK_UNREACHABLE") setError(t("auth.networkError"));
+      else if (e?.message === "NETWORK_TIMEOUT") setError(t("auth.networkError"));
+      else if (e?.message === "SESSION_STORAGE_FAILED") setError(t("auth.sessionStorageFailed"));
       else if (typeof e?.status === "number" && e.status >= 500) setError(t("auth.serverError"));
       else setError(e?.message || t("auth.authFailed"));
     }
@@ -265,6 +269,8 @@ export default function LoginScreen() {
           setError(t("auth.googleNotConfigured"));
         } else if (msg === "NETWORK_UNREACHABLE" || msg === "NETWORK_TIMEOUT") {
           setError(t("auth.networkError"));
+        } else if (msg === "SESSION_STORAGE_FAILED") {
+          setError(t("auth.sessionStorageFailed"));
         } else if (typeof payload?.status === "number" && payload.status >= 500) {
           setError(t("auth.serverError"));
         } else {
@@ -277,6 +283,130 @@ export default function LoginScreen() {
 
     void finish();
   }, [googleClientId, googleRedirectUri, googleRequest, googleResponse, refresh, t]);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flexGrow: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
+        logoContainer: { alignItems: "center", marginBottom: 48 },
+        logoCircle: {
+          width: 72,
+          height: 72,
+          borderRadius: 20,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: colors.accent,
+          shadowColor: colors.accent,
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.4,
+          shadowRadius: 20,
+        },
+        logoText: { color: colors.white, fontSize: 32, fontWeight: "900" },
+        brandName: { color: colors.textPrimary, fontSize: 28, fontWeight: "900", marginTop: 16 },
+        tagline: { color: colors.textMuted, fontSize: 14, marginTop: 6 },
+        form: { gap: 14 },
+        input: {
+          backgroundColor: colors.bgCard,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 14,
+          paddingHorizontal: 16,
+          paddingVertical: 14,
+          color: colors.textPrimary,
+          fontSize: 15,
+        },
+        passwordRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: colors.bgCard,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 14,
+        },
+        passwordInput: {
+          flex: 1,
+          paddingHorizontal: 16,
+          paddingVertical: 14,
+          color: colors.textPrimary,
+          fontSize: 15,
+        },
+        eyeBtn: { paddingHorizontal: 14, paddingVertical: 14 },
+        eyeText: { color: colors.accentCyan, fontSize: 12, fontWeight: "700" },
+        error: { color: colors.danger, fontSize: 13, textAlign: "center" },
+        submitBtn: {
+          backgroundColor: colors.accent,
+          borderRadius: 14,
+          paddingVertical: 16,
+          alignItems: "center",
+          marginTop: 8,
+          shadowColor: colors.accent,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+        },
+        submitText: { color: colors.white, fontSize: 16, fontWeight: "700" },
+        socialPaused: {
+          color: colors.textMuted,
+          fontSize: 12,
+          textAlign: "center",
+          marginTop: 4,
+          lineHeight: 18,
+        },
+        divider: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
+        dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+        dividerText: { color: colors.textMuted, fontSize: 11, letterSpacing: 1 },
+        socialBtn: {
+          backgroundColor: colors.bgCard,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 14,
+          paddingVertical: 14,
+          alignItems: "center",
+        },
+        socialBtnOff: { opacity: 0.55 },
+        socialText: { color: colors.textPrimary, fontSize: 14, fontWeight: "700" },
+        socialTextMuted: { color: colors.textMuted },
+        switchText: { color: colors.textMuted, fontSize: 14, textAlign: "center", marginTop: 16 },
+        diagBox: {
+          marginTop: 28,
+          padding: 14,
+          borderRadius: 14,
+          backgroundColor: colors.card,
+          borderWidth: 1,
+          borderColor: colors.border,
+          gap: 8,
+        },
+        diagTitle: { color: colors.textSecondary, fontSize: 12, fontWeight: "800", letterSpacing: 0.5 },
+        diagLabel: { color: colors.textMuted, fontSize: 11, marginTop: 4 },
+        diagUrl: {
+          color: colors.accentCyan,
+          fontSize: 11,
+          fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+        },
+        diagBtn: {
+          marginTop: 8,
+          paddingVertical: 10,
+          borderRadius: 10,
+          backgroundColor: colors.bgCard,
+          borderWidth: 1,
+          borderColor: colors.border,
+          alignItems: "center",
+        },
+        diagBtnText: { color: colors.accentBlue, fontSize: 13, fontWeight: "700" },
+        sessionNotice: {
+          marginBottom: 14,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: "rgba(255,92,124,0.36)",
+          backgroundColor: "rgba(255,92,124,0.12)",
+        },
+        sessionNoticeText: { color: colors.textPrimary, fontSize: 13, fontWeight: "700" },
+        sessionNoticeDismiss: { color: colors.textMuted, fontSize: 11, marginTop: 6 },
+      }),
+    [colors]
+  );
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -412,119 +542,3 @@ export default function LoginScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
-  logoContainer: { alignItems: "center", marginBottom: 48 },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.accent,
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-  },
-  logoText: { color: colors.white, fontSize: 32, fontWeight: "900" },
-  brandName: { color: colors.textPrimary, fontSize: 28, fontWeight: "900", marginTop: 16 },
-  tagline: { color: colors.textMuted, fontSize: 14, marginTop: 6 },
-  form: { gap: 14 },
-  input: {
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: colors.textPrimary,
-    fontSize: 15,
-  },
-  passwordRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-  },
-  passwordInput: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: colors.textPrimary,
-    fontSize: 15,
-  },
-  eyeBtn: { paddingHorizontal: 14, paddingVertical: 14 },
-  eyeText: { color: colors.accentCyan, fontSize: 12, fontWeight: "700" },
-  error: { color: colors.danger, fontSize: 13, textAlign: "center" },
-  submitBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 8,
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-  },
-  submitText: { color: colors.white, fontSize: 16, fontWeight: "700" },
-  socialPaused: {
-    color: colors.textMuted,
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  divider: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { color: colors.textMuted, fontSize: 11, letterSpacing: 1 },
-  socialBtn: {
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  socialBtnOff: { opacity: 0.55 },
-  socialText: { color: colors.textPrimary, fontSize: 14, fontWeight: "700" },
-  socialTextMuted: { color: colors.textMuted },
-  switchText: { color: colors.textMuted, fontSize: 14, textAlign: "center", marginTop: 16 },
-  diagBox: {
-    marginTop: 28,
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 8,
-  },
-  diagTitle: { color: colors.textSecondary, fontSize: 12, fontWeight: "800", letterSpacing: 0.5 },
-  diagLabel: { color: colors.textMuted, fontSize: 11, marginTop: 4 },
-  diagUrl: { color: colors.accentCyan, fontSize: 11, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
-  diagBtn: {
-    marginTop: 8,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-  },
-  diagBtnText: { color: colors.accentBlue, fontSize: 13, fontWeight: "700" },
-  sessionNotice: {
-    marginBottom: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,92,124,0.36)",
-    backgroundColor: "rgba(255,92,124,0.12)",
-  },
-  sessionNoticeText: { color: colors.textPrimary, fontSize: 13, fontWeight: "700" },
-  sessionNoticeDismiss: { color: colors.textMuted, fontSize: 11, marginTop: 6 },
-});

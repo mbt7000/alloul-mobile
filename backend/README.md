@@ -54,6 +54,7 @@ Tables are created on startup. For Firebase OAuth, set `GOOGLE_APPLICATION_CREDE
 - Set `ENVIRONMENT=production`.
 - Set `CORS_ORIGINS` to explicit allowed origins (do not use `*` in production).
 - Keep `SEED_ADMIN_ENABLED=false` in production. If you need initial admin bootstrap, set `SEED_ADMIN_ENABLED=true` once with `SEED_ADMIN_EMAIL` and a strong `SEED_ADMIN_PASSWORD`, then disable it again.
+- For **two-device QA** (e.g. two admins on two phones), enable `SEED_SECOND_USER_ENABLED` with `SEED_SECOND_USER_*`, and set `ADMIN_ALLOWED_EMAILS` / `ADMIN_USERNAMES` so both accounts match `admin_access` (see `backend/.env.example` commented block).
 - For OAuth: set `GOOGLE_APPLICATION_CREDENTIALS` or upload the service account file and set the path.
 - **Microsoft SSO:** Set `MICROSOFT_CLIENT_ID` and `MICROSOFT_TENANT_ID` for POST /auth/azure-ad (companies can use corporate Microsoft accounts).
 - **Azure Blob Storage:** Set `AZURE_STORAGE_CONNECTION_STRING` and optionally `AZURE_STORAGE_CONTAINER` (default: uploads) for profile/company logo and file uploads.
