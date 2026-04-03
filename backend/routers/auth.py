@@ -4,6 +4,7 @@ import random
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from auth import create_access_token, get_current_user, get_password_hash, verify_password
@@ -90,28 +91,49 @@ def register(
     body: RegisterRequest,
     db: Annotated[Session, Depends(get_db)],
 ):
-    if db.query(User).filter(User.username == body.username).first():
+    try:
+        if db.query(User).filter(User.username == body.username).first():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already taken",
+            )
+        if db.query(User).filter(User.email == body.email).first():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already in use",
+            )
+        user = User(
+            email=body.email,
+            username=body.username,
+            hashed_password=get_password_hash(body.password),
+            name=body.username,
+            i_code=_generate_user_icode(db),
+        )
+        db.add(user)
+        try:
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username or email already in use",
+            )
+        except OperationalError:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database unavailable; verify DATABASE_URL and that Postgres is running",
+            )
+        token = create_access_token(data={"sub": str(user.id)})
+        return TokenResponse(access_token=token, token_type="bearer")
+    except HTTPException:
+        raise
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already taken",
-        )
-    if db.query(User).filter(User.email == body.email).first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already in use",
-        )
-    user = User(
-        email=body.email,
-        username=body.username,
-        hashed_password=get_password_hash(body.password),
-        name=body.username,
-        i_code=_generate_user_icode(db),
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    token = create_access_token(data={"sub": str(user.id)})
-    return TokenResponse(access_token=token, token_type="bearer")
+            detail=str(exc) or "Invalid registration data",
+        ) from exc
 
 
 @router.get("/me", response_model=UserResponse)

@@ -159,8 +159,12 @@ export default function LoginScreen() {
       if (e?.message === "NETWORK_UNREACHABLE") setError(t("auth.networkError"));
       else if (e?.message === "NETWORK_TIMEOUT") setError(t("auth.networkError"));
       else if (e?.message === "SESSION_STORAGE_FAILED") setError(t("auth.sessionStorageFailed"));
-      else if (typeof e?.status === "number" && e.status >= 500) setError(t("auth.serverError"));
-      else setError(e?.message || t("auth.authFailed"));
+      else if (typeof e?.status === "number" && e.status >= 500) {
+        const detail = typeof e?.message === "string" ? e.message.trim() : "";
+        const generic =
+          !detail || detail === "Internal Server Error" || detail === "Request failed";
+        setError(generic ? t("auth.serverError") : `${t("auth.serverError")}\n${detail}`);
+      } else setError(e?.message || t("auth.authFailed"));
     }
     setLoading(false);
   };
