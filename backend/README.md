@@ -47,6 +47,19 @@ The app reads **`EXPO_PUBLIC_API_URL`** at **build time**. It must be a **public
 
 Tables are created on startup. For Firebase OAuth, set `GOOGLE_APPLICATION_CREDENTIALS` to the path of your Firebase service account JSON.
 
+### QA: grant company membership (test company workspace)
+
+If a user exists but has no `company_members` row, the app cannot load “my company”. Admins can still open the company shell after `ADMIN_ALLOWED_EMAILS`; to attach a real company for API tests:
+
+```bash
+cd /path/to/backend   # e.g. /root/allou-backend
+source .venv/bin/activate   # or .venv/bin/activate.fish
+python scripts/grant_company_membership.py --email you@example.com
+# optional: --company-id 2   (default = first company by id)
+```
+
+Requires at least one row in `companies` (create via the app or `POST /companies` with a logged-in user who is not already in a company).
+
 ## Deploy
 
 - Set `DATABASE_URL` to your PostgreSQL connection string.
