@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from auth import get_current_user
+from admin_access import user_is_admin
 from database import get_db
 from models import User, Company, Subscription, Department, CompanyMember, ActivityLog, CompanyInvitation, Notification
 from schemas_company import (
@@ -58,10 +59,29 @@ def _log_activity(db: Session, company_id: int, user_id: Optional[int], action: 
 MAX_EMPLOYEES = {"starter": 10, "pro": 50, "pro_plus": 200}
 
 
-def _require_active_subscription(db: Session, company_id: int) -> Subscription:
-    sub = db.query(Subscription).filter(
-        Subscription.company_id == company_id
-    ).order_by(Subscription.id.desc()).first()
+def _require_active_subscription(
+    db: Session,
+    company_id: int,
+    *,
+    current_user: Optional[User] = None,
+) -> Subscription:
+    sub = (
+        db.query(Subscription)
+        .filter(Subscription.company_id == company_id)
+        .order_by(Subscription.id.desc())
+        .first()
+    )
+    if sub and sub.status in ("active", "trialing"):
+        return sub
+    if current_user and user_is_admin(current_user):
+        if sub is not None:
+            return sub
+
+        class _AdminPlanBypass:
+            plan_id = "pro_plus"
+            status = "active"
+
+        return _AdminPlanBypass()  # type: ignore[return-value]
     if not sub or sub.status not in ("active", "trialing"):
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -266,6 +286,14 @@ def subscription_status(
     company = _get_my_company(db, current_user.id)
     if not company:
         return SubscriptionStatusResponse(plan_id=None, status=None)
+    if user_is_admin(current_user):
+        return SubscriptionStatusResponse(
+            plan_id="admin",
+            status="active",
+            current_period_end=None,
+            trial_end=None,
+            cancel_at_period_end=False,
+        )
     sub = db.query(Subscription).filter(Subscription.company_id == company.id).order_by(Subscription.id.desc()).first()
     if not sub:
         return SubscriptionStatusResponse(plan_id=None, status=None)
@@ -301,7 +329,7 @@ def create_department(
     company = _get_my_company(db, current_user.id)
     if not company:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No company found")
-    _require_active_subscription(db, company.id)
+    _require_active_subscription(db, company.id, current_user=current_user)
     mem = _get_my_membership(db, current_user.id, company.id)
     if not mem or mem.role not in ("admin", "manager"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin or Manager required")
@@ -383,7 +411,7 @@ def add_member(
     company = _get_my_company(db, current_user.id)
     if not company:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No company found")
-    sub = _require_active_subscription(db, company.id)
+    sub = _require_active_subscription(db, company.id, current_user=current_user)
     current_count = db.query(CompanyMember).filter(CompanyMember.company_id == company.id).count()
     limit = MAX_EMPLOYEES.get(sub.plan_id, 0)
     if limit and current_count >= limit:
