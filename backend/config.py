@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     # AI (Anthropic Claude)
     ANTHROPIC_API_KEY: Optional[str] = None
 
+    # Daily.co — غرف فيديو + شات داخل الجلسة (قسم الشركات)
+    DAILY_API_KEY: Optional[str] = None
+    # النطاق الفرعي فقط، مثال: alloul → https://alloul.daily.co
+    DAILY_SUBDOMAIN: Optional[str] = None
+
     @computed_field
     @property
     def CORS_ORIGINS(self) -> list[str]:

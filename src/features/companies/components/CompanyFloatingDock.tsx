@@ -20,7 +20,7 @@ const ITEMS: {
   { dock: "more", label: "المزيد", icon: "ellipsis-horizontal", iconActive: "ellipsis-horizontal", matchSection: "settings" },
   { dock: "chat", label: "المحادثات", icon: "chatbubble-outline", iconActive: "chatbubble", matchSection: "chat", navigate: "Chat" },
   { dock: "apps", label: "الخدمات", icon: "apps-outline", iconActive: "apps", matchSection: null, navigate: "Apps" },
-  { dock: "mail", label: "المراسلات", icon: "mail-outline", iconActive: "mail", matchSection: null, navigate: "Inbox" },
+  { dock: "mail", label: "الموافقات", icon: "file-tray-outline", iconActive: "file-tray", matchSection: null, navigate: "Inbox" },
   { dock: "home", label: "الرئيسية", icon: "grid-outline", iconActive: "grid", matchSection: "dashboard" },
 ];
 

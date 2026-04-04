@@ -12,6 +12,7 @@ import { useCompany } from "../../../state/company/CompanyContext";
 import { getDashboardActivity, getPosts, type ApiPost, type DashboardActivityItem } from "../../../api";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import { useThemedStyles } from "../../../theme/useThemedStyles";
+import CompanyWorkModeTopBar from "../components/CompanyWorkModeTopBar";
 
 function relativeTime(value?: string | null) {
   if (!value) return "Just now";
@@ -125,8 +126,10 @@ export default function CompanyFeedScreen() {
 
   return (
     <Screen edges={["top", "left", "right", "bottom"]} style={{ backgroundColor: colors.mediaCanvas }}>
+      <CompanyWorkModeTopBar />
       <AppHeader
         title="الإعلانات"
+        leftButton="none"
         rightActions={
           <AppButton label="نشر" size="sm" onPress={() => navigation.navigate("CreatePost")} />
         }

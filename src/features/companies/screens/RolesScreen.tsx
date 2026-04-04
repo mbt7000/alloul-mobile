@@ -6,6 +6,7 @@ import GlassCard from "../../../shared/components/GlassCard";
 import AppText from "../../../shared/ui/AppText";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import { useThemedStyles } from "../../../theme/useThemedStyles";
+import CompanyWorkModeTopBar from "../components/CompanyWorkModeTopBar";
 
 const ROLES = [
   { id: "1", name: "Owner", perms: "إدارة كاملة + السياسات + الفوترة" },
@@ -24,6 +25,7 @@ export default function RolesScreen() {
   }));
   return (
     <Screen edges={["top", "left", "right", "bottom"]} style={{ backgroundColor: colors.mediaCanvas }}>
+      <CompanyWorkModeTopBar />
       <AppHeader title="الأدوار" leftButton="back" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <GlassCard style={styles.card}>

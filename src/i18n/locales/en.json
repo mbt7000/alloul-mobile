@@ -85,6 +85,10 @@
     "emailLoginActive": "Sign-in: email & password (active).",
     "diagOAuthKeysPresent": "Google: enabled in this build (if sign-in fails, check Google Cloud OAuth + Android SHA-1 for this app). Microsoft: not enabled yet.",
     "diagOAuthKeysMissing": "Google/Microsoft: build keys incomplete; a future enable still needs an EAS rebuild with EXPO_PUBLIC_*.",
+    "diagGoogleOk": "Google: enabled (Android failing? add Android OAuth client + EAS SHA-1 in Google Cloud).",
+    "diagGoogleNo": "Google: missing Firebase or client IDs in this build.",
+    "diagMicrosoftOk": "Microsoft: enabled (Azure: add redirect e.g. alloul://oauth/microsoft + public client).",
+    "diagMicrosoftNo": "Microsoft: set EXPO_PUBLIC_MICROSOFT_CLIENT_ID and TENANT_ID in EAS, then rebuild.",
     "googleNotInBuild": "Google sign-in needs Firebase + Google client IDs in the EAS build (EXPO_PUBLIC_*). Rebuild the app after setting secrets."
   },
   "feed": {

@@ -85,6 +85,10 @@
     "emailLoginActive": "تسجيل الدخول: البريد وكلمة المرور (مفعّل).",
     "diagOAuthKeysPresent": "Google: مفعّل في هذا البناء (إن فشل الدخول، راجع Google Console وSHA-1 للتطبيق). Microsoft: غير مفعّل بعد.",
     "diagOAuthKeysMissing": "Google/Microsoft: مفاتيح البناء ناقصة؛ حتى عند التفعيل لاحقاً تحتاج إعادة بناء مع EXPO_PUBLIC_*.",
+    "diagGoogleOk": "Google: مفعّل (فشل على أندرويد؟ أضف OAuth Android + SHA-1 من EAS في Google Console).",
+    "diagGoogleNo": "Google: ناقص Firebase أو معرّفات العميل في البناء.",
+    "diagMicrosoftOk": "Microsoft: مفعّل (Azure: أضف redirect مثل alloul://oauth/microsoft + تدفق عميل عام).",
+    "diagMicrosoftNo": "Microsoft: أضف EXPO_PUBLIC_MICROSOFT_CLIENT_ID و EXPO_PUBLIC_MICROSOFT_TENANT_ID في EAS ثم أعد البناء.",
     "googleNotInBuild": "دخول Google يحتاج Firebase ومفاتيح Google في البناء (EXPO_PUBLIC_*). أعد بناء التطبيق بعد ضبط الأسرار."
   },
   "feed": {

@@ -12,6 +12,7 @@ import { CompanyActionTile, CompanyChip, CompanyHeroCard, CompanySectionLabel, C
 import { useCompany } from "../../../state/company/CompanyContext";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import { useThemedStyles } from "../../../theme/useThemedStyles";
+import CompanyWorkModeTopBar from "../components/CompanyWorkModeTopBar";
 
 const FILE_GROUPS = [
   { id: "contracts", title: "العقود", count: "18", icon: "document-text-outline" as const, tone: "blue" as const },
@@ -64,8 +65,10 @@ export default function CompanyFilesScreen() {
 
   return (
     <Screen edges={["top", "left", "right", "bottom"]} style={{ backgroundColor: colors.mediaCanvas }}>
+      <CompanyWorkModeTopBar />
       <AppHeader
         title="ملفات الشركة"
+        leftButton="none"
         rightActions={<AppButton label="رفع" size="sm" onPress={() => {}} />}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

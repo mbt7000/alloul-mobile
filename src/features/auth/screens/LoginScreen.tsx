@@ -16,6 +16,7 @@ import * as AuthSession from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { login, register, loginWithFirebase, getApiBaseUrl, pingApiHealth } from "../../../api";
+import MicrosoftSignInButton from "../components/MicrosoftSignInButton";
 import { useAuth } from "../../../state/auth/AuthContext";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import Constants from "expo-constants";
@@ -48,6 +49,9 @@ export default function LoginScreen() {
   const debugAuthVersion = typeof extra?.debugAuthVersion === "string" ? extra.debugAuthVersion : "unknown";
   const firebase = (extra?.firebase as Record<string, string> | undefined) || {};
   const googleAuth = (extra?.googleAuth as Record<string, string> | undefined) || {};
+  const microsoftAuth = (extra?.microsoftAuth as Record<string, string> | undefined) || {};
+  const msClientId = microsoftAuth?.clientId?.trim();
+  const msTenantId = microsoftAuth?.tenantId?.trim();
   const firebaseReady = Boolean(firebase?.apiKey && firebase?.projectId);
   const isExpoGo = Constants.appOwnership === "expo";
   const googleIosClientId = googleAuth?.iosClientId?.trim();
@@ -71,6 +75,7 @@ export default function LoginScreen() {
         : googleAndroidClientId || googleWebClientId;
   const googleReady = Boolean(googleClientId);
   const canUseGoogle = firebaseReady && googleReady;
+  const canUseMicrosoft = Boolean(msClientId && msTenantId);
   const projectNameForProxy = expoOwner && expoSlug ? `@${expoOwner}/${expoSlug}` : undefined;
   const generatedRedirectUri = AuthSession.makeRedirectUri({ useProxy: true } as never);
   const expoProxyRedirectUri = projectNameForProxy ? `https://auth.expo.io/${projectNameForProxy}` : generatedRedirectUri;
@@ -116,12 +121,13 @@ export default function LoginScreen() {
           : isExpoGo
             ? "web(expo-go)"
             : "android_or_web(standalone)"
-      }\ncanUseGoogle=${
-        canUseGoogle ? "true" : "false"
+      }\ncanUseGoogle=${canUseGoogle ? "true" : "false"}\ncanUseMicrosoft=${
+        canUseMicrosoft ? "true" : "false"
       }`
     );
   }, [
     canUseGoogle,
+    canUseMicrosoft,
     debugAuthVersion,
     extra?.apiUrl,
     firebaseReady,
@@ -477,7 +483,7 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {!canUseGoogle ? <Text style={styles.socialPaused}>{t("auth.socialPaused")}</Text> : null}
+          {!canUseGoogle && !canUseMicrosoft ? <Text style={styles.socialPaused}>{t("auth.socialPaused")}</Text> : null}
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -499,9 +505,27 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.socialBtn, styles.socialBtnOff]} disabled>
-            <Text style={[styles.socialText, styles.socialTextMuted]}>{t("auth.continueMicrosoft")}</Text>
-          </TouchableOpacity>
+          {canUseMicrosoft && msClientId && msTenantId ? (
+            <MicrosoftSignInButton
+              clientId={msClientId}
+              tenantId={msTenantId}
+              disabled={loading}
+              onError={(msg) => setError(msg)}
+              onSignedIn={async () => {
+                await refresh();
+              }}
+              label={t("auth.continueMicrosoft")}
+              socialBtn={styles.socialBtn}
+              socialText={styles.socialText}
+              socialBtnOff={styles.socialBtnOff}
+              socialTextMuted={styles.socialTextMuted}
+              spinnerColor={colors.textPrimary}
+            />
+          ) : (
+            <TouchableOpacity style={[styles.socialBtn, styles.socialBtnOff]} disabled>
+              <Text style={[styles.socialText, styles.socialTextMuted]}>{t("auth.continueMicrosoft")}</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             onPress={() => {
@@ -521,7 +545,10 @@ export default function LoginScreen() {
           </Text>
           <Text style={styles.diagLabel}>{t("auth.emailLoginActive")}</Text>
           <Text style={styles.diagLabel}>
-            {googleReady && firebaseReady ? t("auth.diagOAuthKeysPresent") : t("auth.diagOAuthKeysMissing")}
+            {googleReady && firebaseReady ? t("auth.diagGoogleOk") : t("auth.diagGoogleNo")}
+          </Text>
+          <Text style={styles.diagLabel}>
+            {canUseMicrosoft ? t("auth.diagMicrosoftOk") : t("auth.diagMicrosoftNo")}
           </Text>
           <TouchableOpacity
             style={styles.diagBtn}

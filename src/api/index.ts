@@ -5,3 +5,5 @@ export * from "./notifications.api";
 export * from "./companies.api";
 export * from "./search.api";
 export * from "./admin.api";
+export * from "./stream.api";
+export * from "./daily.api";

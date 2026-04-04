@@ -85,6 +85,10 @@
     "emailLoginActive": "साइन-इन: ईमेल और पासवर्ड (सक्रिय)।",
     "diagOAuthKeysPresent": "Google: इस बिल्ड में चालू (असफल हो तो Google Cloud OAuth + Android SHA-1 जाँचें)। Microsoft: अभी चालू नहीं।",
     "diagOAuthKeysMissing": "Google/Microsoft: बिल्ड कुंजियाँ अधूरी; बाद में चालू करने पर EAS रीबिल्ड + EXPO_PUBLIC_* चाहिए।",
+    "diagGoogleOk": "Google: चालू (Android? Google Cloud में Android OAuth + EAS SHA-1 जोड़ें).",
+    "diagGoogleNo": "Google: इस बिल्ड में Firebase या client IDs नहीं.",
+    "diagMicrosoftOk": "Microsoft: चालू (Azure: redirect जैसे alloul://oauth/microsoft + public client).",
+    "diagMicrosoftNo": "Microsoft: EAS में EXPO_PUBLIC_MICROSOFT_CLIENT_ID और TENANT_ID सेट करके rebuild करें.",
     "googleNotInBuild": "Google के लिए Firebase और EXPO_PUBLIC_* कुंजियाँ बिल्ड में चाहिए। पुनः बिल्ड करें।"
   },
   "feed": {

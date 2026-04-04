@@ -40,6 +40,7 @@ import {
 } from "../../../api";
 import CompanySidebar, { type CompanySectionKey } from "../components/CompanySidebar";
 import CompanyFloatingDock from "../components/CompanyFloatingDock";
+import { openMeetingProvider } from "../../meetings/openMeetingLinks";
 import StatPairRow from "../../../shared/components/StatPairRow";
 import ThinProgressBar from "../../../shared/components/ThinProgressBar";
 import PillBadge from "../../../shared/components/PillBadge";
@@ -253,7 +254,7 @@ function sectionTitle(key: CompanySectionKey): string {
 
 export default function CompanyWorkspaceShellScreen() {
   const navigation = useNavigation<any>();
-  const { colors } = useAppTheme();
+  const { colors, mode, toggleMode } = useAppTheme();
   const styles = useWorkspaceShellStyles();
   const { width } = useWindowDimensions();
   const wide = width >= 768;
@@ -413,8 +414,8 @@ export default function CompanyWorkspaceShellScreen() {
               ميديا
             </AppText>
           </Pressable>
-          <Pressable style={styles.iconBtn} onPress={() => Alert.alert("المظهر", "الوضع الفاتح قريباً.")}>
-            <Ionicons name="sunny-outline" size={20} color={colors.textPrimary} />
+          <Pressable style={styles.iconBtn} onPress={() => toggleMode()} accessibilityLabel="تبديل المظهر">
+            <Ionicons name={mode === "dark" ? "sunny-outline" : "moon-outline"} size={20} color={colors.textPrimary} />
           </Pressable>
         </View>
 
@@ -522,23 +523,24 @@ function SectionContent({
   }
   if (activeKey === "meetings") {
     const meetingRows = data.activity.slice(0, 4).map((row, i) => ({
-      title: row.title || `Meeting note ${i + 1}`,
+      title: row.title || `ملاحظة ${i + 1}`,
       meta: row.time ? `${row.type} · ${row.time}` : row.type,
       icon: "videocam-outline" as keyof typeof Ionicons.glyphMap,
+      onPress: () => nav.navigate("Projects"),
     }));
     return (
       <MeetingsLikeSection
-        onPrimary={() => nav.navigate("Meetings")}
-        title="Meetings"
-        subtitle="Agendas, notes, and outcomes tied to projects."
-        primary="Schedule meeting"
+        onPrimary={() => void openMeetingProvider("meet")}
+        title="الاجتماعات"
+        subtitle="بدء جلسة مرئية أو متابعة النشاط والمشاريع."
+        primary="بدء Meet"
         actions={[
-          { label: "Schedule", icon: "calendar-outline", onPress: () => nav.navigate("Meetings") },
-          { label: "Recordings", icon: "mic-outline", onPress: () => nav.navigate("Meetings") },
-          { label: "Tasks", icon: "checkbox-outline", onPress: () => onSelect("tasks") },
-          { label: "Handover", icon: "swap-horizontal-outline", onPress: () => onSelect("handover") },
+          { label: "Google Meet", icon: "videocam-outline", onPress: () => void openMeetingProvider("meet") },
+          { label: "Zoom", icon: "mic-outline", onPress: () => void openMeetingProvider("zoom") },
+          { label: "Teams", icon: "people-outline", onPress: () => void openMeetingProvider("teams") },
+          { label: "المهام", icon: "checkbox-outline", onPress: () => onSelect("tasks") },
         ]}
-        listTitle="Upcoming & recent"
+        listTitle="قريباً وأحدث"
         rows={meetingRows}
       />
     );
@@ -1164,7 +1166,7 @@ function MeetingsLikeSection({
   onPrimary?: () => void;
   actions: QuickAct[];
   listTitle?: string;
-  rows?: { title: string; meta: string; icon: keyof typeof Ionicons.glyphMap }[];
+  rows?: { title: string; meta: string; icon: keyof typeof Ionicons.glyphMap; onPress?: () => void }[];
   listEmpty?: { title: string; subtitle: string; cta: string; onCta: () => void };
 }) {
   const styles = useWorkspaceShellStyles();
@@ -1200,7 +1202,7 @@ function MeetingsLikeSection({
           {rows && rows.length > 0 ? (
             <View style={{ gap: 8 }}>
               {rows.map((r, i) => (
-                <ListRowItem key={`${r.title}-${i}`} title={r.title} meta={r.meta} icon={r.icon} />
+                <ListRowItem key={`${r.title}-${i}`} title={r.title} meta={r.meta} icon={r.icon} onPress={r.onPress} />
               ))}
             </View>
           ) : listEmpty ? (
@@ -1404,16 +1406,18 @@ function ListRowItem({
   title,
   meta,
   icon,
+  onPress,
 }: {
   title: string;
   meta: string;
   icon: keyof typeof Ionicons.glyphMap;
+  onPress?: () => void;
 }) {
   const { colors } = useAppTheme();
   const styles = useWorkspaceShellStyles();
 
   return (
-    <Pressable style={({ pressed }) => [styles.listRow, pressed && { opacity: 0.92 }]}>
+    <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => [styles.listRow, pressed && onPress && { opacity: 0.92 }]}>
       <View style={styles.listRowIcon}>
         <Ionicons name={icon} size={18} color={colors.accentCyan} />
       </View>

@@ -16,6 +16,7 @@ import { useCompany } from "../../../state/company/CompanyContext";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import { useThemedStyles } from "../../../theme/useThemedStyles";
+import CompanyWorkModeTopBar from "../../companies/components/CompanyWorkModeTopBar";
 import {
   getHandoverWorkItems,
   updateHandoverWorkItemStatus,
@@ -106,8 +107,10 @@ export default function HandoverScreen() {
 
   return (
     <Screen edges={["top", "left", "right", "bottom"]} style={{ backgroundColor: colors.mediaCanvas }}>
+      <CompanyWorkModeTopBar />
       <AppHeader
         title="التسليم"
+        leftButton="none"
         rightActions={<AppButton label="الملفات" size="sm" onPress={() => navigation.navigate("CompanyFiles")} />}
       />
       <ScrollView

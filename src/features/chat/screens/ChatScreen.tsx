@@ -10,10 +10,13 @@ import AppButton from "../../../shared/ui/AppButton";
 import { getAgentHistory, getDashboardActivity, getNotifications, type AgentMessageRow, type DashboardActivityItem, type NotificationItem } from "../../../api";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import { useThemedStyles } from "../../../theme/useThemedStyles";
+import CompanyWorkModeTopBar from "../../companies/components/CompanyWorkModeTopBar";
+import { useCompanyDailyRoom } from "../../../lib/useCompanyDailyRoom";
 
 export default function ChatScreen() {
   const navigation = useNavigation<any>();
   const { colors } = useAppTheme();
+  const { openCompanyDaily, dailyLoading } = useCompanyDailyRoom();
   const styles = useThemedStyles((c) => ({
     body: { padding: 16, paddingBottom: 110, gap: 10 },
     card: { padding: 18 },
@@ -86,10 +89,12 @@ export default function ChatScreen() {
   }, [activity, history]);
 
   return (
-    <Screen style={{ backgroundColor: colors.mediaCanvas }}>
+    <Screen style={{ backgroundColor: colors.mediaCanvas }} edges={["top", "left", "right", "bottom"]}>
+      <CompanyWorkModeTopBar />
       <AppHeader
-        title="Chat"
-        rightActions={<AppButton label="Inbox" size="sm" onPress={() => navigation.navigate("Notifications")} />}
+        title="المحادثات"
+        leftButton="none"
+        rightActions={<AppButton label="التنبيهات" size="sm" onPress={() => navigation.navigate("Notifications")} />}
       />
       <ScrollView
         contentContainerStyle={styles.body}
@@ -106,6 +111,14 @@ export default function ChatScreen() {
           </View>
           <View style={{ height: 12 }} />
           <View style={{ gap: 8 }}>
+            <ListRow
+              title="غرفة Daily — فيديو وشات"
+              subtitle={dailyLoading ? "جاري التحميل…" : "اجتماع الفريق عبر Daily (توكن من الخادم)"}
+              iconLeft="videocam-outline"
+              onPress={() => {
+                if (!dailyLoading) void openCompanyDaily();
+              }}
+            />
             <ListRow title="Company announcements" subtitle="General updates and leadership notes" iconLeft="megaphone-outline" onPress={() => navigation.navigate("CompanyFeed")} />
             <ListRow title="Project handover room" subtitle="Track progress between assignees" iconLeft="swap-horizontal-outline" onPress={() => navigation.navigate("Handover")} />
             <ListRow title="Direct messages" subtitle="One-to-one collaboration" iconLeft="chatbubble-ellipses-outline" onPress={() => navigation.navigate("Teams")} />

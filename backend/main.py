@@ -16,7 +16,7 @@ from database import engine, Base
 from routers import (
     auth, companies, webhooks, upload,
     posts, handover, memory, deals,
-    dashboard, marketplace, search, agent, sendbird, stream_chat, admin, ads,
+    dashboard, marketplace, search, agent, sendbird, stream_chat, daily_workspace, admin, ads,
     stories, follows, projects, notifications, communities,
 )
 
@@ -144,6 +144,7 @@ app.include_router(search.router)
 app.include_router(agent.router)
 app.include_router(sendbird.router)
 app.include_router(stream_chat.router)
+app.include_router(daily_workspace.router)
 app.include_router(admin.router)
 app.include_router(ads.router)
 app.include_router(stories.router)

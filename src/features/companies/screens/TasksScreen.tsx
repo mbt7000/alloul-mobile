@@ -10,6 +10,8 @@ import AppButton from "../../../shared/ui/AppButton";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import { useThemedStyles } from "../../../theme/useThemedStyles";
 import { getDashboardStats, getHandoverWorkItems, getProjects, type DashboardStats, type HandoverWorkItem, type ProjectRow } from "../../../api";
+import CompanyWorkModeTopBar from "../components/CompanyWorkModeTopBar";
+
 export default function TasksScreen() {
   const navigation = useNavigation<any>();
   const { colors } = useAppTheme();
@@ -81,10 +83,12 @@ export default function TasksScreen() {
   );
 
   return (
-    <Screen style={{ backgroundColor: colors.mediaCanvas }}>
+    <Screen style={{ backgroundColor: colors.mediaCanvas }} edges={["top", "left", "right", "bottom"]}>
+      <CompanyWorkModeTopBar />
       <AppHeader
-        title="Tasks"
-        rightActions={<AppButton label="Projects" size="sm" onPress={() => navigation.navigate("Projects")} />}
+        title="المهام"
+        leftButton="none"
+        rightActions={<AppButton label="المشاريع" size="sm" onPress={() => navigation.navigate("Projects")} />}
       />
       <ScrollView
         contentContainerStyle={styles.body}

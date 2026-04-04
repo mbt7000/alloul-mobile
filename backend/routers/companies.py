@@ -30,6 +30,14 @@ from schemas_company import (
 router = APIRouter(prefix="/companies", tags=["companies"])
 
 
+def _member_phone_for_user(db: Session, user_id: int) -> Optional[str]:
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u or not getattr(u, "phone", None):
+        return None
+    p = u.phone.strip() if isinstance(u.phone, str) else None
+    return p or None
+
+
 def _generate_icode(length: int = 6) -> str:
     return "".join(random.choices(string.digits, k=length))
 
@@ -397,6 +405,7 @@ def list_members(
         CompanyMemberResponse(
             id=m.id, company_id=m.company_id, user_id=m.user_id, role=m.role,
             department_id=m.department_id, i_code=m.i_code, manager_id=m.manager_id, job_title=m.job_title,
+            phone=_member_phone_for_user(db, m.user_id),
         )
         for m in members
     ]
@@ -446,6 +455,7 @@ def add_member(
     return CompanyMemberResponse(
         id=new_mem.id, company_id=new_mem.company_id, user_id=new_mem.user_id, role=new_mem.role,
         department_id=new_mem.department_id, i_code=new_mem.i_code, manager_id=new_mem.manager_id, job_title=new_mem.job_title,
+        phone=_member_phone_for_user(db, new_mem.user_id),
     )
 
 
@@ -480,6 +490,7 @@ def update_member(
     return CompanyMemberResponse(
         id=target.id, company_id=target.company_id, user_id=target.user_id, role=target.role,
         department_id=target.department_id, i_code=target.i_code, manager_id=target.manager_id, job_title=target.job_title,
+        phone=_member_phone_for_user(db, target.user_id),
     )
 
 

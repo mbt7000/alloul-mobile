@@ -85,6 +85,10 @@
     "emailLoginActive": "Connexion : e-mail et mot de passe (actif).",
     "diagOAuthKeysPresent": "Google : activé dans ce build (en cas d’échec, vérifiez OAuth Google Cloud + SHA-1 Android). Microsoft : pas encore activé.",
     "diagOAuthKeysMissing": "Google/Microsoft : clés de build incomplètes ; une activation ultérieure exigera un rebuild EAS avec EXPO_PUBLIC_*.",
+    "diagGoogleOk": "Google : activé (Android ? ajoutez le client OAuth Android + SHA-1 EAS dans Google Cloud).",
+    "diagGoogleNo": "Google : Firebase ou IDs client manquants dans ce build.",
+    "diagMicrosoftOk": "Microsoft : activé (Azure : redirect ex. alloul://oauth/microsoft + client public).",
+    "diagMicrosoftNo": "Microsoft : définissez EXPO_PUBLIC_MICROSOFT_CLIENT_ID et TENANT_ID dans EAS, puis rebuild.",
     "googleNotInBuild": "Google nécessite Firebase + clés client dans le build EAS. Reconstruisez l’app."
   },
   "feed": {

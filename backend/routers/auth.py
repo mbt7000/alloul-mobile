@@ -4,7 +4,7 @@ import random
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from auth import create_access_token, get_current_user, get_password_hash, verify_password
@@ -70,20 +70,32 @@ def login(
     body: LoginRequest,
     db: Annotated[Session, Depends(get_db)],
 ):
-    user = db.query(User).filter(User.email == body.email).first()
-    if not user or not user.hashed_password:
+    try:
+        user = db.query(User).filter(User.email == body.email).first()
+        if not user or not user.hashed_password:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Wrong email or password",
+            )
+        if not verify_password(body.password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Wrong email or password",
+            )
+        _ensure_icode(user, db)
+        token = create_access_token(data={"sub": str(user.id)})
+        return TokenResponse(access_token=token, token_type="bearer")
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Wrong email or password",
-        )
-    if not verify_password(body.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Wrong email or password",
-        )
-    _ensure_icode(user, db)
-    token = create_access_token(data={"sub": str(user.id)})
-    return TokenResponse(access_token=token, token_type="bearer")
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Database error during login. On Postgres run: "
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(32); "
+                "and align schema with models.py — see backend/README.md"
+            ),
+        ) from exc
 
 
 @router.post("/register", response_model=TokenResponse)

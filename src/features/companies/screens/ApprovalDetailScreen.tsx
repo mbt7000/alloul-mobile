@@ -1,6 +1,8 @@
 import React from "react";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRoute } from "@react-navigation/native";
+import CompanyWorkModeTopBar from "../components/CompanyWorkModeTopBar";
 import Screen from "../../../shared/layout/Screen";
 import AppHeader from "../../../shared/layout/AppHeader";
 import GlassCard from "../../../shared/components/GlassCard";
@@ -10,13 +12,16 @@ import { useThemedStyles } from "../../../theme/useThemedStyles";
 
 export default function ApprovalDetailScreen() {
   const { colors } = useAppTheme();
+  const route = useRoute<any>();
+  const title = typeof route.params?.title === "string" ? route.params.title : "تفاصيل الموافقة";
   const styles = useThemedStyles(() => ({
     body: { padding: 16 },
     card: { padding: 18 },
   }));
   return (
-    <Screen style={{ backgroundColor: colors.mediaCanvas }}>
-      <AppHeader title="Approval" />
+    <Screen style={{ backgroundColor: colors.mediaCanvas }} edges={["top", "left", "right", "bottom"]}>
+      <CompanyWorkModeTopBar />
+      <AppHeader title={title} />
       <View style={styles.body}>
         <GlassCard style={styles.card}>
           <Ionicons
@@ -26,7 +31,7 @@ export default function ApprovalDetailScreen() {
             style={{ alignSelf: "center", marginBottom: 10 }}
           />
           <AppText variant="body" tone="secondary" style={{ textAlign: "center" }}>
-            Approval detail will live here (status, request data, actions, audit log).
+            ستظهر هنا حالة الطلب والبيانات وسجل القرار عند ربطها بالخادم.
           </AppText>
         </GlassCard>
       </View>

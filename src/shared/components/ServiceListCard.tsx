@@ -24,7 +24,7 @@ export default function ServiceListCard({
       alignItems: "center" as const,
       gap: 12,
       backgroundColor: c.cardElevated,
-      borderRadius: radius.xl,
+      borderRadius: radius.xxl,
       borderWidth: 1,
       borderColor: c.border,
       paddingVertical: 16,
