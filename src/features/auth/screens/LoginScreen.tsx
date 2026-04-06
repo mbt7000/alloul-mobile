@@ -104,12 +104,9 @@ export default function LoginScreen() {
     iosClientId: googleNativeIosClientId || "",
     androidClientId: googleAndroidClientId || "",
     redirectUri: googleRedirectUri,
-    responseType: AuthSession.ResponseType.Code,
+    responseType: AuthSession.ResponseType.IdToken,
     scopes: ["openid", "profile", "email"],
-    usePKCE: true,
-    extraParams: {
-      access_type: "offline",
-    },
+    usePKCE: false,
   } as never);
 
   const githubRedirectUri = isExpoGo
@@ -321,42 +318,49 @@ export default function LoginScreen() {
         }
 
         const accessTokenFromAuth = googleResponse.authentication?.accessToken;
-        appendOauthDebug(`[G4] accessToken=${accessTokenFromAuth ? "present" : "missing"}`);
-
-        const authCode = responseParams?.code;
-        if (!authCode || !googleRequest?.codeVerifier) {
-          appendOauthDebug("[G4] missing_code_or_verifier");
-          setError(t("auth.googleTokenMissing"));
-          return;
-        }
-
-        // Google token exchange requires the Web Client ID (not the iOS/Android native ID)
-        const exchangeClientId = googleWebClientId || googleClientId;
-        appendOauthDebug(`[G4b] exchangeClientId_suffix=${exchangeClientId.slice(-20)}`);
-        const tokenResponse = await AuthSession.exchangeCodeAsync(
-          {
-            clientId: exchangeClientId,
-            code: authCode,
-            redirectUri: googleRedirectUri,
-            extraParams: {
-              code_verifier: googleRequest.codeVerifier,
-            },
-          },
-          GOOGLE_DISCOVERY
-        );
-        const accessToken = tokenResponse.accessToken;
-        const googleIdToken = tokenResponse.idToken;
+        // Google returns id_token directly in params — use it without code exchange
+        const directIdToken = responseParams?.id_token;
         appendOauthDebug(
-          `[G5] exchange accessToken=${accessToken ? "present" : "missing"} idToken=${
-            googleIdToken ? "present" : "missing"
-          }`
+          `[G4] accessToken=${accessTokenFromAuth ? "present" : "missing"} directIdToken=${directIdToken ? "present" : "missing"}`
         );
+
+        let googleIdToken: string | undefined = directIdToken;
+        let accessToken: string | undefined = accessTokenFromAuth;
+
+        // If no direct id_token, try code exchange as fallback
+        if (!googleIdToken) {
+          const authCode = responseParams?.code;
+          if (!authCode || !googleRequest?.codeVerifier) {
+            appendOauthDebug("[G4f] no_id_token_no_code");
+            setError(t("auth.googleTokenMissing"));
+            return;
+          }
+          appendOauthDebug("[G4f] fallback_code_exchange");
+          try {
+            const tokenResponse = await AuthSession.exchangeCodeAsync(
+              {
+                clientId: googleClientId,
+                code: authCode,
+                redirectUri: googleRedirectUri,
+                extraParams: { code_verifier: googleRequest.codeVerifier },
+              },
+              GOOGLE_DISCOVERY
+            );
+            googleIdToken = tokenResponse.idToken;
+            accessToken = tokenResponse.accessToken || accessToken;
+          } catch (exErr: unknown) {
+            const exMsg = exErr instanceof Error ? exErr.message : String(exErr ?? "");
+            appendOauthDebug(`[G4f] exchange_failed=${exMsg.slice(0, 200)}`);
+          }
+        }
 
         if (!googleIdToken) {
+          appendOauthDebug("[G5] no_id_token_after_all");
           setError(t("auth.googleTokenMissing"));
           return;
         }
 
+        appendOauthDebug(`[G5] idToken=present accessToken=${accessToken ? "present" : "missing"}`);
         const firebaseIdToken = await exchangeGoogleIdTokenForFirebaseIdToken(googleIdToken, accessToken);
         await loginWithFirebase(firebaseIdToken);
         await refresh();
