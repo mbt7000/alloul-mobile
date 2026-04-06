@@ -5,6 +5,7 @@ import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
   type Auth,
   getAuth,
+  GithubAuthProvider,
   GoogleAuthProvider,
   OAuthProvider,
   signInWithCredential,
@@ -79,17 +80,28 @@ function getFirebaseAuth(): Auth {
  * تمرير access_token يقلّل أخطاء auth/invalid-credential عند بعض إعدادات OAuth.
  */
 export async function exchangeGoogleIdTokenForFirebaseIdToken(
-  googleIdToken: string,
+  googleIdToken: string | null,
   googleAccessToken?: string | null
 ): Promise<string> {
   const auth = getFirebaseAuth();
+  // GoogleAuthProvider.credential accepts (idToken, accessToken) — either can be null
   const credential = GoogleAuthProvider.credential(
-    googleIdToken,
-    googleAccessToken && googleAccessToken.length > 0 ? googleAccessToken : undefined
+    googleIdToken || null,
+    googleAccessToken && googleAccessToken.length > 0 ? googleAccessToken : null
   );
   const userCredential = await signInWithCredential(auth, credential);
   const idToken = await userCredential.user.getIdToken(true);
 
+  await signOut(auth).catch(() => {});
+  return idToken;
+}
+
+/** GitHub OAuth access_token → Firebase id_token للـ backend (فعّل GitHub في Firebase Authentication). */
+export async function exchangeGithubAccessTokenForFirebaseIdToken(accessToken: string): Promise<string> {
+  const auth = getFirebaseAuth();
+  const credential = GithubAuthProvider.credential(accessToken);
+  const userCredential = await signInWithCredential(auth, credential);
+  const idToken = await userCredential.user.getIdToken(true);
   await signOut(auth).catch(() => {});
   return idToken;
 }

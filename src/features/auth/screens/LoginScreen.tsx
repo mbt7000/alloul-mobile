@@ -328,45 +328,33 @@ export default function LoginScreen() {
         );
 
         let googleIdToken: string | undefined = directIdToken;
+        const authIdToken = (googleResponse.authentication as Record<string, unknown>)?.idToken as string | undefined;
+        if (!googleIdToken && authIdToken) {
+          googleIdToken = authIdToken;
+          appendOauthDebug("[G4a] using authentication.idToken");
+        }
         let accessToken: string | undefined = accessTokenFromAuth;
 
-        // If no direct id_token, try code exchange as fallback
-        if (!googleIdToken) {
-          const authCode = responseParams?.code;
-          if (!authCode || !googleRequest?.codeVerifier) {
-            appendOauthDebug("[G4f] no_id_token_no_code");
-            setError(t("auth.googleTokenMissing"));
-            return;
-          }
-          appendOauthDebug("[G4f] fallback_code_exchange");
-          try {
-            const tokenResponse = await AuthSession.exchangeCodeAsync(
-              {
-                clientId: googleClientId,
-                code: authCode,
-                redirectUri: googleRedirectUri,
-                extraParams: { code_verifier: googleRequest.codeVerifier },
-              },
-              GOOGLE_DISCOVERY
-            );
-            googleIdToken = tokenResponse.idToken;
-            accessToken = tokenResponse.accessToken || accessToken;
-          } catch (exErr: unknown) {
-            const exMsg = exErr instanceof Error ? exErr.message : String(exErr ?? "");
-            appendOauthDebug(`[G4f] exchange_failed=${exMsg.slice(0, 200)}`);
-          }
-        }
-
-        if (!googleIdToken) {
-          appendOauthDebug("[G5] no_id_token_after_all");
-          setError(t("auth.googleTokenMissing"));
+        // If we have id_token, use it directly (no code exchange needed)
+        if (googleIdToken) {
+          appendOauthDebug(`[G5] direct idToken=present accessToken=${accessToken ? "present" : "missing"}`);
+          const firebaseIdToken = await exchangeGoogleIdTokenForFirebaseIdToken(googleIdToken, accessToken);
+          await loginWithFirebase(firebaseIdToken);
+          await refresh();
           return;
         }
 
-        appendOauthDebug(`[G5] idToken=present accessToken=${accessToken ? "present" : "missing"}`);
-        const firebaseIdToken = await exchangeGoogleIdTokenForFirebaseIdToken(googleIdToken, accessToken);
-        await loginWithFirebase(firebaseIdToken);
-        await refresh();
+        // Fallback: if we have accessToken but no idToken, use accessToken with Firebase
+        if (accessToken) {
+          appendOauthDebug("[G5b] no idToken, using accessToken only with Firebase");
+          const firebaseIdToken = await exchangeGoogleIdTokenForFirebaseIdToken(null as unknown as string, accessToken);
+          await loginWithFirebase(firebaseIdToken);
+          await refresh();
+          return;
+        }
+
+        appendOauthDebug("[G5] no_id_token_no_access_token");
+        setError(t("auth.googleTokenMissing"));
       } catch (err: unknown) {
         const payload = err as { message?: string; status?: number; code?: string };
         const msg = typeof payload?.message === "string" ? payload.message : err instanceof Error ? err.message : "";
