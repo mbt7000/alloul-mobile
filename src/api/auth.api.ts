@@ -9,6 +9,7 @@ export interface AuthUser {
   avatar_url?: string;
   bio?: string;
   i_code?: string;
+  phone?: string;
   verified?: number;
   followers_count?: number;
   following_count?: number;

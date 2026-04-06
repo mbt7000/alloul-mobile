@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -477,3 +477,17 @@ class Ad(Base):
 
     company = relationship("Company")
     creator = relationship("User")
+
+
+# ─── OTP Codes ──────────────────────────────────────────────────────────────
+
+class OtpCode(Base):
+    __tablename__ = "otp_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    phone = Column(String(32), index=True, nullable=False)
+    code = Column(String(6), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    verified = Column(Boolean, default=False)
+    attempts = Column(Integer, default=0)

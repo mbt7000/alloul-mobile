@@ -11,6 +11,7 @@ import MediaNavigator from "../media/MediaNavigator";
 import CompanyNavigator from "../company/CompanyNavigator";
 import SearchGateway from "../global/SearchGateway";
 import NotificationsGateway from "../global/NotificationsGateway";
+import PhoneVerifyScreen from "../../features/phone/screens/PhoneVerifyScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -94,6 +95,7 @@ export default function AppControllerNavigator() {
       <Stack.Screen name={ROOT_SHELL_ROUTES.company} component={CompanyShellScreen} />
       <Stack.Screen name="Discover" component={SearchGateway} />
       <Stack.Screen name="Notifications" component={NotificationsGateway} />
+      <Stack.Screen name="PhoneVerify" component={PhoneVerifyScreen} />
     </Stack.Navigator>
   );
 }

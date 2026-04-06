@@ -74,6 +74,11 @@ class Settings(BaseSettings):
     # النطاق الفرعي فقط، مثال: alloul → https://alloul.daily.co
     DAILY_SUBDOMAIN: Optional[str] = None
 
+    # Twilio (optional – for phone OTP verification)
+    TWILIO_ACCOUNT_SID: Optional[str] = None
+    TWILIO_AUTH_TOKEN: Optional[str] = None
+    TWILIO_VERIFY_SERVICE_SID: Optional[str] = None
+
     @computed_field
     @property
     def CORS_ORIGINS(self) -> list[str]:

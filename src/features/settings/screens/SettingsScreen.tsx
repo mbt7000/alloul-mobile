@@ -282,6 +282,13 @@ export default function SettingsScreen() {
         <Text style={[styles.section, { marginTop: 24 }]}>Security</Text>
         <View style={styles.block}>
           <Row icon="shield-checkmark-outline" title="Session status" subtitle={user ? "Authenticated" : "Signed out"} />
+          <TouchableOpacity onPress={() => navigation.navigate("PhoneVerify" as never)} activeOpacity={0.88}>
+            <Row
+              icon="call-outline"
+              title={t("phone.title")}
+              subtitle={user?.phone ? t("phone.alreadyVerified") : t("phone.subtitle")}
+            />
+          </TouchableOpacity>
           <Row icon="phone-portrait-outline" title="Active device" subtitle={`${Platform.OS} · Build ${String(build)}`} />
           <TouchableOpacity style={styles.logoutBtn} onPress={confirmSignOut}>
             <Ionicons name="log-out-outline" size={16} color={colors.accentRose} />

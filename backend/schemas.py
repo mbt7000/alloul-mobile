@@ -42,6 +42,7 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
     i_code: Optional[str] = None
+    phone: Optional[str] = None
     cover_url: Optional[str] = None
     location: Optional[str] = None
     skills: Optional[str] = None
@@ -70,3 +71,17 @@ class FirebaseResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: Optional[UserResponse] = None
+
+
+class PhoneRequest(BaseModel):
+    phone: str
+
+
+class OtpVerifyRequest(BaseModel):
+    phone: str
+    code: str
+
+
+class PhoneResponse(BaseModel):
+    success: bool
+    message: str

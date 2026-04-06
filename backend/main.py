@@ -17,7 +17,7 @@ from routers import (
     auth, companies, webhooks, upload,
     posts, handover, memory, deals,
     dashboard, marketplace, search, agent, sendbird, stream_chat, daily_workspace, admin, ads,
-    stories, follows, projects, notifications, communities,
+    stories, follows, projects, notifications, communities, phone,
 )
 
 @asynccontextmanager
@@ -152,6 +152,7 @@ app.include_router(follows.router)
 app.include_router(projects.router)
 app.include_router(notifications.router)
 app.include_router(communities.router)
+app.include_router(phone.router)
 
 
 @app.get("/")

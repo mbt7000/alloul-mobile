@@ -7,3 +7,4 @@ export * from "./search.api";
 export * from "./admin.api";
 export * from "./stream.api";
 export * from "./daily.api";
+export * from "./phone.api";

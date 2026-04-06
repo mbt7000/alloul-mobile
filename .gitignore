@@ -42,6 +42,7 @@ backend/**/__pycache__/
 *.py[cod]
 backend/.env
 backend/firebase.json
+backend/firebase-service-account.json
 
 # typescript
 *.tsbuildinfo
