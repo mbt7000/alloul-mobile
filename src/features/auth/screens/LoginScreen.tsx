@@ -18,13 +18,13 @@ import * as WebBrowser from "expo-web-browser";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import { login, register, loginWithFirebase, getApiBaseUrl, pingApiHealth } from "../../../api";
-import MicrosoftSignInButton from "../components/MicrosoftSignInButton";
 import { useAuth } from "../../../state/auth/AuthContext";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import Constants from "expo-constants";
 import { useTranslation } from "react-i18next";
 import {
   exchangeAppleIdTokenForFirebaseIdToken,
+  exchangeGithubAccessTokenForFirebaseIdToken,
   exchangeGoogleIdTokenForFirebaseIdToken,
 } from "../../../shared/utils/firebaseAuth";
 
@@ -34,6 +34,11 @@ const GOOGLE_DISCOVERY = {
   authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
   tokenEndpoint: "https://oauth2.googleapis.com/token",
   revocationEndpoint: "https://oauth2.googleapis.com/revoke",
+};
+
+const GITHUB_DISCOVERY = {
+  authorizationEndpoint: "https://github.com/login/oauth/authorize",
+  tokenEndpoint: "https://github.com/login/oauth/access_token",
 };
 
 export default function LoginScreen() {
@@ -55,9 +60,8 @@ export default function LoginScreen() {
   const debugAuthVersion = typeof extra?.debugAuthVersion === "string" ? extra.debugAuthVersion : "unknown";
   const firebase = (extra?.firebase as Record<string, string> | undefined) || {};
   const googleAuth = (extra?.googleAuth as Record<string, string> | undefined) || {};
-  const microsoftAuth = (extra?.microsoftAuth as Record<string, string> | undefined) || {};
-  const msClientId = microsoftAuth?.clientId?.trim();
-  const msTenantId = microsoftAuth?.tenantId?.trim();
+  const githubAuth = (extra?.githubAuth as Record<string, string> | undefined) || {};
+  const githubClientId = githubAuth?.clientId?.trim() || "";
   const firebaseReady = Boolean(firebase?.apiKey && firebase?.projectId);
   const isExpoGo = Constants.appOwnership === "expo";
   const googleIosClientId = googleAuth?.iosClientId?.trim();
@@ -81,7 +85,6 @@ export default function LoginScreen() {
         : googleAndroidClientId || googleWebClientId;
   const googleReady = Boolean(googleClientId);
   const canUseGoogle = firebaseReady && googleReady;
-  const canUseMicrosoft = Boolean(msClientId && msTenantId);
   /** Sign in with Apple لا يعمل داخل Expo Go — يحتاج EAS build / TestFlight. */
   const canUseApple =
     Platform.OS === "ios" && appleAvailableOnDevice && firebaseReady && Constants.appOwnership !== "expo";
@@ -108,6 +111,21 @@ export default function LoginScreen() {
       access_type: "offline",
     },
   } as never);
+
+  const githubRedirectUri = isExpoGo
+    ? expoProxyRedirectUri
+    : AuthSession.makeRedirectUri({ scheme: "alloul", path: "oauth/github" });
+  const [githubRequest, githubResponse, githubPromptAsync] = AuthSession.useAuthRequest(
+    {
+      clientId: githubClientId,
+      scopes: ["read:user", "user:email"],
+      redirectUri: githubRedirectUri,
+      usePKCE: true,
+    },
+    GITHUB_DISCOVERY
+  );
+  const canUseGitHub = firebaseReady && Boolean(githubClientId);
+
   const debugRunIdRef = useRef(`${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   const debugRunId = debugRunIdRef.current;
   const appendOauthDebug = (line: string) => {
@@ -140,14 +158,14 @@ export default function LoginScreen() {
           : isExpoGo
             ? "web(expo-go)"
             : "android_or_web(standalone)"
-      }\ncanUseGoogle=${canUseGoogle ? "true" : "false"}\ncanUseMicrosoft=${
-        canUseMicrosoft ? "true" : "false"
+      }\ncanUseGoogle=${canUseGoogle ? "true" : "false"}\ncanUseGitHub=${
+        canUseGitHub ? "true" : "false"
       }\ncanUseApple=${canUseApple ? "true" : "false"}`
     );
   }, [
     canUseApple,
+    canUseGitHub,
     canUseGoogle,
-    canUseMicrosoft,
     debugAuthVersion,
     extra?.apiUrl,
     firebaseReady,
@@ -155,6 +173,7 @@ export default function LoginScreen() {
     googleIosClientId,
     googleReady,
     googleWebClientId,
+    githubClientId,
   ]);
 
   const handleSubmit = async () => {
@@ -257,13 +276,14 @@ export default function LoginScreen() {
       await loginWithFirebase(firebaseIdToken);
       await refresh();
     } catch (e: unknown) {
-      const coded = e as { code?: string };
-      if (coded?.code === "ERR_REQUEST_CANCELED") {
+      const coded = e as { code?: string; message?: string };
+      if (coded?.code === "ERR_REQUEST_CANCELED" || coded?.code === "ERR_CANCELED") {
         appendOauthDebug("[A0] apple_cancel");
         setError("");
       } else {
-        const msg = e instanceof Error ? e.message : String(e ?? "unknown");
-        appendOauthDebug(`[A1] apple_err=${msg}`);
+        const msg = coded?.message || (e instanceof Error ? e.message : String(e ?? "unknown"));
+        const code = coded?.code || "";
+        appendOauthDebug(`[A1] apple_err code=${code} msg=${msg}`);
         setError(`${t("auth.appleFailed")}${msg ? `: ${msg}` : ""}`);
       }
     } finally {
@@ -310,9 +330,12 @@ export default function LoginScreen() {
           return;
         }
 
+        // Google token exchange requires the Web Client ID (not the iOS/Android native ID)
+        const exchangeClientId = googleWebClientId || googleClientId;
+        appendOauthDebug(`[G4b] exchangeClientId_suffix=${exchangeClientId.slice(-20)}`);
         const tokenResponse = await AuthSession.exchangeCodeAsync(
           {
-            clientId: googleClientId,
+            clientId: exchangeClientId,
             code: authCode,
             redirectUri: googleRedirectUri,
             extraParams: {
@@ -368,6 +391,111 @@ export default function LoginScreen() {
 
     void finish();
   }, [googleClientId, googleRedirectUri, googleRequest, googleResponse, refresh, t]);
+
+  const handleGithubSignIn = async () => {
+    setError("");
+    if (!canUseGitHub || !githubClientId) {
+      setError(t("auth.githubNotConfigured"));
+      return;
+    }
+    if (!githubRequest) {
+      setError(t("auth.githubAuthNotReady"));
+      appendOauthDebug("[GH0] request_not_ready");
+      return;
+    }
+    setLoading(true);
+    appendOauthDebug(`[GH1] prompt redirect=${githubRedirectUri}`);
+    try {
+      await githubPromptAsync();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err ?? "unknown");
+      appendOauthDebug(`[GH1E] prompt error=${msg}`);
+      setLoading(false);
+      setError(`GitHub OAuth: ${msg}`);
+    }
+  };
+
+  useEffect(() => {
+    if (!githubResponse) return;
+
+    const responseParams = "params" in githubResponse ? githubResponse.params : undefined;
+    appendOauthDebug(
+      `[GH2] type=${githubResponse.type} params=${JSON.stringify(responseParams ?? {}).slice(0, 600)}`
+    );
+
+    const finish = async () => {
+      try {
+        if (githubResponse.type === "cancel" || githubResponse.type === "dismiss") {
+          appendOauthDebug("[GH3] cancel_or_dismiss");
+          setError("");
+          return;
+        }
+        if (githubResponse.type === "error") {
+          appendOauthDebug(
+            `[GH3] err code=${githubResponse.error?.code ?? "-"} ${githubResponse.error?.description ?? "-"}`
+          );
+          setError(
+            githubResponse.error?.description || githubResponse.error?.code || t("auth.githubFailed")
+          );
+          return;
+        }
+        if (githubResponse.type !== "success") {
+          appendOauthDebug(`[GH3] unexpected_type=${githubResponse.type}`);
+          return;
+        }
+        const authCode = responseParams?.code;
+        if (!authCode || !githubRequest?.codeVerifier) {
+          appendOauthDebug("[GH4] missing_code_or_verifier");
+          setError(t("auth.githubTokenMissing"));
+          return;
+        }
+        const tokenResponse = await AuthSession.exchangeCodeAsync(
+          {
+            clientId: githubClientId,
+            code: authCode,
+            redirectUri: githubRedirectUri,
+            extraParams: {
+              code_verifier: githubRequest.codeVerifier,
+            },
+          },
+          GITHUB_DISCOVERY
+        );
+        const ghAccess = tokenResponse.accessToken;
+        appendOauthDebug(`[GH5] accessToken=${ghAccess ? "present" : "missing"}`);
+        if (!ghAccess) {
+          setError(t("auth.githubTokenMissing"));
+          return;
+        }
+        const firebaseIdToken = await exchangeGithubAccessTokenForFirebaseIdToken(ghAccess);
+        await loginWithFirebase(firebaseIdToken);
+        await refresh();
+      } catch (err: unknown) {
+        const payload = err as { message?: string; status?: number; code?: string };
+        const msg = typeof payload?.message === "string" ? payload.message : err instanceof Error ? err.message : "";
+        const code = typeof payload?.code === "string" ? payload.code : "";
+        const detail = [code, msg].filter(Boolean).join(" — ");
+        appendOauthDebug(`[GH6] catch ${detail || "-"}`);
+        if (msg === "FIREBASE_NOT_CONFIGURED") {
+          setError(t("auth.githubNotConfigured"));
+        } else if (msg === "NETWORK_UNREACHABLE" || msg === "NETWORK_TIMEOUT") {
+          setError(t("auth.networkError"));
+        } else if (msg === "SESSION_STORAGE_FAILED") {
+          setError(t("auth.sessionStorageFailed"));
+        } else if (typeof payload?.status === "number" && payload.status >= 500) {
+          const d = msg.trim();
+          const generic =
+            !d || d === "Internal Server Error" || d === "Request failed";
+          setError(generic ? t("auth.serverError") : `${t("auth.serverError")}\n${d}`);
+        } else {
+          setError(detail ? `${t("auth.githubFailed")}\n${detail}` : t("auth.githubFailed"));
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void finish();
+  }, [githubClientId, githubRedirectUri, githubRequest, githubResponse, refresh, t]);
 
   const styles = useMemo(
     () =>
@@ -558,7 +686,7 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {!canUseGoogle && !canUseMicrosoft && !canUseApple ? (
+          {!canUseGoogle && !canUseGitHub && !canUseApple ? (
             <Text style={styles.socialPaused}>{t("auth.socialPaused")}</Text>
           ) : null}
 
@@ -602,27 +730,19 @@ export default function LoginScreen() {
             </TouchableOpacity>
           ) : null}
 
-          {canUseMicrosoft && msClientId && msTenantId ? (
-            <MicrosoftSignInButton
-              clientId={msClientId}
-              tenantId={msTenantId}
-              disabled={loading}
-              onError={(msg) => setError(msg)}
-              onSignedIn={async () => {
-                await refresh();
-              }}
-              label={t("auth.continueMicrosoft")}
-              socialBtn={styles.socialBtn}
-              socialText={styles.socialText}
-              socialBtnOff={styles.socialBtnOff}
-              socialTextMuted={styles.socialTextMuted}
-              spinnerColor={colors.textPrimary}
-            />
-          ) : (
-            <TouchableOpacity style={[styles.socialBtn, styles.socialBtnOff]} disabled>
-              <Text style={[styles.socialText, styles.socialTextMuted]}>{t("auth.continueMicrosoft")}</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[styles.socialBtn, !canUseGitHub && styles.socialBtnOff]}
+            disabled={loading || !canUseGitHub}
+            onPress={() => void handleGithubSignIn()}
+          >
+            {loading ? (
+              <ActivityIndicator color={colors.textPrimary} />
+            ) : (
+              <Text style={[styles.socialText, !canUseGitHub && styles.socialTextMuted]}>
+                {t("auth.continueGithub")}
+              </Text>
+            )}
+          </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => {
@@ -645,7 +765,7 @@ export default function LoginScreen() {
             {googleReady && firebaseReady ? t("auth.diagGoogleOk") : t("auth.diagGoogleNo")}
           </Text>
           <Text style={styles.diagLabel}>
-            {canUseMicrosoft ? t("auth.diagMicrosoftOk") : t("auth.diagMicrosoftNo")}
+            {canUseGitHub ? t("auth.diagGithubOk") : t("auth.diagGithubNo")}
           </Text>
           {Platform.OS === "ios" ? (
             <Text style={styles.diagLabel}>

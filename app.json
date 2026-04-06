@@ -24,7 +24,7 @@
         "NSPhotoLibraryUsageDescription": "Share photos in posts",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "35"
+      "buildNumber": "36"
     },
     "android": {
       "package": "com.alloul.one",
@@ -56,9 +56,8 @@
         "androidClientId": "",
         "webClientId": "1084542316298-eta8kdgj0r9fl77435168km0c7uh3r1d.apps.googleusercontent.com"
       },
-      "microsoftAuth": {
-        "clientId": "",
-        "tenantId": ""
+      "githubAuth": {
+        "clientId": "Ov23lilP6oyNimxHqyXB"
       },
       "eas": {
         "projectId": "17794375-d9c2-403a-890a-9c6037cb9990"
