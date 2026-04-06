@@ -104,9 +104,12 @@ export default function LoginScreen() {
     iosClientId: googleNativeIosClientId || "",
     androidClientId: googleAndroidClientId || "",
     redirectUri: googleRedirectUri,
-    responseType: AuthSession.ResponseType.IdToken,
+    responseType: AuthSession.ResponseType.Code,
     scopes: ["openid", "profile", "email"],
-    usePKCE: false,
+    usePKCE: true,
+    extraParams: {
+      access_type: "offline",
+    },
   } as never);
 
   const githubRedirectUri = isExpoGo
