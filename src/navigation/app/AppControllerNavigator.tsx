@@ -12,6 +12,7 @@ import CompanyNavigator from "../company/CompanyNavigator";
 import SearchGateway from "../global/SearchGateway";
 import NotificationsGateway from "../global/NotificationsGateway";
 import PhoneVerifyScreen from "../../features/phone/screens/PhoneVerifyScreen";
+import SubscriptionPlansScreen from "../../features/companies/screens/SubscriptionPlansScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -37,7 +38,7 @@ function CompanyAccessFallback() {
   React.useEffect(() => {
     setMode("public");
   }, [setMode]);
-  return <MediaNavigator />;
+  return <SubscriptionPlansScreen navigation={{ goBack: () => setMode("public") }} />;
 }
 
 function RequireCompanyAccess({ children }: { children: React.ReactNode }) {
@@ -96,6 +97,7 @@ export default function AppControllerNavigator() {
       <Stack.Screen name="Discover" component={SearchGateway} />
       <Stack.Screen name="Notifications" component={NotificationsGateway} />
       <Stack.Screen name="PhoneVerify" component={PhoneVerifyScreen} />
+      <Stack.Screen name="SubscriptionPlans" component={SubscriptionPlansScreen} />
     </Stack.Navigator>
   );
 }

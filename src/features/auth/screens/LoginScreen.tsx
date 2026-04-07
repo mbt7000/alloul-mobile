@@ -749,43 +749,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.diagBox}>
-          <Text style={styles.diagTitle}>{t("settings.diagnostics")}</Text>
-          <Text style={styles.diagLabel}>{t("settings.apiEndpoint")}</Text>
-          <Text style={styles.diagUrl} selectable>
-            {getApiBaseUrl()}
-          </Text>
-          <Text style={styles.diagLabel}>{t("auth.emailLoginActive")}</Text>
-          <Text style={styles.diagLabel}>
-            {googleReady && firebaseReady ? t("auth.diagGoogleOk") : t("auth.diagGoogleNo")}
-          </Text>
-          <Text style={styles.diagLabel}>
-            {canUseGitHub ? t("auth.diagGithubOk") : t("auth.diagGithubNo")}
-          </Text>
-          {Platform.OS === "ios" ? (
-            <Text style={styles.diagLabel}>
-              {canUseApple ? t("auth.diagAppleOk") : t("auth.diagAppleNo")}
-            </Text>
-          ) : null}
-          <TouchableOpacity
-            style={styles.diagBtn}
-            onPress={async () => {
-              const r = await pingApiHealth();
-              appendOauthDebug(`[H5] health ok=${r.ok ? "true" : "false"} detail=${r.detail}`);
-              Alert.alert(
-                r.ok ? t("settings.serverOk") : t("settings.serverFail"),
-                r.ok ? r.detail : `${r.detail}\n\n${t("settings.rebuildHint")}`
-              );
-            }}
-          >
-            <Text style={styles.diagBtnText}>{t("settings.testConnection")}</Text>
-          </TouchableOpacity>
-          {oauthDebug ? (
-            <Text style={styles.diagUrl} selectable>
-              {oauthDebug}
-            </Text>
-          ) : null}
-        </View>
+{/* Diagnostic box hidden in production */}
       </ScrollView>
     </KeyboardAvoidingView>
   );

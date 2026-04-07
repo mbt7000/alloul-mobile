@@ -173,18 +173,15 @@ export default function SettingsScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.heroCard}>
-          <Text style={styles.heroTitle}>Control Center</Text>
-          <Text style={styles.heroSubtitle}>
-            {homeMode === "company" ? "ALOULL &Q mode active" : "Media mode active"} · account and workspace controls
-          </Text>
+          <Text style={styles.heroTitle}>{user?.name || user?.username || t("profile.title")}</Text>
+          <Text style={styles.heroSubtitle}>{user?.email || ""}</Text>
+          {user?.bio ? <Text style={[styles.heroSubtitle, { marginTop: 4 }]}>{user.bio}</Text> : null}
         </View>
 
-        <Text style={styles.section}>Account</Text>
+        <Text style={styles.section}>{t("profile.title")}</Text>
         <View style={styles.block}>
-          <Row icon="person-outline" title={user?.name || user?.username || "Account"} subtitle={accountSubtitle} />
-          <Row icon="mail-outline" title="Email / phone" subtitle="Manage contact methods" />
-          <Row icon="key-outline" title="Password & sign-in" subtitle="Email login active, social login staged" />
-          <Row icon="link-outline" title="Connected accounts" subtitle={googleReady ? "Google ready" : "No provider linked"} />
+          <Row icon="person-outline" title={user?.name || user?.username || t("profile.title")} subtitle={accountSubtitle} />
+          <Row icon="mail-outline" title={user?.email || t("auth.email")} subtitle={user?.phone || t("phone.subtitle")} />
         </View>
 
         <Text style={[styles.section, { marginTop: 20 }]}>{t("settings.appearance")}</Text>
@@ -250,38 +247,41 @@ export default function SettingsScreen() {
           );
         })}
 
-        <Text style={[styles.section, { marginTop: 24 }]}>Workspace / Company</Text>
+        <Text style={[styles.section, { marginTop: 24 }]}>{t("drawer.workspace")}</Text>
         <View style={styles.block}>
           <Row
             icon="business-outline"
-            title={company?.name || "No active company"}
+            title={company?.name || t("services.noCompany")}
             subtitle={
-              isMember
-                ? isActive
-                  ? `Member active · i_code ${company?.i_code || "—"}`
-                  : "Membership found but inactive subscription"
-                : "Join or subscribe to enable ALOULL &Q"
+              isMember && isActive
+                ? `${t("drawer.workspace")} · ${company?.i_code || ""}`
+                : t("services.noCompany")
             }
           />
-          <TouchableOpacity
-            style={styles.modeButton}
-            onPress={() => {
-              const target = homeMode === "public" ? "company" : "public";
-              const ok = setHomeMode(target);
-              if (!ok) {
-                Alert.alert("Access required", "You need active company access to switch to ALOULL &Q.");
-              }
-            }}
-          >
-            <Text style={styles.modeButtonText}>
-              Switch to {homeMode === "public" ? "ALOULL &Q" : "Media"} {canUseCompanyMode ? "" : "(locked)"}
-            </Text>
-          </TouchableOpacity>
+          {canUseCompanyMode ? (
+            <TouchableOpacity
+              style={styles.modeButton}
+              onPress={() => {
+                const target = homeMode === "public" ? "company" : "public";
+                setHomeMode(target);
+              }}
+            >
+              <Text style={styles.modeButtonText}>
+                {homeMode === "public" ? t("drawer.workspace") : t("drawer.media")}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.modeButton}
+              onPress={() => navigation.navigate("SubscriptionPlans" as never)}
+            >
+              <Text style={styles.modeButtonText}>{t("common.soon")}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        <Text style={[styles.section, { marginTop: 24 }]}>Security</Text>
+        <Text style={[styles.section, { marginTop: 24 }]}>{t("phone.title")}</Text>
         <View style={styles.block}>
-          <Row icon="shield-checkmark-outline" title="Session status" subtitle={user ? "Authenticated" : "Signed out"} />
           <TouchableOpacity onPress={() => navigation.navigate("PhoneVerify" as never)} activeOpacity={0.88}>
             <Row
               icon="call-outline"
@@ -289,48 +289,16 @@ export default function SettingsScreen() {
               subtitle={user?.phone ? t("phone.alreadyVerified") : t("phone.subtitle")}
             />
           </TouchableOpacity>
-          <Row icon="phone-portrait-outline" title="Active device" subtitle={`${Platform.OS} · Build ${String(build)}`} />
+        </View>
+
+        <Text style={[styles.section, { marginTop: 24 }]}>{t("profile.title")}</Text>
+        <View style={styles.block}>
+          <Row icon="information-circle-outline" title={`Version ${appVersion}`} subtitle={`Build ${String(build)} · ${Platform.OS}`} />
           <TouchableOpacity style={styles.logoutBtn} onPress={confirmSignOut}>
             <Ionicons name="log-out-outline" size={16} color={colors.accentRose} />
-            <Text style={styles.logoutText}>Logout with confirmation</Text>
+            <Text style={styles.logoutText}>{t("drawer.signOut")}</Text>
           </TouchableOpacity>
         </View>
-
-        <Text style={[styles.section, { marginTop: 24 }]}>Support</Text>
-        <View style={styles.block}>
-          <Row icon="help-circle-outline" title="Help center" subtitle="Guides and FAQs" />
-          <Row icon="chatbox-ellipses-outline" title="Contact support" subtitle="Open support channel" />
-          <Row icon="information-circle-outline" title="About app" subtitle={`Version ${appVersion} · Build ${String(build)}`} />
-        </View>
-
-        <Text style={[styles.section, { marginTop: 24 }]}>{t("settings.diagnostics")}</Text>
-        <Text style={styles.sectionHint}>{t("settings.apiEndpoint")}</Text>
-        <Text style={styles.diagUrl} selectable>
-          {getApiBaseUrl()}
-        </Text>
-        <Text style={styles.section}>{t("settings.apiDocs")}</Text>
-        <Text style={styles.sectionHint}>{t("settings.apiDocsHint")}</Text>
-        <Text style={styles.diagUrl} selectable>
-          {getApiDocsUrl()}
-        </Text>
-        <TouchableOpacity style={styles.testBtn} onPress={() => Linking.openURL(getApiDocsUrl())}>
-          <Text style={styles.testBtnText}>{t("settings.openDocs")}</Text>
-        </TouchableOpacity>
-        <Text style={[styles.sectionHint, { marginTop: 16 }]}>
-          {googleReady && firebaseReady ? t("settings.googleReady") : t("settings.googleMissing")}
-        </Text>
-        <TouchableOpacity
-          style={styles.testBtn}
-          onPress={async () => {
-            const r = await pingApiHealth();
-            Alert.alert(
-              r.ok ? t("settings.serverOk") : t("settings.serverFail"),
-              r.ok ? r.detail : `${r.detail}\n\n${t("settings.rebuildHint")}`
-            );
-          }}
-        >
-          <Text style={styles.testBtnText}>{t("settings.testConnection")}</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );

@@ -249,11 +249,7 @@ export default function PhoneVerifyScreen({ navigation }: { navigation: any }) {
               >
                 <Text style={styles.secondaryBtnText}>{t("phone.changeNumber")}</Text>
               </TouchableOpacity>
-              {devCode ? (
-                <View style={styles.devBox}>
-                  <Text style={styles.devText}>DEV MODE — Code: {devCode}</Text>
-                </View>
-              ) : null}
+{/* Dev code hidden in production */}
             </>
           )}
 
