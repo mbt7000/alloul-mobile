@@ -19,6 +19,18 @@ import { useCompanyDailyRoom } from "../../../lib/useCompanyDailyRoom";
 
 const TEAM_LABELS = ["فريق التطوير", "فريق التصميم", "الموارد البشرية", "العمليات", "الإدارة"];
 
+const ROLE_BADGE: Record<string, { label: string; color: string }> = {
+  owner:    { label: "Owner",   color: "#f5a623" },
+  admin:    { label: "Admin",   color: "#4c6fff" },
+  manager:  { label: "Manager", color: "#00c9b1" },
+  employee: { label: "Employee",color: "#888898" },
+  member:   { label: "Member",  color: "#888898" },
+};
+
+function getRoleBadge(role: string) {
+  return ROLE_BADGE[role] ?? { label: role, color: "#888898" };
+}
+
 type TeamBucket = { id: string; name: string; count: number; memberIds: Set<number> };
 
 function statusForUser(userId: number): "online" | "away" | "offline" {
@@ -344,10 +356,17 @@ export default function TeamScreen() {
                     </AppText>
                     {showShield ? <Ionicons name="shield-checkmark" size={16} color={colors.accentBlue} /> : null}
                   </View>
-                  <AppText variant="caption" tone="muted" numberOfLines={2}>
-                    {item.role}
-                    {item.department_id != null ? ` · قسم ${item.department_id}` : ""}
-                  </AppText>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    {/* Role badge with color */}
+                    <View style={{ backgroundColor: getRoleBadge(item.role).color + "22", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                      <AppText variant="micro" weight="bold" style={{ color: getRoleBadge(item.role).color }}>
+                        {getRoleBadge(item.role).label}
+                      </AppText>
+                    </View>
+                    {item.department_id != null ? (
+                      <AppText variant="micro" tone="muted">{`قسم ${item.department_id}`}</AppText>
+                    ) : null}
+                  </View>
                 </View>
                 <View style={styles.avatarWrap}>
                   <View style={styles.avatar}>

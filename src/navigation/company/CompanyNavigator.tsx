@@ -24,7 +24,9 @@ import HiringBoardScreen from "../../features/companies/screens/HiringBoardScree
 import NotificationsScreen from "../../features/notifications/screens/NotificationsScreen";
 import RolesScreen from "../../features/companies/screens/RolesScreen";
 import InternalSearchScreen from "../../features/companies/screens/InternalSearchScreen";
+import CompanyOnboardingScreen from "../../features/companies/screens/CompanyOnboardingScreen";
 import { useCompany } from "../../state/company/CompanyContext";
+import { getOnboardingStatus } from "../../api";
 
 const Stack = createNativeStackNavigator();
 
@@ -33,9 +35,23 @@ function CompanySelectorEntry({ navigation }: { navigation: any }) {
 
   React.useEffect(() => {
     if (loading) return;
-    // Route company members directly to the new workspace shell design.
-    if (company) navigation.replace("CompanyWorkspace");
-    else navigation.replace("Companies");
+    if (!company) {
+      navigation.replace("Companies");
+      return;
+    }
+    // Check onboarding status for new companies — show onboarding if not completed
+    getOnboardingStatus()
+      .then((ob) => {
+        if (ob && !ob.completed) {
+          navigation.replace("CompanyOnboarding");
+        } else {
+          navigation.replace("CompanyWorkspace");
+        }
+      })
+      .catch(() => {
+        // On error, go straight to workspace to not block the user
+        navigation.replace("CompanyWorkspace");
+      });
   }, [company, loading, navigation]);
 
   return null;
@@ -70,6 +86,7 @@ export default function CompanyNavigator() {
       <Stack.Screen name="InternalSearch" component={InternalSearchScreen} />
       <Stack.Screen name="HiringBoard" component={HiringBoardScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="CompanyOnboarding" component={CompanyOnboardingScreen} />
     </Stack.Navigator>
   );
 }

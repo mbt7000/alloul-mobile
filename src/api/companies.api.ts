@@ -193,3 +193,76 @@ export const getAgentHistory = (mode?: string) => {
   const q = mode?.trim() ? `?mode=${encodeURIComponent(mode.trim())}` : "";
   return apiFetch<AgentMessageRow[]>(`/agent/history${q}`);
 };
+
+// ─── Company Role & Permissions ──────────────────────────────────────────────
+
+export type CompanyRole = "owner" | "admin" | "manager" | "employee" | "member";
+
+export interface MyRoleResponse {
+  role: CompanyRole | null;
+  company_id: number | null;
+  member_id: number | null;
+}
+
+export const getMyRole = () =>
+  apiFetch<MyRoleResponse>("/companies/my-role").catch(() => ({
+    role: null,
+    company_id: null,
+    member_id: null,
+  }));
+
+// ─── Invitations ─────────────────────────────────────────────────────────────
+
+export interface PendingInvitation {
+  id: number;
+  company_id: number;
+  company_name: string;
+  inviter_name?: string | null;
+  role: string;
+  created_at?: string | null;
+}
+
+export const getPendingInvitations = () =>
+  apiFetch<PendingInvitation[]>("/companies/invitations").catch(() => []);
+
+export const acceptInvitation = (id: number) =>
+  apiFetch(`/companies/invitations/${id}/accept`, { method: "POST" });
+
+export const rejectInvitation = (id: number) =>
+  apiFetch(`/companies/invitations/${id}/reject`, { method: "POST" });
+
+// ─── Invite Link ─────────────────────────────────────────────────────────────
+
+export interface InviteLinkInfo {
+  invite_code: string;
+  company_name: string;
+  expires_in_hours: number;
+}
+
+export const getInviteLink = () =>
+  apiFetch<InviteLinkInfo>("/companies/invite-link");
+
+export const joinByInviteCode = (invite_code: string) =>
+  apiFetch<{ message: string; company_id: number }>("/companies/join", {
+    method: "POST",
+    body: JSON.stringify({ invite_code }),
+  });
+
+// ─── Onboarding ──────────────────────────────────────────────────────────────
+
+export interface OnboardingStatus {
+  step_profile: boolean;
+  step_team: boolean;
+  step_invite: boolean;
+  step_project: boolean;
+  completed: boolean;
+}
+
+export const getOnboardingStatus = () =>
+  apiFetch<OnboardingStatus>("/companies/onboarding").catch(() => null);
+
+export const completeOnboardingStep = (step: "profile" | "team" | "invite" | "project") =>
+  apiFetch("/companies/onboarding/complete-step", {
+    method: "POST",
+    body: JSON.stringify({ step }),
+  });

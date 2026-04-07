@@ -23,3 +23,23 @@ export const MEDIA_TAB_ROUTES = {
   search: "Search",
   profile: "Profile",
 } as const;
+
+export const COMPANY_ROUTES = {
+  selector: "CompanySelector",
+  list: "Companies",
+  workspace: "CompanyWorkspace",
+  onboarding: "CompanyOnboarding",
+  teams: "Teams",
+  projects: "Projects",
+  tasks: "Tasks",
+  meetings: "Meetings",
+  handover: "Handover",
+  chat: "Chat",
+  knowledge: "Knowledge",
+  crm: "CRM",
+  reports: "Reports",
+  settings: "Settings",
+  roles: "Roles",
+  hiringBoard: "HiringBoard",
+  notifications: "Notifications",
+} as const;
