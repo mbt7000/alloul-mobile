@@ -70,8 +70,13 @@ export default function LoginScreen() {
   const expoClientId = googleWebClientId;
   const expoOwner = Constants.expoConfig?.owner;
   const expoSlug = Constants.expoConfig?.slug;
-  // Always use webClientId for Google auth — it must match the Firebase project
-  const googleClientId = googleWebClientId;
+  // Use iOS client ID from Firebase project (458917264125) — same project = tokens match
+  const googleNativeIosClientId = googleIosClientId || googleWebClientId;
+  const googleIosClientBaseId = googleNativeIosClientId?.replace(".apps.googleusercontent.com", "");
+  const googleClientId =
+    Platform.OS === "ios" && !isExpoGo && googleIosClientId
+      ? googleIosClientId
+      : googleWebClientId;
   const googleReady = Boolean(googleClientId);
   const canUseGoogle = firebaseReady && googleReady;
   /** Sign in with Apple لا يعمل داخل Expo Go — يحتاج EAS build / TestFlight. */
@@ -80,11 +85,18 @@ export default function LoginScreen() {
   const projectNameForProxy = expoOwner && expoSlug ? `@${expoOwner}/${expoSlug}` : undefined;
   const generatedRedirectUri = AuthSession.makeRedirectUri({ useProxy: true } as never);
   const expoProxyRedirectUri = projectNameForProxy ? `https://auth.expo.io/${projectNameForProxy}` : generatedRedirectUri;
+  // iOS native redirect uses the reversed client ID scheme
+  const googleIosNativeRedirect = googleIosClientBaseId
+    ? `com.googleusercontent.apps.${googleIosClientBaseId}:/oauthredirect`
+    : undefined;
   const googleRedirectUri = isExpoGo
     ? expoProxyRedirectUri
-    : AuthSession.makeRedirectUri({ scheme: "alloul", path: "oauthredirect" });
+    : Platform.OS === "ios" && googleIosNativeRedirect
+      ? AuthSession.makeRedirectUri({ native: googleIosNativeRedirect })
+      : AuthSession.makeRedirectUri({ scheme: "alloul", path: "oauthredirect" });
   const [googleRequest, googleResponse, promptAsync] = Google.useAuthRequest({
     clientId: googleClientId || "",
+    iosClientId: googleIosClientId || "",
     webClientId: googleWebClientId || "",
     redirectUri: googleRedirectUri,
     responseType: AuthSession.ResponseType.Code,
@@ -318,25 +330,41 @@ export default function LoginScreen() {
         }
         let accessToken: string | undefined = accessTokenFromAuth;
 
-        // If we have id_token, use it directly (no code exchange needed)
-        if (googleIdToken) {
-          appendOauthDebug(`[G5] direct idToken=present accessToken=${accessToken ? "present" : "missing"}`);
-          const firebaseIdToken = await exchangeGoogleIdTokenForFirebaseIdToken(googleIdToken, accessToken);
+        // If no direct id_token, exchange the auth code (iOS clients don't need client_secret)
+        if (!googleIdToken) {
+          const authCode = responseParams?.code;
+          if (authCode && googleRequest?.codeVerifier) {
+            appendOauthDebug("[G4c] code_exchange with iOS client (no secret needed)");
+            try {
+              const tokenResponse = await AuthSession.exchangeCodeAsync(
+                {
+                  clientId: googleClientId,
+                  code: authCode,
+                  redirectUri: googleRedirectUri,
+                  extraParams: { code_verifier: googleRequest.codeVerifier },
+                },
+                GOOGLE_DISCOVERY
+              );
+              googleIdToken = tokenResponse.idToken;
+              accessToken = tokenResponse.accessToken || accessToken;
+              appendOauthDebug(`[G4d] exchange ok idToken=${googleIdToken ? "yes" : "no"} access=${accessToken ? "yes" : "no"}`);
+            } catch (exErr: unknown) {
+              const exMsg = exErr instanceof Error ? exErr.message : String(exErr ?? "");
+              appendOauthDebug(`[G4e] exchange_err=${exMsg.slice(0, 300)}`);
+            }
+          }
+        }
+
+        // Use whatever tokens we have
+        if (googleIdToken || accessToken) {
+          appendOauthDebug(`[G5] idToken=${googleIdToken ? "yes" : "no"} accessToken=${accessToken ? "yes" : "no"}`);
+          const firebaseIdToken = await exchangeGoogleIdTokenForFirebaseIdToken(googleIdToken || null, accessToken);
           await loginWithFirebase(firebaseIdToken);
           await refresh();
           return;
         }
 
-        // Fallback: if we have accessToken but no idToken, use accessToken with Firebase
-        if (accessToken) {
-          appendOauthDebug("[G5b] no idToken, using accessToken only with Firebase");
-          const firebaseIdToken = await exchangeGoogleIdTokenForFirebaseIdToken(null as unknown as string, accessToken);
-          await loginWithFirebase(firebaseIdToken);
-          await refresh();
-          return;
-        }
-
-        appendOauthDebug("[G5] no_id_token_no_access_token");
+        appendOauthDebug("[G5] no_tokens");
         setError(t("auth.googleTokenMissing"));
       } catch (err: unknown) {
         const payload = err as { message?: string; status?: number; code?: string };

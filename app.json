@@ -9,7 +9,7 @@
     "userInterfaceStyle": "dark",
     "scheme": [
       "alloul",
-      "com.googleusercontent.apps.1084542316298-qo916npu1t9tqecijcamup70o7fk1hds"
+      "com.googleusercontent.apps.458917264125-2evr00j6a8j43a1nqkmr02evbhm92gck"
     ],
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -24,7 +24,7 @@
         "NSPhotoLibraryUsageDescription": "Share photos in posts",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "41"
+      "buildNumber": "42"
     },
     "android": {
       "package": "com.alloul.one",
@@ -52,7 +52,7 @@
         "appId": "1:458917264125:web:12e01e5c281f9ef5411c94"
       },
       "googleAuth": {
-        "iosClientId": "",
+        "iosClientId": "458917264125-2evr00j6a8j43a1nqkmr02evbhm92gck.apps.googleusercontent.com",
         "androidClientId": "",
         "webClientId": "458917264125-4b56p5dbgk10bvamo6k4oifegg2cnqio.apps.googleusercontent.com"
       },
