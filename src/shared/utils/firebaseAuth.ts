@@ -4,6 +4,7 @@ import { Platform } from "react-native";
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
   type Auth,
+  initializeAuth,
   getAuth,
   GithubAuthProvider,
   GoogleAuthProvider,
@@ -11,6 +12,25 @@ import {
   signInWithCredential,
   signOut,
 } from "firebase/auth";
+
+// getReactNativePersistence may be in different export paths depending on Firebase version
+let rnPersistence: ((storage: any) => any) | null = null;
+try {
+  // Firebase 10.x: exported from firebase/auth
+  const authMod = require("firebase/auth");
+  if (typeof authMod.getReactNativePersistence === "function") {
+    rnPersistence = authMod.getReactNativePersistence;
+  }
+} catch {}
+if (!rnPersistence) {
+  try {
+    // Firebase 10.x alternative: from /react-native subpath
+    const rnMod = require("firebase/auth/react-native");
+    if (typeof rnMod.getReactNativePersistence === "function") {
+      rnPersistence = rnMod.getReactNativePersistence;
+    }
+  } catch {}
+}
 
 type FirebaseExtra = {
   apiKey?: string;
@@ -46,7 +66,6 @@ function getFirebaseApp(): FirebaseApp {
 
 let cachedAuth: Auth | null = null;
 
-/** على iOS/Android لازم persistence مع AsyncStorage وإلا signInWithCredential يفشل أو يتصرف بشكل غير متوقع. */
 function getFirebaseAuth(): Auth {
   if (cachedAuth) return cachedAuth;
   const app = getFirebaseApp();
@@ -56,21 +75,23 @@ function getFirebaseAuth(): Auth {
     return cachedAuth;
   }
 
+  // On React Native, use initializeAuth with persistence if available
   try {
-    // تصديرات RN (initializeAuth + getReactNativePersistence) غير مذكورة في أنواع firebase/auth للمتصفح
-    const {
-      initializeAuth: initAuth,
-      getReactNativePersistence: rnPersistence,
-    } = require("firebase/auth") as {
-      initializeAuth: (a: FirebaseApp, d: { persistence: unknown }) => Auth;
-      getReactNativePersistence: (s: typeof AsyncStorage) => unknown;
-    };
-    cachedAuth = initAuth(app, {
-      persistence: rnPersistence(AsyncStorage),
-    });
+    if (rnPersistence) {
+      cachedAuth = initializeAuth(app, {
+        persistence: rnPersistence(AsyncStorage),
+      });
+    } else {
+      // No RN persistence available — initialize without it
+      cachedAuth = initializeAuth(app, {} as any);
+    }
   } catch {
-    // مثلاً بعد hot reload أو تهيئة مسبقة
-    cachedAuth = getAuth(app);
+    // Already initialized (hot reload) — get existing instance
+    try {
+      cachedAuth = getAuth(app);
+    } catch {
+      cachedAuth = initializeAuth(app, {} as any);
+    }
   }
   return cachedAuth;
 }
