@@ -54,7 +54,7 @@ module.exports = ({ config }) => {
         android,
         extra: {
             ...(config.extra || {}),
-            debugAuthVersion: "oauth-debug-v10",
+            debugAuthVersion: "oauth-debug-v11",
             apiUrl: normalizeApiUrl(pickEnv("EXPO_PUBLIC_API_URL", config.extra?.apiUrl)),
             apiDocsUrl: pickEnv("EXPO_PUBLIC_API_DOCS_URL", config.extra?.apiDocsUrl),
             apiOpenapiUrl: pickEnv("EXPO_PUBLIC_API_OPENAPI_URL", config.extra?.apiOpenapiUrl),
@@ -71,9 +71,8 @@ module.exports = ({ config }) => {
                 androidClientId: pickEnv("EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID", config.extra?.googleAuth?.androidClientId),
                 webClientId: pickEnv("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID", config.extra?.googleAuth?.webClientId),
             },
-            microsoftAuth: {
-                clientId: pickEnv("EXPO_PUBLIC_MICROSOFT_CLIENT_ID", config.extra?.microsoftAuth?.clientId),
-                tenantId: pickEnv("EXPO_PUBLIC_MICROSOFT_TENANT_ID", config.extra?.microsoftAuth?.tenantId),
+            githubAuth: {
+                clientId: pickEnv("EXPO_PUBLIC_GITHUB_CLIENT_ID", config.extra?.githubAuth?.clientId),
             },
         },
     };
