@@ -24,7 +24,7 @@
         "NSPhotoLibraryUsageDescription": "Share photos in posts",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "42"
+      "buildNumber": "45"
     },
     "android": {
       "package": "com.alloul.one",
