@@ -70,19 +70,8 @@ export default function LoginScreen() {
   const expoClientId = googleWebClientId;
   const expoOwner = Constants.expoConfig?.owner;
   const expoSlug = Constants.expoConfig?.slug;
-  const googleNativeIosClientId = googleIosClientId || googleWebClientId;
-  const googleIosClientBaseId = googleNativeIosClientId?.replace(".apps.googleusercontent.com", "");
-  const googleIosNativeRedirect = googleIosClientBaseId
-    ? `com.googleusercontent.apps.${googleIosClientBaseId}:/oauthredirect`
-    : undefined;
-  const googleClientId =
-    Platform.OS === "ios"
-      ? isExpoGo
-        ? googleWebClientId
-        : googleNativeIosClientId
-      : isExpoGo
-        ? googleWebClientId
-        : googleAndroidClientId || googleWebClientId;
+  // Always use webClientId for Google auth — it must match the Firebase project
+  const googleClientId = googleWebClientId;
   const googleReady = Boolean(googleClientId);
   const canUseGoogle = firebaseReady && googleReady;
   /** Sign in with Apple لا يعمل داخل Expo Go — يحتاج EAS build / TestFlight. */
@@ -93,16 +82,10 @@ export default function LoginScreen() {
   const expoProxyRedirectUri = projectNameForProxy ? `https://auth.expo.io/${projectNameForProxy}` : generatedRedirectUri;
   const googleRedirectUri = isExpoGo
     ? expoProxyRedirectUri
-    : AuthSession.makeRedirectUri({
-        native: googleIosNativeRedirect || "alloul:/oauthredirect",
-      });
+    : AuthSession.makeRedirectUri({ scheme: "alloul", path: "oauthredirect" });
   const [googleRequest, googleResponse, promptAsync] = Google.useAuthRequest({
-    // Keep the requested key explicitly for Expo Go proxy flow.
-    expoClientId: expoClientId || "",
     clientId: googleClientId || "",
     webClientId: googleWebClientId || "",
-    iosClientId: googleNativeIosClientId || "",
-    androidClientId: googleAndroidClientId || "",
     redirectUri: googleRedirectUri,
     responseType: AuthSession.ResponseType.Code,
     scopes: ["openid", "profile", "email"],
