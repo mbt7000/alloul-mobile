@@ -7,30 +7,34 @@ import { useAppTheme } from "../../../theme/ThemeContext";
 import { radius } from "../../../theme/radius";
 import type { CompanySectionKey } from "./CompanySidebar";
 
-type DockKey = "home" | "mail" | "apps" | "chat" | "more";
-
+// ── 5 most important sections directly accessible from the dock ────────────
+// "المزيد" opens the sidebar to reach the remaining sections
 const ITEMS: {
-  dock: DockKey;
+  key: CompanySectionKey | "more";
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   iconActive: keyof typeof Ionicons.glyphMap;
-  matchSection: CompanySectionKey | null;
-  navigate?: string;
 }[] = [
-  { dock: "more", label: "المزيد", icon: "ellipsis-horizontal", iconActive: "ellipsis-horizontal", matchSection: "settings" },
-  { dock: "chat", label: "المحادثات", icon: "chatbubble-outline", iconActive: "chatbubble", matchSection: "chat", navigate: "Chat" },
-  { dock: "apps", label: "الخدمات", icon: "apps-outline", iconActive: "apps", matchSection: null, navigate: "Apps" },
-  { dock: "mail", label: "الموافقات", icon: "file-tray-outline", iconActive: "file-tray", matchSection: null, navigate: "Inbox" },
-  { dock: "home", label: "الرئيسية", icon: "grid-outline", iconActive: "grid", matchSection: "dashboard" },
+  { key: "more",     label: "المزيد",    icon: "menu-outline",          iconActive: "menu"              },
+  { key: "tasks",    label: "المهام",    icon: "checkbox-outline",       iconActive: "checkbox"          },
+  { key: "dashboard",label: "الرئيسية", icon: "grid-outline",           iconActive: "grid"              },
+  { key: "projects", label: "المشاريع", icon: "folder-outline",         iconActive: "folder"            },
+  { key: "chat",     label: "الدردشة",  icon: "chatbubble-outline",     iconActive: "chatbubble"        },
 ];
 
 type Props = {
   activeSection: CompanySectionKey;
   onSelectSection: (key: CompanySectionKey) => void;
+  onOpenSidebar: () => void;
   navigation: { navigate: (name: string) => void };
 };
 
-export default function CompanyFloatingDock({ activeSection, onSelectSection, navigation }: Props) {
+export default function CompanyFloatingDock({
+  activeSection,
+  onSelectSection,
+  onOpenSidebar,
+  navigation,
+}: Props) {
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, 10);
   const { colors, mode } = useAppTheme();
@@ -54,7 +58,7 @@ export default function CompanyFloatingDock({ activeSection, onSelectSection, na
           borderRadius: radius.xxl,
           borderWidth: 1,
           borderColor: colors.floatingBarBorder,
-          paddingHorizontal: 6,
+          paddingHorizontal: 8,
           paddingTop: 10,
           paddingBottom: 8,
           marginHorizontal: 14,
@@ -86,43 +90,57 @@ export default function CompanyFloatingDock({ activeSection, onSelectSection, na
           borderWidth: 1,
           borderColor: colors.floatingActiveBorder,
         },
-        label: { marginTop: 4, fontSize: 9, color: colors.textPrimary, textAlign: "center" },
+        label: {
+          marginTop: 4,
+          fontSize: 9,
+          color: colors.textPrimary,
+          textAlign: "center",
+          fontWeight: "600",
+        },
+        labelActive: {
+          color: colors.accentCyan,
+        },
       }),
     [colors]
   );
 
   const activeIconColor = mode === "light" ? colors.white : colors.black;
 
-  const isActive = (item: (typeof ITEMS)[0]) => {
-    if (item.matchSection != null) return activeSection === item.matchSection;
-    return false;
-  };
-
   return (
     <View style={[styles.wrap, { paddingBottom: bottom }]}>
       <View style={styles.pill}>
         {ITEMS.map((item) => {
-          const focused = isActive(item);
+          const focused = item.key !== "more" && activeSection === item.key;
+
           const onPress = () => {
-            if (item.navigate) {
-              navigation.navigate(item.navigate);
+            if (item.key === "more") {
+              onOpenSidebar();
               return;
             }
-            if (item.matchSection) onSelectSection(item.matchSection);
+            if (item.key === "chat") {
+              navigation.navigate("Chat");
+              return;
+            }
+            onSelectSection(item.key);
           };
+
           const iconColor = focused ? activeIconColor : colors.textSecondary;
+
           return (
-            <Pressable key={item.dock} style={styles.item} onPress={onPress}>
+            <Pressable key={item.key} style={styles.item} onPress={onPress}>
               <View style={[styles.iconBox, focused && styles.iconBoxActive]}>
-                <Ionicons name={focused ? item.iconActive : item.icon} size={focused ? 22 : 20} color={iconColor} />
+                <Ionicons
+                  name={focused ? item.iconActive : item.icon}
+                  size={focused ? 22 : 20}
+                  color={iconColor}
+                />
               </View>
-              {focused ? (
-                <AppText variant="micro" weight="bold" style={styles.label}>
-                  {item.label}
-                </AppText>
-              ) : (
-                <View style={{ height: 13 }} />
-              )}
+              <AppText
+                variant="micro"
+                style={[styles.label, focused && styles.labelActive]}
+              >
+                {item.label}
+              </AppText>
             </Pressable>
           );
         })}

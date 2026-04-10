@@ -24,17 +24,17 @@ export type SidebarItem = {
 };
 
 export const COMPANY_SIDEBAR_ITEMS: SidebarItem[] = [
-  { key: "dashboard", label: "Dashboard", icon: "grid-outline" },
-  { key: "teams", label: "Teams", icon: "people-outline" },
-  { key: "projects", label: "Projects", icon: "folder-outline" },
-  { key: "tasks", label: "Tasks", icon: "checkbox-outline" },
-  { key: "meetings", label: "Meetings", icon: "videocam-outline" },
-  { key: "handover", label: "Handover", icon: "swap-horizontal-outline" },
-  { key: "chat", label: "Chat", icon: "chatbubble-ellipses-outline" },
-  { key: "knowledge", label: "Knowledge", icon: "book-outline" },
-  { key: "crm", label: "CRM", icon: "trending-up-outline" },
-  { key: "reports", label: "Reports", icon: "bar-chart-outline" },
-  { key: "settings", label: "Settings", icon: "settings-outline" },
+  { key: "dashboard", label: "الرئيسية",   icon: "grid-outline"                },
+  { key: "teams",     label: "الفريق",      icon: "people-outline"              },
+  { key: "projects",  label: "المشاريع",    icon: "folder-outline"              },
+  { key: "tasks",     label: "المهام",       icon: "checkbox-outline"            },
+  { key: "meetings",  label: "الاجتماعات",  icon: "videocam-outline"            },
+  { key: "handover",  label: "التسليم",      icon: "swap-horizontal-outline"     },
+  { key: "chat",      label: "الدردشة",      icon: "chatbubble-ellipses-outline" },
+  { key: "knowledge", label: "المعرفة",      icon: "book-outline"                },
+  { key: "crm",       label: "العملاء",      icon: "trending-up-outline"         },
+  { key: "reports",   label: "التقارير",     icon: "bar-chart-outline"           },
+  { key: "settings",  label: "الإعدادات",   icon: "settings-outline"            },
 ];
 
 export default function CompanySidebar({

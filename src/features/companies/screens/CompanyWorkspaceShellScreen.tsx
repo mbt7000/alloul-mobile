@@ -20,6 +20,7 @@ import { useThemedStyles } from "../../../theme/useThemedStyles";
 import { useCompany } from "../../../state/company/CompanyContext";
 import {
   getAgentHistory,
+  getAllCompanyTasks,
   getCompanyMembers,
   getCompanyStats,
   getDashboardActivity,
@@ -37,6 +38,7 @@ import {
   type HandoverRow,
   type HandoverWorkItem,
   type ProjectRow,
+  type TaskRow,
 } from "../../../api";
 import CompanySidebar, { type CompanySectionKey } from "../components/CompanySidebar";
 import CompanyFloatingDock from "../components/CompanyFloatingDock";
@@ -49,6 +51,7 @@ type HeaderStat = { label: string; value: string };
 type WorkspaceData = {
   members: CompanyMemberRow[];
   projects: ProjectRow[];
+  tasks: TaskRow[];
   handovers: HandoverRow[];
   handoverItems: HandoverWorkItem[];
   deals: DealRow[];
@@ -103,6 +106,28 @@ type TaskBuckets = {
 };
 
 function buildTaskBuckets(data: WorkspaceData, dash: DashboardStats | null): TaskBuckets {
+  if (data.tasks.length > 0) {
+    // Use real tasks when available
+    const today = new Date().toISOString().slice(0, 10);
+    const dueToday = data.tasks
+      .filter((t) => t.status !== "done" && t.due_date && t.due_date <= today)
+      .slice(0, 4)
+      .map((t) => ({ id: `t-${t.id}`, title: t.title }));
+    const inProgress = data.tasks
+      .filter((t) => t.status === "in_progress")
+      .slice(0, 5)
+      .map((t) => ({ id: `t-${t.id}`, title: t.title }));
+    const blocked = data.tasks
+      .filter((t) => t.priority === "high" && t.status !== "done")
+      .slice(0, 4)
+      .map((t) => ({ id: `t-${t.id}`, title: t.title }));
+    const overdue = data.tasks
+      .filter((t) => t.status === "todo" && t.priority !== "low")
+      .slice(0, 4)
+      .map((t) => ({ id: `t-${t.id}`, title: t.title }));
+    return { dueToday, inProgress, blocked, overdue };
+  }
+  // Fallback to projects/handovers if no real tasks loaded
   const activeProjects = data.projects.filter((p) => !isDoneProjectStatus(p.status));
   const riskCount = Math.max(dash?.critical_risks ?? 0, 0);
   const dueToday = activeProjects.slice(0, 3).map((p) => ({ id: `p-${p.id}`, title: `Project follow-up · ${p.name}` }));
@@ -115,28 +140,22 @@ function buildTaskBuckets(data: WorkspaceData, dash: DashboardStats | null): Tas
     .filter((h) => !isDoneProjectStatus(h.status))
     .slice(0, 3)
     .map((h) => ({ id: `o-${h.id}`, title: h.title }));
-
-  return {
-    dueToday,
-    inProgress,
-    blocked,
-    overdue,
-  };
+  return { dueToday, inProgress, blocked, overdue };
 }
 
 function sectionFrameSubtitle(key: CompanySectionKey): string {
   const map: Record<CompanySectionKey, string> = {
-    dashboard: "Executive snapshot · KPIs and pulse",
-    teams: "Org structure · people and access",
-    projects: "Workstreams · delivery and risk",
-    tasks: "Execution · priorities and blockers",
-    meetings: "Calendar · agendas and outcomes",
-    handover: "Continuity · audit-ready transfers",
-    chat: "Threads · company and DMs",
-    knowledge: "Docs · playbooks and policies",
-    crm: "Pipeline · clients and deals",
-    reports: "Insights · performance and reviews",
-    settings: "Workspace · security and preferences",
+    dashboard: "نظرة عامة · المؤشرات والأداء",
+    teams:     "الهيكل التنظيمي · الأعضاء والصلاحيات",
+    projects:  "المشاريع · التسليمات والمخاطر",
+    tasks:     "التنفيذ · الأولويات والمعيقات",
+    meetings:  "التقويم · الأجندات والنتائج",
+    handover:  "الاستمرارية · التسليم والتوثيق",
+    chat:      "المحادثات · القنوات والرسائل",
+    knowledge: "الوثائق · الأدلة والسياسات",
+    crm:       "العملاء · الصفقات والمتابعة",
+    reports:   "التحليل · الأداء والمراجعات",
+    settings:  "مساحة العمل · الأمان والتفضيلات",
   };
   return map[key];
 }
@@ -159,97 +178,100 @@ function headerStatsForSection(
   switch (key) {
     case "dashboard":
       return [
-        { label: "Open tasks", value: n(dash?.pending_tasks) },
-        { label: "Handovers", value: n(dash?.total_handovers) },
-        { label: "Team", value: n(stats?.total_members) },
-        { label: "Projects", value: n(data.projects.length) },
+        { label: "مهام مفتوحة", value: n(dash?.pending_tasks) },
+        { label: "تسليمات", value: n(dash?.total_handovers) },
+        { label: "الفريق", value: n(stats?.total_members) },
+        { label: "مشاريع", value: n(data.projects.length) },
       ];
     case "teams":
       return [
-        { label: "Employees", value: n(stats?.total_members) },
-        { label: "Teams", value: n(teamCount) },
-        { label: "Joiners", value: ell },
-        { label: "Invites", value: ell },
+        { label: "موظفون", value: n(stats?.total_members) },
+        { label: "فرق", value: n(teamCount) },
+        { label: "جدد", value: ell },
+        { label: "دعوات", value: ell },
       ];
     case "projects":
       return [
-        { label: "Active", value: n(activeProjects) },
-        { label: "At risk", value: n(dash?.critical_risks) },
-        { label: "Done", value: n(doneProjects) },
-        { label: "Due week", value: n(Math.min(activeProjects, 7)) },
+        { label: "نشط", value: n(activeProjects) },
+        { label: "في خطر", value: n(dash?.critical_risks) },
+        { label: "مكتمل", value: n(doneProjects) },
+        { label: "هذا الأسبوع", value: n(Math.min(activeProjects, 7)) },
       ];
     case "tasks":
       const tasks = buildTaskBuckets(data, dash);
       return [
-        { label: "Today", value: n(tasks.dueToday.length) },
-        { label: "Active", value: n(tasks.inProgress.length) },
-        { label: "Blocked", value: n(tasks.blocked.length) },
-        { label: "Overdue", value: n(tasks.overdue.length) },
+        { label: "اليوم", value: n(tasks.dueToday.length) },
+        { label: "جارية", value: n(tasks.inProgress.length) },
+        { label: "محجوبة", value: n(tasks.blocked.length) },
+        { label: "متأخرة", value: n(tasks.overdue.length) },
       ];
     case "handover":
       return [
-        { label: "Review", value: n(handoverReview) },
-        { label: "Done", value: n(handoverDone) },
-        { label: "Action", value: n(data.handoverItems.length - handoverReview - handoverDone) },
-        { label: "Archive", value: n(data.handovers.length) },
+        { label: "مراجعة", value: n(handoverReview) },
+        { label: "مكتمل", value: n(handoverDone) },
+        { label: "إجراء", value: n(data.handoverItems.length - handoverReview - handoverDone) },
+        { label: "الأرشيف", value: n(data.handovers.length) },
       ];
     case "meetings":
       return [
-        { label: "Today", value: n(Math.min(data.activity.length, 3)) },
-        { label: "Week", value: n(Math.min(data.activity.length + data.handoverItems.length, 9)) },
-        { label: "Recordings", value: n(Math.min(data.agentHistory.length, 12)) },
-        { label: "Follow-ups", value: n(Math.min(data.projects.length, 7)) },
+        { label: "اليوم", value: n(Math.min(data.activity.length, 3)) },
+        { label: "الأسبوع", value: n(Math.min(data.activity.length + data.handoverItems.length, 9)) },
+        { label: "تسجيلات", value: n(Math.min(data.agentHistory.length, 12)) },
+        { label: "متابعات", value: n(Math.min(data.projects.length, 7)) },
       ];
     case "chat":
       return [
-        { label: "Unread", value: n(data.activity.length) },
-        { label: "Mentions", value: n(data.agentHistory.length) },
-        { label: "Channels", value: ell },
-        { label: "DMs", value: ell },
+        { label: "غير مقروء", value: n(data.activity.length) },
+        { label: "إشارات", value: n(data.agentHistory.length) },
+        { label: "قنوات", value: ell },
+        { label: "رسائل خاصة", value: ell },
       ];
     case "knowledge":
       return [
-        { label: "Articles", value: n(data.handovers.length) },
-        { label: "Drafts", value: n(data.handoverItems.length) },
-        { label: "Updated", value: data.activity.length > 0 ? "live" : ell },
-        { label: "Views", value: ell },
+        { label: "مقالات", value: n(data.handovers.length) },
+        { label: "مسودات", value: n(data.handoverItems.length) },
+        { label: "محدّث", value: data.activity.length > 0 ? "مباشر" : ell },
+        { label: "مشاهدات", value: ell },
       ];
     case "crm":
       return [
-        { label: "Clients", value: n(data.deals.length) },
-        { label: "Follow-ups", value: n(Math.min(data.deals.length, 5)) },
-        { label: "Deals", value: n(dealsOpen) },
-        { label: "Closed", value: n(dealsWon) },
+        { label: "عملاء", value: n(data.deals.length) },
+        { label: "متابعات", value: n(Math.min(data.deals.length, 5)) },
+        { label: "صفقات", value: n(dealsOpen) },
+        { label: "مغلقة", value: n(dealsWon) },
       ];
     case "reports":
       return [
-        { label: "Weekly", value: n(Math.min(data.activity.length, 7)) },
-        { label: "Score", value: n(dash?.knowledge_health_score) === "—" ? ell : `${n(dash?.knowledge_health_score)}%` },
-        { label: "Insights", value: n(data.activity.length) },
-        { label: "Reviews", value: n(data.projects.length) },
+        { label: "أسبوعي", value: n(Math.min(data.activity.length, 7)) },
+        { label: "الصحة", value: n(dash?.knowledge_health_score) === "—" ? ell : `${n(dash?.knowledge_health_score)}%` },
+        { label: "رؤى", value: n(data.activity.length) },
+        { label: "مراجعات", value: n(data.projects.length) },
       ];
     default:
       return [
-        { label: "Members", value: n(stats?.total_members) },
-        { label: "Roles", value: "6" },
-        { label: "Apps", value: "11" },
-        { label: "Alerts", value: "2" },
+        { label: "أعضاء", value: n(stats?.total_members) },
+        { label: "أدوار", value: "6" },
+        { label: "تطبيقات", value: "11" },
+        { label: "تنبيهات", value: "2" },
       ];
   }
 }
 
 function sectionTitle(key: CompanySectionKey): string {
-  if (key === "dashboard") return "Dashboard";
-  if (key === "teams") return "Teams";
-  if (key === "projects") return "Projects";
-  if (key === "tasks") return "Tasks";
-  if (key === "meetings") return "Meetings";
-  if (key === "handover") return "Handover";
-  if (key === "chat") return "Chat";
-  if (key === "knowledge") return "Knowledge";
-  if (key === "crm") return "CRM";
-  if (key === "reports") return "Reports";
-  return "Settings";
+  const map: Record<CompanySectionKey, string> = {
+    dashboard: "الرئيسية",
+    teams:     "الفريق",
+    projects:  "المشاريع",
+    tasks:     "المهام",
+    meetings:  "الاجتماعات",
+    handover:  "التسليم",
+    chat:      "الدردشة",
+    knowledge: "المعرفة",
+    crm:       "العملاء",
+    reports:   "التقارير",
+    settings:  "الإعدادات",
+  };
+  return map[key] ?? key;
 }
 
 export default function CompanyWorkspaceShellScreen() {
@@ -266,6 +288,7 @@ export default function CompanyWorkspaceShellScreen() {
   const [dash, setDash] = useState<DashboardStats | null>(null);
   const [members, setMembers] = useState<CompanyMemberRow[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [handovers, setHandovers] = useState<HandoverRow[]>([]);
   const [handoverItems, setHandoverItems] = useState<HandoverWorkItem[]>([]);
   const [deals, setDeals] = useState<DealRow[]>([]);
@@ -279,12 +302,14 @@ export default function CompanyWorkspaceShellScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    const companyId = company?.id;
     try {
-      const [s, d, m, p, h, hi, dl, a, ah] = await Promise.all([
+      const [s, d, m, p, t, h, hi, dl, a, ah] = await Promise.all([
         getCompanyStats().catch(() => null),
         getDashboardStats().catch(() => null),
         getCompanyMembers().catch(() => [] as CompanyMemberRow[]),
-        getProjects().catch(() => [] as ProjectRow[]),
+        getProjects(companyId).catch(() => [] as ProjectRow[]),
+        getAllCompanyTasks(companyId).catch(() => [] as TaskRow[]),
         getHandovers().catch(() => [] as HandoverRow[]),
         getHandoverWorkItems().catch(() => [] as HandoverWorkItem[]),
         getDeals().catch(() => [] as DealRow[]),
@@ -295,6 +320,7 @@ export default function CompanyWorkspaceShellScreen() {
       setDash(d);
       setMembers(Array.isArray(m) ? m : []);
       setProjects(Array.isArray(p) ? p : []);
+      setTasks(Array.isArray(t) ? t : []);
       setHandovers(Array.isArray(h) ? h : []);
       setHandoverItems(Array.isArray(hi) ? hi : []);
       setDeals(Array.isArray(dl) ? dl : []);
@@ -303,7 +329,7 @@ export default function CompanyWorkspaceShellScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [company?.id]);
 
   useEffect(() => {
     void load();
@@ -357,9 +383,9 @@ export default function CompanyWorkspaceShellScreen() {
   });
 
   const roleLabel = useMemo(() => {
-    if (!isMember) return "Guest";
-    if (!isActive) return "Inactive";
-    return "Member";
+    if (!isMember) return "زائر";
+    if (!isActive) return "غير نشط";
+    return "عضو";
   }, [isMember, isActive]);
 
   const currentTitle = sectionTitle(activeKey);
@@ -368,13 +394,14 @@ export default function CompanyWorkspaceShellScreen() {
     () => ({
       members,
       projects,
+      tasks,
       handovers,
       handoverItems,
       deals,
       activity,
       agentHistory,
     }),
-    [activity, agentHistory, deals, handoverItems, handovers, members, projects]
+    [activity, agentHistory, deals, handoverItems, handovers, members, projects, tasks]
   );
   const headerStats = useMemo(
     () => headerStatsForSection(activeKey, { stats, dash, loading, data: workspaceData }),
@@ -478,12 +505,12 @@ export default function CompanyWorkspaceShellScreen() {
               <View style={{ height: 12 }} />
               <CompanySidebar activeKey={activeKey} onSelect={(k) => onSelect(k)} />
               <View style={{ height: 12 }} />
-              <AppButton label="Back to Public" tone="glass" onPress={goPublic} />
+              <AppButton label="العودة للصفحة العامة" tone="glass" onPress={goPublic} />
             </Animated.View>
           </Pressable>
         ) : null}
 
-        <CompanyFloatingDock activeSection={activeKey} onSelectSection={onSelect} navigation={navigation} />
+        <CompanyFloatingDock activeSection={activeKey} onSelectSection={onSelect} onOpenSidebar={openSidebar} navigation={navigation} />
       </View>
     </Screen>
   );
@@ -547,26 +574,26 @@ function SectionContent({
   }
   if (activeKey === "chat") {
     const chatRows = data.agentHistory.slice(0, 4).map((msg, i) => ({
-      title: msg.content.length > 50 ? `${msg.content.slice(0, 50)}…` : msg.content || `Message ${i + 1}`,
-      meta: msg.created_at ? `${msg.role} · ${formatDateLabel(msg.created_at)}` : msg.role,
+      title: msg.content.length > 50 ? `${msg.content.slice(0, 50)}…` : msg.content || `رسالة ${i + 1}`,
+      meta: msg.created_at ? `${msg.role === "assistant" ? "مساعد" : "أنت"} · ${formatDateLabel(msg.created_at)}` : msg.role,
       icon: (msg.role === "assistant" ? "sparkles-outline" : "chatbubble-outline") as keyof typeof Ionicons.glyphMap,
     }));
     return (
       <MeetingsLikeSection
         nav={nav}
         onPrimary={() => nav.navigate("Chat")}
-        title="Chat"
-        subtitle="Channels, threads, and DMs—merged with Inbox when needed."
-        primary="New message"
+        title="الدردشة"
+        subtitle="القنوات والمحادثات الخاصة للفريق."
+        primary="رسالة جديدة"
         actions={[
-          { label: "Inbox", icon: "mail-outline", onPress: () => nav.navigate("Inbox") },
-          { label: "Channels", icon: "chatbubbles-outline", onPress: () => nav.navigate("Chat") },
-          { label: "Mentions", icon: "at-outline", onPress: () => nav.navigate("Chat") },
-          { label: "Teams", icon: "people-outline", onPress: () => onSelect("teams") },
+          { label: "القنوات", icon: "chatbubbles-outline", onPress: () => nav.navigate("Chat") },
+          { label: "الإشارات", icon: "at-outline", onPress: () => nav.navigate("Chat") },
+          { label: "الفريق", icon: "people-outline", onPress: () => onSelect("teams") },
+          { label: "الاجتماعات", icon: "videocam-outline", onPress: () => onSelect("meetings") },
         ]}
-        listTitle="Recent threads"
+        listTitle="آخر المحادثات"
         rows={chatRows}
-        listEmpty={{ title: "No unread threads", subtitle: "Pin key channels to keep work visible.", cta: "Browse channels", onCta: () => {} }}
+        listEmpty={{ title: "لا توجد محادثات غير مقروءة", subtitle: "ثبّت القنوات المهمة للوصول السريع.", cta: "تصفح القنوات", onCta: () => {} }}
       />
     );
   }
@@ -579,16 +606,16 @@ function SectionContent({
     return (
       <MeetingsLikeSection
         onPrimary={() => nav.navigate("Knowledge")}
-        title="Knowledge"
-        subtitle="Policies, playbooks, and onboarding docs in one place."
-        primary="New doc"
+        title="المعرفة"
+        subtitle="السياسات والأدلة ووثائق التأهيل في مكان واحد."
+        primary="وثيقة جديدة"
         actions={[
-          { label: "New doc", icon: "document-text-outline", onPress: () => nav.navigate("Knowledge") },
-          { label: "Search", icon: "search-outline", onPress: () => nav.navigate("InternalSearch") },
-          { label: "Handover", icon: "swap-horizontal-outline", onPress: () => onSelect("handover") },
-          { label: "Reports", icon: "bar-chart-outline", onPress: () => onSelect("reports") },
+          { label: "وثيقة جديدة", icon: "document-text-outline", onPress: () => nav.navigate("Knowledge") },
+          { label: "بحث", icon: "search-outline", onPress: () => nav.navigate("InternalSearch") },
+          { label: "التسليم", icon: "swap-horizontal-outline", onPress: () => onSelect("handover") },
+          { label: "التقارير", icon: "bar-chart-outline", onPress: () => onSelect("reports") },
         ]}
-        listTitle="Recently updated"
+        listTitle="محدّث مؤخراً"
         rows={knowledgeRows}
       />
     );
@@ -602,16 +629,16 @@ function SectionContent({
     return (
       <MeetingsLikeSection
         onPrimary={() => nav.navigate("CRM")}
-        title="CRM"
-        subtitle="Clients, deals, and follow-ups aligned with company work."
-        primary="Add client"
+        title="العملاء"
+        subtitle="العملاء والصفقات والمتابعات في خط سير واضح."
+        primary="إضافة عميل"
         actions={[
-          { label: "Add client", icon: "person-add-outline", onPress: () => nav.navigate("CRM") },
-          { label: "New deal", icon: "trending-up-outline", onPress: () => nav.navigate("CRM") },
-          { label: "Follow-ups", icon: "alarm-outline", onPress: () => nav.navigate("CRM") },
-          { label: "Reports", icon: "bar-chart-outline", onPress: () => onSelect("reports") },
+          { label: "عميل جديد", icon: "person-add-outline", onPress: () => nav.navigate("CRM") },
+          { label: "صفقة جديدة", icon: "trending-up-outline", onPress: () => nav.navigate("CRM") },
+          { label: "متابعات", icon: "alarm-outline", onPress: () => nav.navigate("CRM") },
+          { label: "التقارير", icon: "bar-chart-outline", onPress: () => onSelect("reports") },
         ]}
-        listTitle="Pipeline spotlight"
+        listTitle="أبرز الصفقات"
         rows={crmRows}
       />
     );
@@ -625,16 +652,16 @@ function SectionContent({
     return (
       <MeetingsLikeSection
         onPrimary={() => nav.navigate("Reports")}
-        title="Reports"
-        subtitle="Weekly packs, KPIs, and department insights."
-        primary="Generate report"
+        title="التقارير"
+        subtitle="الحزم الأسبوعية والمؤشرات ورؤى الأقسام."
+        primary="إنشاء تقرير"
         actions={[
-          { label: "Generate", icon: "cloud-download-outline", onPress: () => nav.navigate("Reports") },
-          { label: "Weekly pack", icon: "calendar-outline", onPress: () => nav.navigate("Reports") },
-          { label: "CRM", icon: "trending-up-outline", onPress: () => onSelect("crm") },
-          { label: "Projects", icon: "folder-outline", onPress: () => onSelect("projects") },
+          { label: "إنشاء", icon: "cloud-download-outline", onPress: () => nav.navigate("Reports") },
+          { label: "الحزمة الأسبوعية", icon: "calendar-outline", onPress: () => nav.navigate("Reports") },
+          { label: "العملاء", icon: "trending-up-outline", onPress: () => onSelect("crm") },
+          { label: "المشاريع", icon: "folder-outline", onPress: () => onSelect("projects") },
         ]}
-        listTitle="This week"
+        listTitle="هذا الأسبوع"
         rows={reportRows}
       />
     );
@@ -643,19 +670,19 @@ function SectionContent({
     <MeetingsLikeSection
       nav={nav}
       onPrimary={() => nav.navigate("Settings")}
-      title="Settings"
-      subtitle="Roles, security, integrations, and workspace preferences."
-      primary="Workspace settings"
+      title="الإعدادات"
+      subtitle="الأدوار والأمان والتكاملات وتفضيلات مساحة العمل."
+      primary="إعدادات مساحة العمل"
       actions={[
-        { label: "Members", icon: "people-outline", onPress: () => onSelect("teams") },
-        { label: "Roles", icon: "key-outline", onPress: () => nav.navigate("Roles") },
-        { label: "Notifications", icon: "notifications-outline", onPress: () => nav.navigate("Notifications") },
-        { label: "Public", icon: "globe-outline", onPress: () => nav.goBack() },
+        { label: "الأعضاء", icon: "people-outline", onPress: () => onSelect("teams") },
+        { label: "الأدوار", icon: "key-outline", onPress: () => nav.navigate("Roles") },
+        { label: "الإشعارات", icon: "notifications-outline", onPress: () => nav.navigate("Notifications") },
+        { label: "العامة", icon: "globe-outline", onPress: () => nav.goBack() },
       ]}
-      listTitle="Shortcuts"
+      listTitle="اختصارات"
       rows={[
-        { title: "Billing & plan", meta: "Admin", icon: "card-outline" },
-        { title: "Audit log", meta: "Security", icon: "lock-closed-outline" },
+        { title: "الفواتير والخطة", meta: "إدارة", icon: "card-outline" },
+        { title: "سجل التدقيق", meta: "الأمان", icon: "lock-closed-outline" },
       ]}
     />
   );
@@ -679,7 +706,7 @@ function DashboardSection({
   const { colors } = useAppTheme();
   const styles = useWorkspaceShellStyles();
 
-  const tasks = loading ? "…" : String(dash?.pending_tasks ?? "—");
+  const pendingTasks = loading ? "…" : String(data.tasks.filter((t) => t.status !== "done").length || dash?.pending_tasks || "—");
   const ho = loading ? "…" : String(dash?.total_handovers ?? "—");
   const activeProjects = data.projects.filter((p) => !isDoneProjectStatus(p.status)).length;
   // TODO(api): map from dashboard/work-hours endpoint when available
@@ -698,24 +725,29 @@ function DashboardSection({
 
   return (
     <View style={{ gap: 14 }}>
-      <GlassCard style={[styles.sectionCard, { borderColor: "rgba(76,111,255,0.25)" }]}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 }}>
-          <View style={styles.insightStar}>
-            <Ionicons name="sparkles" size={20} color={colors.white} />
+      <Pressable
+        onPress={() => nav.navigate("AiAssistant")}
+      >
+        <GlassCard style={[styles.sectionCard, { borderColor: "rgba(76,111,255,0.35)" }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <View style={styles.insightStar}>
+              <Ionicons name="sparkles" size={20} color={colors.white} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText variant="micro" weight="bold" style={{ color: colors.accentBlue }}>
+                ALLOUL&Q INSIGHT ✨
+              </AppText>
+              <AppText variant="bodySm" weight="bold" style={{ marginTop: 6 }}>
+                تحليل الأداء اليومي الذكي
+              </AppText>
+              <AppText variant="caption" tone="muted" style={{ marginTop: 8, lineHeight: 20 }}>
+                بناءً على نشاط الفريق — {pendingTasks} مهمة معلقة، {ho} تسليم. اضغط للتحليل الكامل بالذكاء الاصطناعي.
+              </AppText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.accentBlue} />
           </View>
-          <View style={{ flex: 1 }}>
-            <AppText variant="micro" weight="bold" style={{ color: colors.accentBlue }}>
-              ALLOUL&Q INSIGHT
-            </AppText>
-            <AppText variant="bodySm" weight="bold" style={{ marginTop: 6 }}>
-              تحليل الأداء اليومي الذكي
-            </AppText>
-            <AppText variant="caption" tone="muted" style={{ marginTop: 8, lineHeight: 20 }}>
-              بناءً على نشاط الفريق، راقب المهام المفتوحة ({tasks}) والتسليم ({ho}). انتقل للتفاصيل من الأسفل.
-            </AppText>
-          </View>
-        </View>
-      </GlassCard>
+        </GlassCard>
+      </Pressable>
 
       <StatPairRow
         left={{
@@ -727,7 +759,7 @@ function DashboardSection({
         }}
         right={{
           label: "المشاريع النشطة",
-          value: loading ? "…" : String(activeProjects || 24),
+          value: loading ? "…" : String(activeProjects),
           icon: "briefcase-outline",
           trendLabel: "12%+",
           trendTone: "green",
@@ -742,7 +774,7 @@ function DashboardSection({
           <QuickAction label="فريق" icon="people-outline" onPress={() => onSelect("teams")} />
           <QuickAction label="تقارير" icon="document-text-outline" onPress={() => onSelect("reports")} />
           <QuickAction label="مهام" icon="ribbon-outline" onPress={() => onSelect("tasks")} />
-          <QuickAction label="ALLOUL&Q" icon="sparkles-outline" onPress={() => onSelect("knowledge")} />
+          <QuickAction label="ALLOUL&Q" icon="sparkles-outline" onPress={() => nav.navigate("AiAssistant")} />
         </View>
       </View>
 
@@ -985,7 +1017,7 @@ function ProjectsSection({
                 progress={projectProgress(p)}
                 due={formatDateLabel(p.created_at)}
                 risk={!isDoneProjectStatus(p.status) && risk !== "0"}
-                onPress={() => nav.navigate("Projects")}
+                onPress={() => nav.navigate("Tasks", { projectId: p.id, projectName: p.name })}
               />
             ))
           ) : (
