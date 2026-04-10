@@ -8,3 +8,6 @@ export * from "./admin.api";
 export * from "./stream.api";
 export * from "./daily.api";
 export * from "./phone.api";
+export * from "./messages.api";
+export * from "./calls.api";
+export * from "./ai.api";
