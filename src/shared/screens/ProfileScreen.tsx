@@ -9,8 +9,12 @@ import {
   Pressable,
   Dimensions,
   ActivityIndicator,
+  Alert,
+  TouchableOpacity,
+  Clipboard,
+  Switch,
 } from "react-native";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useNavigation, useFocusEffect, useRoute } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "../../theme/ThemeContext";
@@ -19,7 +23,14 @@ import GlassCard from "../components/GlassCard";
 import { useAuth } from "../../state/auth/AuthContext";
 import { useCompany } from "../../state/company/CompanyContext";
 import { useHomeMode } from "../../state/mode/HomeModeContext";
-import { getPosts, likePost, unlikePost, type ApiPost } from "../../api";
+import {
+  getPosts, likePost, unlikePost, type ApiPost,
+  getUserProfile, followUser, unfollowUser, blockUser, type UserProfile,
+  startConversation,
+} from "../../api";
+import { useCallContext } from "../../context/CallContext";
+import UserPresenceIndicator from "../../components/common/UserPresenceIndicator";
+// Note: startConversation is from messages.api, others from companies.api
 import { formatApiError } from "../utils/apiErrors";
 import Screen from "../layout/Screen";
 import AppText from "../ui/AppText";
@@ -32,12 +43,246 @@ const { width: SCREEN_W } = Dimensions.get("window");
 type CompanySection = "overview" | "activity" | "media" | "experience" | "connections";
 type MediaProfileTab = "posts" | "media";
 
+// ─── Other user public profile ────────────────────────────────────────────────
+
+function OtherUserProfile({ userId }: { userId: number }) {
+  const navigation = useNavigation<any>();
+  const { user: me } = useAuth();
+  const { colors: c } = useAppTheme();
+  const { startCall } = useCallContext();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [posts, setPosts] = useState<ApiPost[]>([]);
+  const [following, setFollowing] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const [p, allPosts] = await Promise.all([
+        getUserProfile(userId),
+        getPosts(50, 0),
+      ]);
+      setProfile(p);
+      setFollowing(p.is_following);
+      setPosts((Array.isArray(allPosts) ? allPosts : []).filter((post) => post.user_id === userId));
+    } catch {}
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const handleFollow = async () => {
+    if (!profile) return;
+    setActionLoading(true);
+    const was = following;
+    setFollowing(!was);
+    try {
+      if (was) await unfollowUser(userId);
+      else await followUser(userId);
+      setProfile((p) => p ? { ...p, followers_count: was ? p.followers_count - 1 : p.followers_count + 1 } : p);
+    } catch {
+      setFollowing(was);
+    }
+    setActionLoading(false);
+  };
+
+  const handleDM = async () => {
+    setActionLoading(true);
+    try {
+      const conv = await startConversation(userId);
+      navigation.navigate("Conversation", { conversation: conv });
+    } catch (e: any) {
+      Alert.alert("خطأ", e?.detail || e?.message || "تعذّر فتح المحادثة");
+    }
+    setActionLoading(false);
+  };
+
+  const handleBlock = () => {
+    Alert.alert(
+      "حظر المستخدم",
+      `هل تريد حظر @${profile?.username}؟ لن تتمكن من رؤية منشوراته أو مراسلته.`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "حظر",
+          style: "destructive",
+          onPress: async () => {
+            await blockUser(userId).catch(() => {});
+            navigation.goBack();
+          },
+        },
+      ]
+    );
+  };
+
+  if (loading || !profile) {
+    return (
+      <Screen style={{ backgroundColor: c.mediaCanvas }}>
+        <View style={{ flexDirection: "row", alignItems: "center", padding: 16, gap: 12, borderBottomWidth: 1, borderBottomColor: c.border }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
+            <Ionicons name="chevron-back" size={24} color={c.textPrimary} />
+          </TouchableOpacity>
+          <AppText variant="bodySm" weight="bold">الملف الشخصي</AppText>
+        </View>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator color={c.accentCyan} />
+        </View>
+      </Screen>
+    );
+  }
+
+  const initials = (profile.name || profile.username || "U").slice(0, 2).toUpperCase();
+
+  return (
+    <Screen style={{ backgroundColor: c.mediaCanvas }}>
+      {/* Header */}
+      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border, gap: 12 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
+          <Ionicons name="chevron-back" size={24} color={c.textPrimary} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <AppText variant="bodySm" weight="bold" numberOfLines={1}>{profile.name || profile.username}</AppText>
+          <AppText variant="micro" tone="muted">@{profile.username}</AppText>
+        </View>
+        <TouchableOpacity onPress={handleBlock} hitSlop={12} style={{ padding: 4 }}>
+          <Ionicons name="ellipsis-horizontal" size={22} color={c.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Cover + Avatar */}
+        <View style={{ height: 120, backgroundColor: `${c.accentBlue}33` }} />
+        <View style={{ alignItems: "center", marginTop: -54, paddingHorizontal: 16 }}>
+          <View style={{ position: "relative" }}>
+            {profile.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={{ width: 108, height: 108, borderRadius: 32, borderWidth: 4, borderColor: c.mediaCanvas }} />
+            ) : (
+              <View style={{ width: 108, height: 108, borderRadius: 32, borderWidth: 4, borderColor: c.mediaCanvas, backgroundColor: c.accentBlue, alignItems: "center", justifyContent: "center" }}>
+                <AppText variant="h1" weight="bold" style={{ color: "#fff" }}>{initials}</AppText>
+              </View>
+            )}
+            <UserPresenceIndicator userId={profile.id} size={16} borderColor={c.mediaCanvas} />
+          </View>
+
+          <AppText variant="h2" weight="bold" style={{ marginTop: 12, textAlign: "center" }}>
+            {profile.name || profile.username}
+          </AppText>
+          <AppText variant="caption" tone="muted" style={{ marginTop: 2 }}>
+            @{profile.username}
+          </AppText>
+
+          {profile.bio ? (
+            <AppText variant="bodySm" tone="secondary" style={{ marginTop: 8, textAlign: "center", paddingHorizontal: 20, lineHeight: 22 }}>
+              {profile.bio}
+            </AppText>
+          ) : null}
+
+          {/* Stats */}
+          <View style={{ flexDirection: "row", justifyContent: "center", gap: 32, marginTop: 16 }}>
+            <View style={{ alignItems: "center" }}>
+              <AppText variant="title" weight="bold">{profile.posts_count}</AppText>
+              <AppText variant="micro" tone="muted" weight="bold">منشور</AppText>
+            </View>
+            <View style={{ alignItems: "center" }}>
+              <AppText variant="title" weight="bold">{profile.followers_count}</AppText>
+              <AppText variant="micro" tone="muted" weight="bold">متابع</AppText>
+            </View>
+            <View style={{ alignItems: "center" }}>
+              <AppText variant="title" weight="bold">{profile.following_count}</AppText>
+              <AppText variant="micro" tone="muted" weight="bold">يتابع</AppText>
+            </View>
+          </View>
+
+          {/* Actions */}
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+            <TouchableOpacity
+              onPress={handleFollow}
+              disabled={actionLoading}
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                borderRadius: 999,
+                backgroundColor: following ? "transparent" : c.accentBlue,
+                borderWidth: 1.5,
+                borderColor: following ? c.border : c.accentBlue,
+                alignItems: "center",
+              }}
+            >
+              <AppText style={{ color: following ? c.textPrimary : "#fff", fontWeight: "700", fontSize: 15 }}>
+                {following ? "إلغاء المتابعة" : "متابعة"}
+              </AppText>
+            </TouchableOpacity>
+            {/* Message */}
+            <TouchableOpacity
+              onPress={handleDM}
+              disabled={actionLoading}
+              style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 999, backgroundColor: c.bgCard, borderWidth: 1.5, borderColor: c.border, alignItems: "center", justifyContent: "center" }}
+            >
+              <Ionicons name="chatbubble-outline" size={18} color={c.textPrimary} />
+            </TouchableOpacity>
+            {/* Audio call */}
+            <TouchableOpacity
+              onPress={() => void startCall(userId, profile?.name || profile?.username || "مستخدم", profile?.avatar_url ?? undefined, "audio")}
+              disabled={actionLoading}
+              style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 999, backgroundColor: c.accentBlue + "18", borderWidth: 1.5, borderColor: c.accentBlue + "44", alignItems: "center", justifyContent: "center" }}
+            >
+              <Ionicons name="call-outline" size={18} color={c.accentBlue} />
+            </TouchableOpacity>
+            {/* Video call */}
+            <TouchableOpacity
+              onPress={() => void startCall(userId, profile?.name || profile?.username || "مستخدم", profile?.avatar_url ?? undefined, "video")}
+              disabled={actionLoading}
+              style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 999, backgroundColor: "#10b981" + "18", borderWidth: 1.5, borderColor: "#10b981" + "44", alignItems: "center", justifyContent: "center" }}
+            >
+              <Ionicons name="videocam-outline" size={18} color="#10b981" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Posts */}
+        <View style={{ marginTop: 20, paddingHorizontal: 16 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <Ionicons name="pricetag-outline" size={16} color={c.textMuted} />
+            <AppText variant="bodySm" weight="bold" tone="secondary">المنشورات</AppText>
+          </View>
+          {posts.length === 0 ? (
+            <GlassCard style={{ padding: 24, alignItems: "center" as const }}>
+              <Ionicons name="document-outline" size={32} color={c.textMuted} />
+              <AppText variant="caption" tone="muted" style={{ marginTop: 8 }}>لا توجد منشورات بعد</AppText>
+            </GlassCard>
+          ) : (
+            posts.map((post) => (
+              <MediaPostRow key={post.id} post={post} onLike={() => {}} />
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </Screen>
+  );
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+
 export default function ProfileScreen() {
+  const route = useRoute<any>();
+  const { user: me } = useAuth();
+  const viewUserId: number | undefined = route.params?.userId;
+
+  // If viewing another user's profile, render OtherUserProfile
+  if (viewUserId && viewUserId !== me?.id) {
+    return <OtherUserProfile userId={viewUserId} />;
+  }
+
+  return <OwnProfile />;
+}
+
+function OwnProfile() {
   const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const { user, refresh } = useAuth();
   const { company, isMember, loading: companyLoading } = useCompany();
-  const { mode: homeMode } = useHomeMode();
+  const { mode: homeMode, setMode: setHomeMode, canUseCompanyMode } = useHomeMode();
+  const [showCompanyOnProfile, setShowCompanyOnProfile] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [section, setSection] = useState<CompanySection>("overview");
   const [mediaTab, setMediaTab] = useState<MediaProfileTab>("posts");
@@ -136,6 +381,7 @@ export default function ProfileScreen() {
   };
 
   const { colors } = useAppTheme();
+  const currentHomeMode: string = homeMode;
   const styles = useThemedStyles((c) => ({
     centerText: { marginTop: 12, textAlign: "center" },
     centerTextSmall: { marginTop: 4, textAlign: "center" },
@@ -506,89 +752,149 @@ export default function ProfileScreen() {
       >
         {homeMode === "public" ? (
           <View>
-            <AppText variant="caption" weight="bold" tone="muted" style={styles.profileBrandTop}>
-              ALLOUL&Q
-            </AppText>
-            <View style={styles.mediaTopDock}>
-              <View style={styles.globeCircleSm}>
-                <Ionicons name="globe" size={18} color={colors.white} />
+            {/* ── Cover photo ── */}
+            <View style={{ height: 160, backgroundColor: `${colors.accentBlue}55`, position: "relative" }}>
+              <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(56,232,255,0.08)" }} />
+              {/* top-right action buttons */}
+              <View style={{ position: "absolute", top: 12, right: 12, flexDirection: "row", gap: 8 }}>
+                <Pressable style={styles.roundIcon} onPress={() => navigation.navigate("Settings")}>
+                  <Ionicons name="pencil-outline" size={18} color={colors.textPrimary} />
+                </Pressable>
+                <Pressable style={styles.roundIcon} onPress={() => navigation.navigate("Settings")}>
+                  <Ionicons name="settings-outline" size={18} color={colors.textPrimary} />
+                </Pressable>
               </View>
-              <View style={{ flex: 1 }} />
-              <Pressable style={styles.roundIcon} onPress={() => navigation.navigate("Settings")}>
-                <Ionicons name="sunny-outline" size={20} color={colors.textPrimary} />
-              </Pressable>
             </View>
 
-            <View style={styles.identityBlock}>
-              <View style={styles.avatarWrapMedia}>
-                {user?.avatar_url ? (
-                  <Image source={{ uri: user.avatar_url }} style={styles.avatarMedia} />
-                ) : (
-                  <View style={styles.avatarFallbackMedia}>
-                    <AppText variant="h1" weight="bold" style={{ color: colors.white }}>
-                      {initials}
-                    </AppText>
-                  </View>
-                )}
+            {/* ── Avatar overlapping cover ── */}
+            <View style={{ paddingHorizontal: 16, marginTop: -52 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <View style={styles.avatarWrapMedia}>
+                  {user?.avatar_url ? (
+                    <Image source={{ uri: user.avatar_url }} style={styles.avatarMedia} />
+                  ) : (
+                    <View style={styles.avatarFallbackMedia}>
+                      <AppText variant="h1" weight="bold" style={{ color: colors.white }}>
+                        {initials}
+                      </AppText>
+                    </View>
+                  )}
+                </View>
+                {/* Edit + CV buttons top-right of identity block */}
+                <View style={{ flexDirection: "row", gap: 8, paddingBottom: 4 }}>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("CVScreen")}
+                    style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, borderWidth: 1.5, borderColor: colors.accentBlue }}
+                  >
+                    <AppText variant="micro" weight="bold" style={{ color: colors.accentBlue }}>السيرة الذاتية</AppText>
+                  </TouchableOpacity>
+                  <Pressable style={styles.editProfileBtn} onPress={() => navigation.navigate("Settings")}>
+                    <AppText variant="micro" weight="bold" style={{ color: colors.black }}>تعديل</AppText>
+                  </Pressable>
+                </View>
               </View>
+            </View>
 
-              <AppText variant="h2" weight="bold" style={styles.centerText}>
+            {/* ── Name / handle / bio ── */}
+            <View style={{ paddingHorizontal: 16, marginTop: 10 }}>
+              <AppText variant="h2" weight="bold">
                 {user ? displayName : t("profile.signInHint")}
               </AppText>
-
               {user ? (
                 <>
-                  <View style={styles.handleRow}>
-                    <AppText variant="caption" tone="muted">
-                      @{user.username}
-                    </AppText>
+                  <View style={[styles.handleRow, { justifyContent: "flex-start" }]}>
+                    <AppText variant="caption" tone="muted">@{user.username}</AppText>
                     {user.verified ? <Ionicons name="checkmark-circle" size={16} color={colors.accentCyan} /> : null}
-                  </View>
-
-                  <AppText variant="bodySm" tone="secondary" style={styles.mediaHeadline}>
-                    {user.bio || headline}
-                  </AppText>
-
-                  <View style={styles.followRow}>
-                    <AppText variant="bodySm" weight="bold">
-                      {(user.followers_count ?? 0).toLocaleString()} متابع
-                    </AppText>
-                    <AppText variant="bodySm" weight="bold" tone="muted">
-                      {(user.following_count ?? 0).toLocaleString()} يتابع
-                    </AppText>
-                  </View>
-
-                  <Pressable style={styles.editProfileBtn} onPress={() => navigation.navigate("Settings")}>
-                    <AppText variant="bodySm" weight="bold" style={{ color: colors.black }}>
-                      تعديل الملف
-                    </AppText>
-                  </Pressable>
-
-                  <View style={styles.badgeRow}>
-                    <View style={[styles.modePill, styles.modePillPub]}>
-                      <Ionicons name="radio-outline" size={12} color={colors.accentCyan} />
-                      <AppText variant="micro" weight="bold" style={{ color: colors.accentCyan }}>
-                        ملف ميديا
-                      </AppText>
-                    </View>
                     <View style={styles.mediaInfoPill}>
-                      <Ionicons name="sparkles-outline" size={12} color={colors.textSecondary} />
-                      <AppText variant="micro" tone="secondary" weight="bold">
-                        {joinedLabel}
-                      </AppText>
+                      <Ionicons name="sparkles-outline" size={11} color={colors.textSecondary} />
+                      <AppText variant="micro" tone="secondary" weight="bold">{joinedLabel}</AppText>
                     </View>
-                    {company && !companyLoading ? (
-                      <View style={styles.mediaInfoPill}>
-                        <Ionicons name="business-outline" size={12} color={colors.textSecondary} />
-                        <AppText variant="micro" tone="secondary" weight="bold" numberOfLines={1} style={{ maxWidth: SCREEN_W * 0.44 }}>
-                          {company.name}
-                        </AppText>
-                      </View>
-                    ) : null}
                   </View>
+                  {user.bio ? (
+                    <AppText variant="bodySm" tone="secondary" style={{ marginTop: 8, lineHeight: 22 }}>
+                      {user.bio}
+                    </AppText>
+                  ) : null}
                 </>
               ) : null}
             </View>
+
+            {/* ── Stats row ── */}
+            {user ? (
+              <View style={{ flexDirection: "row", gap: 24, paddingHorizontal: 16, marginTop: 14 }}>
+                <Pressable style={{ alignItems: "center" }}>
+                  <AppText variant="title" weight="bold">{(user.posts_count ?? 0).toLocaleString()}</AppText>
+                  <AppText variant="micro" tone="muted" weight="bold">منشور</AppText>
+                </Pressable>
+                <Pressable style={{ alignItems: "center" }}>
+                  <AppText variant="title" weight="bold">{(user.followers_count ?? 0).toLocaleString()}</AppText>
+                  <AppText variant="micro" tone="muted" weight="bold">متابع</AppText>
+                </Pressable>
+                <Pressable style={{ alignItems: "center" }}>
+                  <AppText variant="title" weight="bold">{(user.following_count ?? 0).toLocaleString()}</AppText>
+                  <AppText variant="micro" tone="muted" weight="bold">يتابع</AppText>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {/* ── My Company section ── */}
+            {user && company && !companyLoading ? (
+              <View style={{ marginHorizontal: 16, marginTop: 14, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgCard, padding: 14 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Ionicons name="business-outline" size={16} color={colors.accentTeal} />
+                    <AppText variant="bodySm" weight="bold" tone="secondary">شركتي</AppText>
+                  </View>
+                  <Switch
+                    value={showCompanyOnProfile}
+                    onValueChange={setShowCompanyOnProfile}
+                    trackColor={{ false: colors.border, true: colors.accentCyan + "66" }}
+                    thumbColor={showCompanyOnProfile ? colors.accentCyan : colors.textMuted}
+                  />
+                </View>
+                {showCompanyOnProfile ? (
+                  <AppText variant="caption" tone="secondary" style={{ marginTop: 6 }} numberOfLines={1}>
+                    {company.name}
+                  </AppText>
+                ) : (
+                  <AppText variant="micro" tone="muted" style={{ marginTop: 6 }}>مخفية عن الملف</AppText>
+                )}
+              </View>
+            ) : null}
+
+            {/* ── Mode switch card ── */}
+            {user ? (
+              <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgCard, padding: 14 }}>
+                <AppText variant="micro" tone="muted" weight="bold" style={{ marginBottom: 10 }}>وضع العرض</AppText>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Pressable
+                    onPress={() => setHomeMode("public")}
+                    style={{
+                      flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: "center", borderWidth: 1,
+                      borderColor: currentHomeMode === "public" ? colors.accentBlue : colors.border,
+                      backgroundColor: currentHomeMode === "public" ? `${colors.accentBlue}18` : "transparent",
+                    }}
+                  >
+                    <Ionicons name="radio-outline" size={16} color={currentHomeMode === "public" ? colors.accentBlue : colors.textMuted} />
+                    <AppText variant="micro" weight="bold" style={{ color: currentHomeMode === "public" ? colors.accentBlue : colors.textMuted, marginTop: 4 }}>ميديا اجتماعية</AppText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => { if (canUseCompanyMode) setHomeMode("company"); }}
+                    style={{
+                      flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: "center", borderWidth: 1,
+                      borderColor: currentHomeMode === "company" ? colors.accentTeal : colors.border,
+                      backgroundColor: currentHomeMode === "company" ? `${colors.accentTeal}18` : "transparent",
+                      opacity: canUseCompanyMode ? 1 : 0.5,
+                    }}
+                  >
+                    <Ionicons name="business-outline" size={16} color={currentHomeMode === "company" ? colors.accentTeal : colors.textMuted} />
+                    <AppText variant="micro" weight="bold" style={{ color: currentHomeMode === "company" ? colors.accentTeal : colors.textMuted, marginTop: 4 }}>أعمال</AppText>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.identityBlock} />
 
             {user ? (
               <>
@@ -845,11 +1151,25 @@ export default function ProfileScreen() {
                       </GlassCard>
                     ) : null}
                     {user.i_code ? (
-                      <View style={styles.iCode}>
-                        <AppText variant="caption" tone="accent" weight="bold">
-                          #{user.i_code}
+                      <TouchableOpacity
+                        onPress={() => {
+                          Clipboard.setString(user.i_code!);
+                          Alert.alert("تم النسخ", `كودك: ${user.i_code}`);
+                        }}
+                        style={styles.iCode}
+                        activeOpacity={0.7}
+                      >
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                          <Ionicons name="id-card-outline" size={14} color={colors.accentBlue} />
+                          <AppText variant="caption" weight="bold" style={{ color: colors.accentBlue }}>
+                            #{user.i_code}
+                          </AppText>
+                          <Ionicons name="copy-outline" size={12} color={colors.accentBlue} />
+                        </View>
+                        <AppText variant="micro" tone="muted" style={{ marginTop: 2 }}>
+                          كودك الشخصي — اضغط للنسخ
                         </AppText>
-                      </View>
+                      </TouchableOpacity>
                     ) : null}
                   </View>
                 ) : null}

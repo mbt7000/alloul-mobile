@@ -40,50 +40,72 @@ const STORY_COLORS = ["#38e8ff", "#a855f7", "#f472b6", "#fb923c", "#2dd36f", "#3
 function StoriesBar({ onAddStory, onViewStory }: { onAddStory?: () => void; onViewStory?: (id: string) => void }) {
   const { colors } = useAppTheme();
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={storiesStyles.row}
-    >
-      {DEMO_STORIES.map((story, idx) => {
-        const ringColor = story.seen ? colors.border : STORY_COLORS[idx % STORY_COLORS.length];
-        return (
-          <Pressable
-            key={story.id}
-            style={({ pressed }) => [storiesStyles.item, pressed && { opacity: 0.8 }]}
-            onPress={() => story.isOwn ? onAddStory?.() : onViewStory?.(story.id)}
-          >
-            <View style={[storiesStyles.ring, { borderColor: ringColor }]}>
-              {story.isOwn ? (
-                <View style={[storiesStyles.avatar, { backgroundColor: "rgba(56,232,255,0.15)" }]}>
-                  <Ionicons name="add" size={22} color={colors.accentCyan} />
+    <View>
+      {/* Section header */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <AppText variant="micro" tone="muted" weight="bold">القصص</AppText>
+        <AppText variant="micro" tone="cyan">+ أضف قصة</AppText>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={storiesStyles.row}
+      >
+        {DEMO_STORIES.map((story, idx) => {
+          const storyColor = STORY_COLORS[idx % STORY_COLORS.length];
+          const seen = story.seen;
+          return (
+            <Pressable
+              key={story.id}
+              style={({ pressed }) => [storiesStyles.item, pressed && { opacity: 0.8 }]}
+              onPress={() => story.isOwn ? onAddStory?.() : onViewStory?.(story.id)}
+            >
+              {/* Double-ring effect: outer ring muted for seen, colored for unseen */}
+              <View style={[storiesStyles.outerRing, { borderColor: seen ? colors.border : storyColor }]}>
+                <View style={[storiesStyles.ring, { borderColor: seen ? "transparent" : colors.mediaCanvas ?? "#07091A" }]}>
+                  {story.isOwn ? (
+                    <View style={[storiesStyles.avatar, { backgroundColor: "rgba(56,232,255,0.15)" }]}>
+                      <Ionicons name="add" size={20} color={colors.accentCyan} />
+                    </View>
+                  ) : (
+                    <View style={[storiesStyles.avatar, { backgroundColor: `${storyColor}22` }]}>
+                      <AppText variant="bodySm" weight="bold" style={{ color: storyColor }}>
+                        {story.name.slice(0, 1)}
+                      </AppText>
+                    </View>
+                  )}
                 </View>
-              ) : (
-                <View style={[storiesStyles.avatar, { backgroundColor: `${STORY_COLORS[idx % STORY_COLORS.length]}22` }]}>
-                  <AppText variant="bodySm" weight="bold" style={{ color: STORY_COLORS[idx % STORY_COLORS.length] }}>
-                    {story.name.slice(0, 1)}
-                  </AppText>
-                </View>
-              )}
-            </View>
-            <AppText variant="micro" tone={story.seen ? "muted" : "primary"} numberOfLines={1} style={storiesStyles.label}>
-              {story.name}
-            </AppText>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+              </View>
+              <AppText variant="micro" tone={seen ? "muted" : "primary"} numberOfLines={1} style={storiesStyles.label}>
+                {story.name}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {/* Subtle separator */}
+      <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.07)", marginTop: 4 }} />
+    </View>
   );
 }
 
 const storiesStyles = StyleSheet.create({
   row: { paddingHorizontal: 0, paddingVertical: 8, gap: 14, flexDirection: "row" },
-  item: { alignItems: "center", width: 62 },
-  ring: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
+  item: { alignItems: "center", width: 66 },
+  outerRing: {
+    width: 66,
+    height: 66,
+    borderRadius: 22,
     borderWidth: 2.5,
+    padding: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ring: {
+    width: "100%" as any,
+    height: "100%" as any,
+    borderRadius: 18,
+    borderWidth: 2,
     padding: 2,
     alignItems: "center",
     justifyContent: "center",
@@ -91,11 +113,11 @@ const storiesStyles = StyleSheet.create({
   avatar: {
     width: "100%" as any,
     height: "100%" as any,
-    borderRadius: 16,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  label: { marginTop: 5, textAlign: "center", maxWidth: 60 },
+  label: { marginTop: 5, textAlign: "center", maxWidth: 66 },
 });
 
 type MediaFeedTab = "forYou" | "following" | "trending" | "video";
@@ -377,7 +399,7 @@ export default function FeedScreen() {
               />
             </View>
 
-            <GlassCard strength="strong" style={styles.composer}>
+            <GlassCard strength="strong" style={[styles.composer, { marginTop: 4 }]}>
               <View style={styles.composerRow}>
                 {user?.avatar_url ? (
                   <Image source={{ uri: user.avatar_url }} style={styles.headerAvatar} />

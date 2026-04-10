@@ -1,386 +1,542 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import {
+  View,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  Pressable,
+  Modal,
+  TextInput,
+  Alert,
+  Clipboard,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import Screen from "../../../shared/layout/Screen";
-import AppHeader from "../../../shared/layout/AppHeader";
 import AppText from "../../../shared/ui/AppText";
-import AppInput from "../../../shared/ui/AppInput";
-import { CompanyEmptyState } from "../components/CompanyBlocks";
-import { useCompany } from "../../../state/company/CompanyContext";
-import { getCompanyMembers, getStreamCredentials, streamUserIdForAppUser, type CompanyMemberRow } from "../../../api";
-import { useAppTheme } from "../../../theme/ThemeContext";
-import { useThemedStyles } from "../../../theme/useThemedStyles";
-import { radius } from "../../../theme/radius";
-import { openMeetingProvider } from "../../meetings/openMeetingLinks";
-import CompanyWorkModeTopBar from "../components/CompanyWorkModeTopBar";
 import AppButton from "../../../shared/ui/AppButton";
-import { useCompanyDailyRoom } from "../../../lib/useCompanyDailyRoom";
+import { useAppTheme } from "../../../theme/ThemeContext";
+import { useCompany } from "../../../state/company/CompanyContext";
+import {
+  getCompanyMembers,
+  getMyRole,
+  sendInvitation,
+  getInviteLink,
+  removeMember,
+  updateMemberRole,
+  type CompanyMemberRow,
+  type MyRoleResponse,
+} from "../../../api";
+import CompanyWorkModeTopBar from "../components/CompanyWorkModeTopBar";
 
-const TEAM_LABELS = ["فريق التطوير", "فريق التصميم", "الموارد البشرية", "العمليات", "الإدارة"];
+// ─── Config ──────────────────────────────────────────────────────────────────
 
-const ROLE_BADGE: Record<string, { label: string; color: string }> = {
-  owner:    { label: "Owner",   color: "#f5a623" },
-  admin:    { label: "Admin",   color: "#4c6fff" },
-  manager:  { label: "Manager", color: "#00c9b1" },
-  employee: { label: "Employee",color: "#888898" },
-  member:   { label: "Member",  color: "#888898" },
+const ROLE_CFG: Record<string, { label: string; color: string; icon: string }> = {
+  owner:    { label: "المؤسس",   color: "#f5a623", icon: "star" },
+  admin:    { label: "مشرف",     color: "#4c6fff", icon: "shield-checkmark" },
+  manager:  { label: "مدير",     color: "#00c9b1", icon: "briefcase" },
+  employee: { label: "موظف",     color: "#a78bfa", icon: "person" },
+  member:   { label: "عضو",      color: "#6b7280", icon: "person-outline" },
 };
 
-function getRoleBadge(role: string) {
-  return ROLE_BADGE[role] ?? { label: role, color: "#888898" };
+const ROLES_SELECTABLE = ["admin", "manager", "employee", "member"] as const;
+
+function avatarColor(id: number) {
+  const palette = ["#2563eb", "#7c3aed", "#059669", "#d97706", "#dc2626", "#0891b2", "#db2777"];
+  return palette[id % palette.length];
 }
 
-type TeamBucket = { id: string; name: string; count: number; memberIds: Set<number> };
-
-function statusForUser(userId: number): "online" | "away" | "offline" {
-  const m = userId % 3;
-  if (m === 0) return "online";
-  if (m === 1) return "away";
-  return "offline";
+function initials(member: CompanyMemberRow): string {
+  if (member.user_name) return member.user_name.slice(0, 2).toUpperCase();
+  return (member.i_code || "??").slice(0, 2).toUpperCase();
 }
 
-function statusColor(s: "online" | "away" | "offline", colors: { success: string; warning: string; textMuted: string }) {
-  if (s === "online") return colors.success;
-  if (s === "away") return colors.warning;
-  return colors.textMuted;
+// Can this role manage members?
+function canManage(role: string | null) {
+  return role === "owner" || role === "admin";
 }
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function TeamScreen() {
   const navigation = useNavigation<any>();
   const { colors } = useAppTheme();
-  const styles = useThemedStyles((c) => ({
-    content: { paddingBottom: 110 },
-    searchWrap: { paddingHorizontal: 16, paddingBottom: 12 },
-    sectionLabel: { paddingHorizontal: 16, marginBottom: 10 },
-    teamsScroll: { paddingHorizontal: 16, marginBottom: 18 },
-    teamChip: {
-      width: 148,
-      paddingVertical: 16,
-      paddingHorizontal: 12,
-      borderRadius: radius.xxl,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.cardElevated,
-      marginEnd: 10,
-      alignItems: "center" as const,
-    },
-    teamChipActive: {
-      borderColor: c.white,
-      backgroundColor: "rgba(255,255,255,0.10)",
-    },
-    membersHeader: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      justifyContent: "space-between" as const,
-      paddingHorizontal: 16,
-      marginBottom: 10,
-    },
-    memberCard: {
-      marginHorizontal: 16,
-      marginBottom: 12,
-      padding: 14,
-      borderRadius: radius.xxl,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.cardElevated,
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      gap: 12,
-    },
-    avatar: {
-      width: 52,
-      height: 52,
-      borderRadius: 16,
-      alignItems: "center" as const,
-      justifyContent: "center" as const,
-      backgroundColor: "rgba(76,111,255,0.2)",
-      borderWidth: 1,
-      borderColor: "rgba(76,111,255,0.35)",
-    },
-    avatarWrap: { position: "relative" as const },
-    dot: {
-      position: "absolute" as const,
-      bottom: 2,
-      end: 2,
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      borderWidth: 2,
-      borderColor: c.cardElevated,
-    },
-    actionBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
-      backgroundColor: "rgba(255,255,255,0.06)",
-      borderWidth: 1,
-      borderColor: c.border,
-      alignItems: "center" as const,
-      justifyContent: "center" as const,
-    },
-    actionsRow: { flexDirection: "row" as const, gap: 8 },
-    centerBlock: { flex: 1, gap: 4 },
-    loadingWrap: { paddingVertical: 40, alignItems: "center" as const },
-  }));
-
   const { company } = useCompany();
-  const { openCompanyDaily, dailyLoading } = useCompanyDailyRoom();
-  const [items, setItems] = useState<CompanyMemberRow[]>([]);
+  const c = colors;
+
+  const [members, setMembers] = useState<CompanyMemberRow[]>([]);
+  const [myRole, setMyRole] = useState<MyRoleResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const [selectedTeamId, setSelectedTeamId] = useState<string>("all");
+  const [filterRole, setFilterRole] = useState<string>("all");
+
+  // Invite modal
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteRole, setInviteRole] = useState<string>("employee");
+  const [inviting, setInviting] = useState(false);
+
+  // Role edit modal
+  const [editMember, setEditMember] = useState<CompanyMemberRow | null>(null);
+  const [editRole, setEditRole] = useState("employee");
+  const [editJobTitle, setEditJobTitle] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
+  // ─── Load ───────────────────────────────────────────────────────────────
 
   const load = useCallback(async () => {
-    setError(null);
     try {
-      const list = await getCompanyMembers();
-      setItems(Array.isArray(list) ? list : []);
-    } catch (e: unknown) {
-      const message = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "تعذّر تحميل الأعضاء";
-      setError(message);
-      setItems([]);
+      const [list, role] = await Promise.all([
+        getCompanyMembers(),
+        getMyRole(),
+      ]);
+      setMembers(Array.isArray(list) ? list : []);
+      setMyRole(role);
+    } catch {
+      setMembers([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      void load();
-    }, [load])
-  );
+  useFocusEffect(useCallback(() => { setLoading(true); void load(); }, [load]));
 
-  const teams = useMemo((): TeamBucket[] => {
-    const map = new Map<string, CompanyMemberRow[]>();
-    for (const m of items) {
-      const key = m.department_id != null ? `d-${m.department_id}` : "general";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(m);
-    }
-    const buckets: TeamBucket[] = [];
-    let idx = 0;
-    for (const [key, members] of map.entries()) {
-      const name =
-        key === "general"
-          ? "الفريق العام"
-          : TEAM_LABELS[idx % TEAM_LABELS.length] || `قسم ${key.replace("d-", "")}`;
-      idx += 1;
-      buckets.push({
-        id: key,
-        name,
-        count: members.length,
-        memberIds: new Set(members.map((x) => x.user_id)),
-      });
-    }
-    return buckets.sort((a, b) => b.count - a.count);
-  }, [items]);
+  // ─── Actions ────────────────────────────────────────────────────────────
 
-  const filteredMembers = useMemo(() => {
-    let list = items;
-    if (selectedTeamId !== "all") {
-      const t = teams.find((x) => x.id === selectedTeamId);
-      if (t) list = items.filter((m) => t.memberIds.has(m.user_id));
+  const handleInvite = async () => {
+    if (!inviteCode.trim()) return;
+    setInviting(true);
+    try {
+      const res = await sendInvitation(inviteCode.trim(), inviteRole);
+      Alert.alert("تم الإرسال", (res as any).message || "تم إرسال الدعوة بنجاح");
+      setShowInvite(false);
+      setInviteCode("");
+    } catch (e: any) {
+      Alert.alert("خطأ", e?.message || "تعذّر إرسال الدعوة. تحقق من الكود.");
+    } finally {
+      setInviting(false);
     }
-    const s = query.trim().toLowerCase();
-    if (!s) return list;
-    return list.filter(
-      (m) =>
-        `${m.job_title || ""} ${m.role} ${m.user_id} ${m.i_code}`.toLowerCase().includes(s)
+  };
+
+  const handleCopyInviteLink = async () => {
+    try {
+      const res = await getInviteLink();
+      Clipboard.setString(res.invite_code);
+      Alert.alert(
+        "رابط الدعوة",
+        `كود الدعوة: ${res.invite_code}\n\nشارك هذا الكود مع من تريد دعوته للانضمام لـ "${res.company_name}".\nصالح لمدة ${res.expires_in_hours} ساعة.`,
+        [{ text: "تم النسخ ✓", style: "default" }]
+      );
+    } catch (e: any) {
+      Alert.alert("خطأ", e?.message || "تعذّر جلب رابط الدعوة");
+    }
+  };
+
+  const handleRemoveMember = (member: CompanyMemberRow) => {
+    const name = member.user_name || `عضو #${member.user_id}`;
+    Alert.alert(
+      "إزالة عضو",
+      `هل تريد إزالة "${name}" من الشركة؟`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "إزالة", style: "destructive",
+          onPress: async () => {
+            try {
+              await removeMember(member.id);
+              setMembers((p) => p.filter((m) => m.id !== member.id));
+            } catch (e: any) {
+              Alert.alert("خطأ", e?.message || "تعذّر الإزالة");
+            }
+          },
+        },
+      ]
     );
-  }, [items, teams, selectedTeamId, query]);
+  };
 
-  const onCall = useCallback(
-    async (member: CompanyMemberRow) => {
-      const phone = member.phone?.trim();
-      if (phone) {
-        const compact = phone.replace(/\s/g, "");
-        const url = `tel:${compact}`;
-        try {
-          if (await Linking.canOpenURL(url)) {
-            await Linking.openURL(url);
-            return;
-          }
-        } catch {
-          /* يكمّل لمسار Stream */
-        }
-      }
-      try {
-        await getStreamCredentials();
-        const calleeId = streamUserIdForAppUser(member.user_id);
-        Alert.alert(
-          "اتصال عبر التطبيق (Stream)",
-          `الخادم يوفّر GetStream. معرّف الطرف الآخر ليس رقم جوال بل:\n\n${calleeId}\n\nاربط SDK المكالمات (مثل @stream-io/video-react-native-sdk) بهذا المعرّف مع نفس الـ API key والـ token الذي يعيده /stream/credentials.`,
-          [
-            { text: "حسناً", style: "default" },
-            { text: "Daily", onPress: () => void openCompanyDaily() },
-            { text: "Meet", onPress: () => void openMeetingProvider("meet") },
-            { text: "المحادثات", onPress: () => navigation.navigate("Chat") },
-          ]
-        );
-      } catch {
-        Alert.alert(
-          "اتصال",
-          "لا يوجد رقم هاتف للعضو وStream غير مفعّل أو غير متاح لحسابك. جرّب غرفة Daily أو Meet أو المحادثات.",
-          [
-            { text: "إلغاء", style: "cancel" },
-            { text: "Daily", onPress: () => void openCompanyDaily() },
-            { text: "اجتماع Meet", onPress: () => void openMeetingProvider("meet") },
-            { text: "المحادثات", onPress: () => navigation.navigate("Chat") },
-          ]
-        );
-      }
-    },
-    [navigation, openCompanyDaily]
-  );
+  const openEditRole = (member: CompanyMemberRow) => {
+    setEditMember(member);
+    setEditRole(member.role);
+    setEditJobTitle(member.job_title || "");
+  };
+
+  const handleSaveRole = async () => {
+    if (!editMember) return;
+    setEditSaving(true);
+    try {
+      const updated = await updateMemberRole(editMember.id, editRole, editJobTitle || undefined);
+      setMembers((p) => p.map((m) => (m.id === editMember.id ? { ...m, role: updated.role, job_title: updated.job_title } : m)));
+      setEditMember(null);
+    } catch (e: any) {
+      Alert.alert("خطأ", e?.message || "تعذّر التحديث");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // ─── Derived ─────────────────────────────────────────────────────────────
+
+  const isManager = canManage(myRole?.role ?? null);
+  const filtered = filterRole === "all" ? members : members.filter((m) => m.role === filterRole);
+
+  const counts = {
+    owner: members.filter((m) => m.role === "owner").length,
+    admin: members.filter((m) => m.role === "admin").length,
+    manager: members.filter((m) => m.role === "manager").length,
+    employee: members.filter((m) => m.role === "employee").length,
+    member: members.filter((m) => m.role === "member").length,
+  };
+
+  const myRoleCfg = ROLE_CFG[myRole?.role ?? ""] ?? null;
+
+  // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <Screen edges={["top", "left", "right", "bottom"]} style={{ backgroundColor: colors.mediaCanvas }}>
+    <Screen style={{ backgroundColor: c.mediaCanvas }} edges={["top", "left", "right", "bottom"]}>
       <CompanyWorkModeTopBar />
-      <AppHeader title="الفرق" leftButton="none" />
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.accentCyan} />}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.searchWrap}>
-          <AppInput value={query} onChangeText={setQuery} placeholder="بحث عن موظف أو فريق…" iconLeft="search-outline" />
-        </View>
 
-        {company ? (
-          <View style={{ paddingHorizontal: 16, marginBottom: 14 }}>
-            <AppButton
-              label={dailyLoading ? "جاري فتح Daily…" : "غرفة Daily — فيديو وشات للفريق"}
-              tone="primary"
-              size="sm"
-              onPress={() => void openCompanyDaily()}
-              disabled={dailyLoading}
-            />
+      {/* Header */}
+      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <AppText variant="micro" tone="muted" weight="bold">الفريق</AppText>
+          <AppText variant="h2" weight="bold">{company?.name ?? "الشركة"}</AppText>
+        </View>
+        {myRoleCfg ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: myRoleCfg.color + "22", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: myRoleCfg.color + "44" }}>
+            <Ionicons name={myRoleCfg.icon as any} size={13} color={myRoleCfg.color} />
+            <AppText style={{ color: myRoleCfg.color, fontSize: 12, fontWeight: "700" }}>{myRoleCfg.label}</AppText>
           </View>
         ) : null}
+        {isManager ? (
+          <Pressable
+            onPress={() => setShowInvite(true)}
+            style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: c.accentCyan + "22", borderWidth: 1, borderColor: c.accentCyan + "55", alignItems: "center", justifyContent: "center" }}
+          >
+            <Ionicons name="person-add-outline" size={18} color={c.accentCyan} />
+          </Pressable>
+        ) : null}
+      </View>
 
-        <AppText variant="micro" tone="muted" weight="bold" style={styles.sectionLabel}>
-          الفرق
-        </AppText>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teamsScroll}>
-          {(
-            [
-              {
-                id: "all",
-                name: "الكل",
-                count: items.length,
-                memberIds: new Set(items.map((i) => i.user_id)),
-              } as TeamBucket,
-              ...teams,
-            ] as TeamBucket[]
-          ).map((team) => {
-            const active = selectedTeamId === team.id;
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 110, gap: 0 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={c.accentCyan} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Stats Row ── */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 16, paddingBottom: 16 }}>
+          {Object.entries(counts).filter(([, v]) => v > 0).map(([role, count]) => {
+            const cfg = ROLE_CFG[role] ?? { label: role, color: "#6b7280" };
             return (
               <Pressable
-                key={team.id}
-                onPress={() => setSelectedTeamId(team.id)}
-                style={({ pressed }) => [styles.teamChip, active && styles.teamChipActive, pressed && { opacity: 0.92 }]}
+                key={role}
+                onPress={() => setFilterRole(filterRole === role ? "all" : role)}
+                style={{
+                  paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1,
+                  borderColor: filterRole === role ? cfg.color : c.border,
+                  backgroundColor: filterRole === role ? cfg.color + "22" : c.cardElevated,
+                  alignItems: "center", gap: 4, minWidth: 70,
+                }}
               >
-                <Ionicons name="people-outline" size={22} color={colors.textPrimary} />
-                <AppText variant="bodySm" weight="bold" style={{ marginTop: 8, textAlign: "center" }} numberOfLines={2}>
-                  {team.name}
-                </AppText>
-                <AppText variant="micro" tone="muted" style={{ marginTop: 4 }}>
-                  {team.count} عضو
-                </AppText>
+                <AppText style={{ color: cfg.color, fontSize: 20, fontWeight: "800" }}>{count}</AppText>
+                <AppText style={{ color: filterRole === role ? cfg.color : c.textMuted, fontSize: 11, fontWeight: "700" }}>{cfg.label}</AppText>
               </Pressable>
             );
           })}
         </ScrollView>
 
-        <View style={styles.membersHeader}>
-          <AppText variant="micro" tone="muted" weight="bold">
-            أعضاء الفريق
-          </AppText>
-          <AppText variant="micro" tone="muted">
-            {company?.name || ""}
-          </AppText>
+        {/* ── Invite + Copy Link buttons (admin only) ── */}
+        {isManager ? (
+          <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 16, marginBottom: 16 }}>
+            <Pressable
+              onPress={() => setShowInvite(true)}
+              style={[styles.actionCardBtn, { borderColor: c.accentCyan + "55", backgroundColor: c.accentCyan + "12" }]}
+            >
+              <Ionicons name="person-add-outline" size={16} color={c.accentCyan} />
+              <AppText style={{ color: c.accentCyan, fontSize: 13, fontWeight: "700" }}>دعوة عضو</AppText>
+            </Pressable>
+            <Pressable
+              onPress={handleCopyInviteLink}
+              style={[styles.actionCardBtn, { borderColor: "#a78bfa55", backgroundColor: "#a78bfa12" }]}
+            >
+              <Ionicons name="link-outline" size={16} color="#a78bfa" />
+              <AppText style={{ color: "#a78bfa", fontSize: 13, fontWeight: "700" }}>رابط الدعوة</AppText>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* ── Quick nav ── */}
+        <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, marginBottom: 16 }}>
+          {[
+            { label: "مشاريع الفريق", screen: "Projects", color: "#4c6fff" },
+            { label: "المهام", screen: "Tasks", color: c.accentCyan },
+            { label: "الاجتماعات", screen: "Meetings", color: "#f59e0b" },
+          ].map((s) => (
+            <Pressable
+              key={s.screen}
+              onPress={() => navigation.navigate(s.screen)}
+              style={{ flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: s.color + "44", backgroundColor: s.color + "12", alignItems: "center" }}
+            >
+              <AppText style={{ color: s.color, fontSize: 12, fontWeight: "700" }}>{s.label}</AppText>
+            </Pressable>
+          ))}
         </View>
 
-        {loading && !refreshing ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator color={colors.accentCyan} />
+        {/* ── Members list ── */}
+        <View style={{ paddingHorizontal: 16 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <AppText variant="micro" tone="muted" weight="bold">
+              {filterRole === "all" ? `${members.length} عضو` : `${filtered.length} ${ROLE_CFG[filterRole]?.label ?? filterRole}`}
+            </AppText>
+            {filterRole !== "all" ? (
+              <Pressable onPress={() => setFilterRole("all")}>
+                <AppText style={{ color: c.accentCyan, fontSize: 12, fontWeight: "700" }}>الكل</AppText>
+              </Pressable>
+            ) : null}
           </View>
-        ) : error ? (
-          <View style={{ paddingHorizontal: 16 }}>
-            <CompanyEmptyState
-              icon="alert-circle-outline"
-              title="تعذّر التحميل"
-              subtitle={error}
-              actionLabel="إعادة المحاولة"
-              onAction={() => {
-                setLoading(true);
-                void load();
-              }}
-            />
-          </View>
-        ) : filteredMembers.length === 0 ? (
-          <View style={{ paddingHorizontal: 16 }}>
-            <CompanyEmptyState
-              icon="people-outline"
-              title="لا يوجد أعضاء"
-              subtitle="اضبط البحث أو اختر فريقاً آخر."
-            />
-          </View>
-        ) : (
-          filteredMembers.map((item) => {
-            const st = statusForUser(item.user_id);
-            const showShield = item.role === "owner" || item.role === "admin" || item.role === "manager";
-            return (
-              <View key={item.id} style={styles.memberCard}>
-                <View style={styles.actionsRow}>
-                  <Pressable style={styles.actionBtn} onPress={() => void onCall(item)} accessibilityLabel="اتصال">
-                    <Ionicons name="call-outline" size={18} color={colors.textPrimary} />
-                  </Pressable>
-                  <Pressable
-                    style={styles.actionBtn}
-                    onPress={() => navigation.navigate("Chat")}
-                    accessibilityLabel="مراسلة"
-                  >
-                    <Ionicons name="mail-outline" size={18} color={colors.textPrimary} />
-                  </Pressable>
-                </View>
-                <View style={styles.centerBlock}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <AppText variant="bodySm" weight="bold" numberOfLines={1} style={{ flexShrink: 1 }}>
-                      {item.job_title || item.role}
-                    </AppText>
-                    {showShield ? <Ionicons name="shield-checkmark" size={16} color={colors.accentBlue} /> : null}
+
+          {loading && !refreshing ? (
+            <View style={{ paddingVertical: 40, alignItems: "center" }}>
+              <ActivityIndicator color={c.accentCyan} />
+            </View>
+          ) : filtered.length === 0 ? (
+            <View style={[styles.emptyCard, { borderColor: c.border, backgroundColor: c.cardElevated }]}>
+              <Ionicons name="people-outline" size={36} color={c.textMuted} />
+              <AppText variant="body" tone="muted" style={{ marginTop: 8, textAlign: "center" }}>
+                {members.length === 0 ? "لا يوجد أعضاء بعد" : "لا يوجد أعضاء بهذا الدور"}
+              </AppText>
+              {isManager && members.length === 0 ? (
+                <AppButton label="دعوة أول عضو" tone="primary" size="sm" style={{ marginTop: 12 }} onPress={() => setShowInvite(true)} />
+              ) : null}
+            </View>
+          ) : (
+            filtered.map((member) => {
+              const cfg = ROLE_CFG[member.role] ?? { label: member.role, color: "#6b7280", icon: "person-outline" };
+              const bg = avatarColor(member.user_id);
+              const isMe = member.user_id === myRole?.member_id;
+              return (
+                <View key={member.id} style={[styles.memberCard, { borderColor: c.border, backgroundColor: c.cardElevated }]}>
+                  {/* Left: colored accent bar */}
+                  <View style={{ width: 4, height: "100%", backgroundColor: cfg.color, borderRadius: 4 }} />
+
+                  {/* Avatar */}
+                  <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: bg + "33", borderWidth: 2, borderColor: bg + "66", alignItems: "center", justifyContent: "center" }}>
+                    <AppText style={{ color: bg, fontSize: 15, fontWeight: "800" }}>{initials(member)}</AppText>
                   </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    {/* Role badge with color */}
-                    <View style={{ backgroundColor: getRoleBadge(item.role).color + "22", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                      <AppText variant="micro" weight="bold" style={{ color: getRoleBadge(item.role).color }}>
-                        {getRoleBadge(item.role).label}
+
+                  {/* Info */}
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <AppText variant="bodySm" weight="bold" numberOfLines={1} style={{ flex: 1 }}>
+                        {member.user_name || `عضو #${member.user_id}`}
                       </AppText>
+                      {isMe ? (
+                        <View style={{ backgroundColor: c.accentCyan + "22", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                          <AppText style={{ color: c.accentCyan, fontSize: 10, fontWeight: "700" }}>أنت</AppText>
+                        </View>
+                      ) : null}
                     </View>
-                    {item.department_id != null ? (
-                      <AppText variant="micro" tone="muted">{`قسم ${item.department_id}`}</AppText>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View style={{ backgroundColor: cfg.color + "22", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Ionicons name={cfg.icon as any} size={10} color={cfg.color} />
+                        <AppText style={{ color: cfg.color, fontSize: 11, fontWeight: "700" }}>{cfg.label}</AppText>
+                      </View>
+                      {member.job_title ? (
+                        <AppText variant="micro" tone="muted" numberOfLines={1}>{member.job_title}</AppText>
+                      ) : null}
+                    </View>
+                    {member.user_email ? (
+                      <AppText style={{ color: c.textMuted, fontSize: 11 }} numberOfLines={1}>{member.user_email}</AppText>
                     ) : null}
+                    <AppText style={{ color: c.textMuted, fontSize: 10 }}>ID: {member.i_code}</AppText>
                   </View>
+
+                  {/* Actions (manager only, not on self) */}
+                  {isManager && !isMe ? (
+                    <View style={{ gap: 6 }}>
+                      <Pressable
+                        onPress={() => openEditRole(member)}
+                        style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: c.accentBlue + "22", alignItems: "center", justifyContent: "center" }}
+                      >
+                        <Ionicons name="create-outline" size={16} color={c.accentBlue} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleRemoveMember(member)}
+                        style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: "#ef444422", alignItems: "center", justifyContent: "center" }}
+                      >
+                        <Ionicons name="person-remove-outline" size={16} color="#ef4444" />
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </View>
-                <View style={styles.avatarWrap}>
-                  <View style={styles.avatar}>
-                    <AppText variant="bodySm" weight="bold" style={{ color: colors.accentBlue }}>
-                      {(item.i_code || "?").slice(0, 2).toUpperCase()}
-                    </AppText>
-                  </View>
-                  <View style={[styles.dot, { backgroundColor: statusColor(st, colors) }]} />
-                </View>
-              </View>
-            );
-          })
-        )}
+              );
+            })
+          )}
+        </View>
       </ScrollView>
+
+      {/* ── Invite Modal ── */}
+      <Modal visible={showInvite} transparent animationType="slide" onRequestClose={() => setShowInvite(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+        <Pressable style={styles.overlay} onPress={() => setShowInvite(false)}>
+          <Pressable style={[styles.sheet, { backgroundColor: c.bgCard }]} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <AppText variant="h3" weight="bold" style={{ marginBottom: 4 }}>دعوة عضو جديد</AppText>
+            <AppText variant="caption" tone="muted" style={{ marginBottom: 16 }}>
+              أدخل كود المستخدم المكوّن من ٨ إلى ١٢ رقم من ملفه الشخصي
+            </AppText>
+
+            <TextInput
+              style={[styles.input, { borderColor: c.border, color: c.textPrimary, backgroundColor: c.bg }]}
+              placeholder="كود المستخدم (٨-١٢ رقم)"
+              placeholderTextColor={c.textMuted}
+              value={inviteCode}
+              onChangeText={setInviteCode}
+              keyboardType="number-pad"
+              maxLength={12}
+              autoFocus
+            />
+
+            <AppText variant="caption" tone="muted" style={{ marginTop: 14, marginBottom: 8 }}>الدور في الشركة</AppText>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {ROLES_SELECTABLE.map((r) => {
+                const cfg = ROLE_CFG[r];
+                const active = inviteRole === r;
+                return (
+                  <Pressable
+                    key={r}
+                    onPress={() => setInviteRole(r)}
+                    style={{
+                      paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, borderWidth: 1,
+                      borderColor: active ? cfg.color : c.border,
+                      backgroundColor: active ? cfg.color + "22" : "transparent",
+                    }}
+                  >
+                    <AppText style={{ color: active ? cfg.color : c.textMuted, fontSize: 13, fontWeight: "700" }}>
+                      {cfg.label}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 20 }}>
+              <AppButton label="إلغاء" tone="glass" style={{ flex: 1 }} onPress={() => setShowInvite(false)} />
+              <AppButton
+                label={inviting ? "جاري الإرسال…" : "إرسال الدعوة"}
+                tone="primary"
+                style={{ flex: 1 }}
+                onPress={handleInvite}
+                disabled={inviting || inviteCode.trim().length < 6}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Edit Role Modal ── */}
+      <Modal visible={!!editMember} transparent animationType="slide" onRequestClose={() => setEditMember(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+        <Pressable style={styles.overlay} onPress={() => setEditMember(null)}>
+          <Pressable style={[styles.sheet, { backgroundColor: c.bgCard }]} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <AppText variant="h3" weight="bold" style={{ marginBottom: 4 }}>تعديل الصلاحية</AppText>
+            <AppText variant="caption" tone="muted" style={{ marginBottom: 16 }}>
+              {editMember?.user_name || `عضو #${editMember?.user_id}`}
+            </AppText>
+
+            <AppText variant="caption" tone="muted" style={{ marginBottom: 8 }}>الدور</AppText>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+              {ROLES_SELECTABLE.map((r) => {
+                const cfg = ROLE_CFG[r];
+                const active = editRole === r;
+                return (
+                  <Pressable
+                    key={r}
+                    onPress={() => setEditRole(r)}
+                    style={{
+                      paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, borderWidth: 1,
+                      borderColor: active ? cfg.color : c.border,
+                      backgroundColor: active ? cfg.color + "22" : "transparent",
+                    }}
+                  >
+                    <AppText style={{ color: active ? cfg.color : c.textMuted, fontSize: 13, fontWeight: "700" }}>
+                      {cfg.label}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <TextInput
+              style={[styles.input, { borderColor: c.border, color: c.textPrimary, backgroundColor: c.bg }]}
+              placeholder="المسمى الوظيفي (اختياري)"
+              placeholderTextColor={c.textMuted}
+              value={editJobTitle}
+              onChangeText={setEditJobTitle}
+            />
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+              <AppButton label="إلغاء" tone="glass" style={{ flex: 1 }} onPress={() => setEditMember(null)} />
+              <AppButton
+                label={editSaving ? "جاري الحفظ…" : "حفظ التغييرات"}
+                tone="primary"
+                style={{ flex: 1 }}
+                onPress={handleSaveRole}
+                disabled={editSaving}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
     </Screen>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  actionCardBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  memberCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 10,
+    overflow: "hidden",
+  },
+  emptyCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 40,
+    alignItems: "center",
+  },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "flex-end" },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 44 },
+  sheetHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignSelf: "center", marginBottom: 16,
+  },
+  input: {
+    borderWidth: 1, borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 15,
+  },
+});
