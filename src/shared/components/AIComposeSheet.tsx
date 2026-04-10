@@ -1,15 +1,21 @@
 /**
  * AIComposeSheet
- * A bottom-sheet that lets the user type free Arabic/English text,
- * sends it to the AI parse endpoint, shows the structured extraction
- * for confirmation, then calls the confirm endpoint to save to DB.
+ * ==============
+ * Bottom-sheet for creating company records via natural language.
+ *
+ * Flow:
+ *   user types text  →  parse (preview)  →  user reviews  →  confirm (save)
+ *
+ * Modes: "task" | "handover" | "transaction"
+ * Each mode is fully isolated — no mixed logic.
  *
  * Usage:
  *   <AIComposeSheet
  *     visible={showAI}
- *     mode="task"                     // "task" | "handover" | "transaction"
+ *     mode="task"
+ *     projectId={selectedProjectId}   // optional
  *     onClose={() => setShowAI(false)}
- *     onSaved={(result) => reload()}  // called after confirmed save
+ *     onSaved={() => reload()}
  *   />
  */
 
@@ -31,21 +37,23 @@ import { useAppTheme } from "../../theme/ThemeContext";
 import {
   parseTaskText,
   parseHandoverText,
-  parseSalesText,
+  parseTransactionText,
   confirmAITask,
   confirmAIHandover,
   confirmAITransaction,
-  type AITaskExtraction,
-  type AIHandoverExtraction,
-  type AISalesExtraction,
+  type AITaskExtracted,
+  type AIHandoverExtracted,
+  type AITransactionExtracted,
 } from "../../api/ai.api";
+
+// ─── Types ────────────────────────────────────────────────────────────────
 
 type AIMode = "task" | "handover" | "transaction";
 
-type ExtractionResult =
-  | { mode: "task"; data: AITaskExtraction }
-  | { mode: "handover"; data: AIHandoverExtraction }
-  | { mode: "transaction"; data: AISalesExtraction };
+type Extraction =
+  | { mode: "task"; data: AITaskExtracted }
+  | { mode: "handover"; data: AIHandoverExtracted }
+  | { mode: "transaction"; data: AITransactionExtracted };
 
 interface Props {
   visible: boolean;
@@ -55,25 +63,29 @@ interface Props {
   onSaved?: (result: unknown) => void;
 }
 
-const MODE_LABEL: Record<AIMode, string> = {
+// ─── Copy ─────────────────────────────────────────────────────────────────
+
+const LABEL: Record<AIMode, string> = {
   task: "مهمة",
   handover: "تسليم",
-  transaction: "معاملة",
+  transaction: "معاملة مالية",
 };
 
-const MODE_PLACEHOLDER: Record<AIMode, string> = {
+const PLACEHOLDER: Record<AIMode, string> = {
   task: "مثال: تصميم صفحة التسجيل وتسليمها لأحمد بحلول الخميس بأولوية عالية",
-  handover: "مثال: تسليم مشروع X من محمد إلى سارة في قسم التقنية، المهام المعلقة...",
-  transaction: "مثال: فاتورة لعميل ABC بقيمة 5000 ريال، مستحقة الأسبوع القادم",
+  handover: "مثال: تسليم مشروع X من محمد إلى سارة، 12,000 ريال معلق، الملف في Drive، متابعة الأحد",
+  transaction: "مثال: بعت باقة دعم سنوية لشركة النور اليوم بـ 5000 ريال",
 };
 
-const MODE_ICON: Record<AIMode, React.ComponentProps<typeof Ionicons>["name"]> = {
+const ICON: Record<AIMode, React.ComponentProps<typeof Ionicons>["name"]> = {
   task: "checkbox-outline",
   handover: "swap-horizontal-outline",
   transaction: "cash-outline",
 };
 
-function ExtractionField({ label, value }: { label: string; value?: string | number | null }) {
+// ─── Preview field renderer ───────────────────────────────────────────────
+
+function Field({ label, value }: { label: string; value?: string | number | null }) {
   if (value == null || value === "") return null;
   return (
     <View style={fieldStyles.row}>
@@ -83,25 +95,40 @@ function ExtractionField({ label, value }: { label: string; value?: string | num
   );
 }
 
+function ListField({ label, items }: { label: string; items?: string[] | null }) {
+  if (!items?.length) return null;
+  return (
+    <View style={fieldStyles.row}>
+      <AppText variant="micro" tone="muted" style={fieldStyles.label}>{label}</AppText>
+      <View style={{ flex: 1, gap: 3 }}>
+        {items.map((item, i) => (
+          <AppText key={i} variant="bodySm">• {item}</AppText>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 const fieldStyles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 5, gap: 8 },
-  label: { width: 90, textAlign: "right", paddingTop: 1 },
+  row: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 4, gap: 8 },
+  label: { width: 88, textAlign: "right", paddingTop: 2 },
   value: { flex: 1 },
 });
 
-function renderExtraction(extraction: ExtractionResult) {
+function PreviewCard({ extraction }: { extraction: Extraction }) {
   if (extraction.mode === "task") {
     const d = extraction.data;
     return (
       <>
-        <ExtractionField label="العنوان" value={d.title} />
-        <ExtractionField label="الوصف" value={d.description} />
-        <ExtractionField label="الأولوية" value={d.priority} />
-        <ExtractionField label="الحالة" value={d.status} />
-        <ExtractionField label="تاريخ التسليم" value={d.due_date} />
-        <ExtractionField label="المُسنَد إلى" value={d.assignee_name} />
-        <ExtractionField label="المشروع" value={d.project_name} />
-        {d.tags?.length ? <ExtractionField label="الوسوم" value={d.tags.join(", ")} /> : null}
+        <Field label="العنوان" value={d.title} />
+        <Field label="الوصف" value={d.description} />
+        <Field label="مُسنَد إلى" value={d.assigned_to} />
+        <Field label="الأولوية" value={d.priority} />
+        <Field label="الحالة" value={d.status} />
+        <Field label="تاريخ التسليم" value={d.due_date} />
+        <Field label="العميل" value={d.related_client} />
+        {d.tags?.length ? <Field label="الوسوم" value={d.tags.join("، ")} /> : null}
+        <Field label="ملاحظات" value={d.notes} />
       </>
     );
   }
@@ -109,13 +136,17 @@ function renderExtraction(extraction: ExtractionResult) {
     const d = extraction.data;
     return (
       <>
-        <ExtractionField label="العنوان" value={d.title} />
-        <ExtractionField label="من" value={d.from_person} />
-        <ExtractionField label="إلى" value={d.to_person} />
-        <ExtractionField label="القسم" value={d.department} />
-        <ExtractionField label="مستوى الخطر" value={d.risk_level} />
-        <ExtractionField label="الحالة" value={d.status} />
-        {d.pending_items?.length ? <ExtractionField label="معلق" value={d.pending_items.join(" • ")} /> : null}
+        <Field label="العنوان" value={d.handover_title} />
+        <Field label="العميل" value={d.client_name} />
+        <Field label="الحالة" value={d.current_status} />
+        <Field label="من" value={d.from_person} />
+        <Field label="إلى" value={d.to_person} />
+        <Field label="القسم" value={d.department} />
+        <Field label="مستوى الخطر" value={d.risk_level} />
+        <Field label="المبلغ" value={d.flagged_amount != null ? `${d.flagged_amount} ${d.currency ?? ""}`.trim() : null} />
+        <Field label="الموعد النهائي" value={d.deadline} />
+        <Field label="الملخص" value={d.summary} />
+        <ListField label="معلق" items={d.pending_actions} />
       </>
     );
   }
@@ -123,24 +154,30 @@ function renderExtraction(extraction: ExtractionResult) {
     const d = extraction.data;
     return (
       <>
-        <ExtractionField label="النوع" value={d.type} />
-        <ExtractionField label="المبلغ" value={d.amount != null ? `${d.amount} ${d.currency ?? ""}`.trim() : null} />
-        <ExtractionField label="الحالة" value={d.status} />
-        <ExtractionField label="الطرف" value={d.counterparty} />
-        <ExtractionField label="الوصف" value={d.description} />
-        <ExtractionField label="التاريخ" value={d.date} />
-        <ExtractionField label="رقم الفاتورة" value={d.invoice_number} />
+        <Field label="النوع" value={d.transaction_type} />
+        <Field label="المبلغ" value={d.amount != null ? `${d.amount} ${d.currency ?? "SAR"}`.trim() : null} />
+        <Field label="الحالة" value={d.payment_status} />
+        <Field label="الطرف" value={d.counterparty_name} />
+        <Field label="المنتج / الخدمة" value={d.item_name} />
+        <Field label="الكمية" value={d.quantity} />
+        <Field label="التاريخ" value={d.transaction_date} />
+        <Field label="الفئة" value={d.category} />
+        <Field label="رقم الفاتورة" value={d.invoice_number} />
+        <Field label="ملاحظات" value={d.notes} />
       </>
     );
   }
   return null;
 }
 
+// ─── Main component ───────────────────────────────────────────────────────
+
 export default function AIComposeSheet({ visible, mode, projectId, onClose, onSaved }: Props) {
   const { colors } = useAppTheme();
   const [text, setText] = useState("");
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [stage, setStage] = useState<"input" | "parsing" | "confirm" | "saving" | "done">("input");
-  const [extraction, setExtraction] = useState<ExtractionResult | null>(null);
+  const [extraction, setExtraction] = useState<Extraction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
 
@@ -149,6 +186,7 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
     setStage("input");
     setExtraction(null);
     setError(null);
+    setWarnings([]);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -156,20 +194,26 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
     onClose();
   }, [reset, onClose]);
 
+  // ── Parse (preview) ──────────────────────────────────────────────────────
+
   const handleParse = useCallback(async () => {
-    if (!text.trim()) return;
+    if (text.trim().length < 5) return;
     setError(null);
+    setWarnings([]);
     setStage("parsing");
     try {
       if (mode === "task") {
         const res = await parseTaskText(text.trim());
-        setExtraction({ mode: "task", data: res.extracted });
+        setExtraction({ mode: "task", data: res.extracted as AITaskExtracted });
+        setWarnings(res.warnings ?? []);
       } else if (mode === "handover") {
         const res = await parseHandoverText(text.trim());
-        setExtraction({ mode: "handover", data: res.extracted });
+        setExtraction({ mode: "handover", data: res.extracted as AIHandoverExtracted });
+        setWarnings(res.warnings ?? []);
       } else {
-        const res = await parseSalesText(text.trim());
-        setExtraction({ mode: "transaction", data: res.extracted });
+        const res = await parseTransactionText(text.trim());
+        setExtraction({ mode: "transaction", data: res.extracted as AITransactionExtracted });
+        setWarnings(res.warnings ?? []);
       }
       setStage("confirm");
     } catch {
@@ -178,6 +222,8 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
     }
   }, [text, mode]);
 
+  // ── Confirm (save) ───────────────────────────────────────────────────────
+
   const handleConfirm = useCallback(async () => {
     if (!extraction) return;
     setStage("saving");
@@ -185,23 +231,78 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
     try {
       let result: unknown;
       if (extraction.mode === "task") {
-        result = await confirmAITask({ extraction: extraction.data, project_id: projectId ?? null });
+        const d = extraction.data;
+        result = await confirmAITask({
+          extraction: {
+            title: d.title ?? "مهمة جديدة",
+            description: d.description,
+            priority: d.priority,
+            status: d.status,
+            due_date: d.due_date,
+            assigned_to: d.assigned_to,
+            related_client: d.related_client,
+            tags: d.tags,
+            notes: d.notes,
+            project_id: projectId ?? null,
+          },
+        });
       } else if (extraction.mode === "handover") {
-        result = await confirmAIHandover({ extraction: extraction.data });
+        const d = extraction.data;
+        result = await confirmAIHandover({
+          extraction: {
+            handover_title: d.handover_title ?? "تسليم جديد",
+            client_name: d.client_name,
+            current_status: d.current_status,
+            from_person: d.from_person,
+            to_person: d.to_person,
+            department: d.department,
+            pending_actions: d.pending_actions,
+            important_contacts: d.important_contacts,
+            referenced_files: d.referenced_files,
+            flagged_amount: d.flagged_amount,
+            currency: d.currency,
+            deadline: d.deadline,
+            risk_level: d.risk_level,
+            summary: d.summary,
+            notes: d.notes,
+          },
+        });
       } else {
-        result = await confirmAITransaction({ extraction: extraction.data });
+        const d = extraction.data;
+        if (!d.amount) {
+          setError("لا يمكن حفظ معاملة بدون مبلغ.");
+          setStage("confirm");
+          return;
+        }
+        result = await confirmAITransaction({
+          extraction: {
+            amount: d.amount,
+            currency: d.currency,
+            transaction_type: d.transaction_type,
+            payment_status: d.payment_status,
+            counterparty_name: d.counterparty_name,
+            item_name: d.item_name,
+            quantity: d.quantity,
+            transaction_date: d.transaction_date,
+            invoice_number: d.invoice_number,
+            category: d.category,
+            notes: d.notes,
+          },
+        });
       }
       setStage("done");
       onSaved?.(result);
-      setTimeout(handleClose, 800);
+      setTimeout(handleClose, 900);
     } catch {
-      setError("فشل في الحفظ. حاول مجدداً.");
+      setError("فشل في الحفظ. تأكد من أنك عضو في مساحة عمل وحاول مجدداً.");
       setStage("confirm");
     }
   }, [extraction, projectId, onSaved, handleClose]);
 
+  // ── Render ───────────────────────────────────────────────────────────────
+
   const bg = colors.bgCard ?? "#111827";
-  const border = colors.border ?? "#1f2937";
+  const borderColor = colors.border ?? "#1f2937";
   const cyan = colors.accentCyan ?? "#06b6d4";
 
   return (
@@ -211,18 +312,25 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
         style={{ flex: 1 }}
       >
         <Pressable style={styles.backdrop} onPress={handleClose}>
-          <Pressable style={[styles.sheet, { backgroundColor: bg, borderColor: border }]} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={[styles.sheet, { backgroundColor: bg, borderColor: borderColor }]}
+            onPress={(e) => e.stopPropagation()}
+          >
             {/* Handle */}
-            <View style={[styles.handle, { backgroundColor: border }]} />
+            <View style={[styles.handle, { backgroundColor: borderColor }]} />
 
             {/* Header */}
             <View style={styles.header}>
               <View style={[styles.iconBg, { backgroundColor: `${cyan}22` }]}>
-                <Ionicons name={MODE_ICON[mode]} size={18} color={cyan} />
+                <Ionicons name={ICON[mode]} size={18} color={cyan} />
               </View>
               <View style={{ flex: 1 }}>
-                <AppText variant="bodySm" weight="bold">إنشاء {MODE_LABEL[mode]} بالذكاء الاصطناعي</AppText>
-                <AppText variant="micro" tone="muted">اكتب بالعربي أو الإنجليزي — سيفهم الذكاء التفاصيل</AppText>
+                <AppText variant="bodySm" weight="bold">
+                  إنشاء {LABEL[mode]} بالذكاء الاصطناعي
+                </AppText>
+                <AppText variant="micro" tone="muted">
+                  اكتب بالعربي أو الإنجليزي — سيفهم الذكاء التفاصيل
+                </AppText>
               </View>
               <Pressable onPress={handleClose} hitSlop={12}>
                 <Ionicons name="close" size={20} color={colors.textMuted} />
@@ -235,23 +343,40 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              {/* Stage: input */}
+              {/* ── Stage: input ── */}
               {(stage === "input" || stage === "parsing") && (
                 <>
                   <TextInput
                     ref={inputRef}
                     value={text}
                     onChangeText={setText}
-                    placeholder={MODE_PLACEHOLDER[mode]}
+                    placeholder={PLACEHOLDER[mode]}
                     placeholderTextColor={colors.textMuted}
                     multiline
                     autoFocus
-                    style={[styles.textarea, { color: colors.textPrimary, borderColor: border, backgroundColor: `${border}55` }]}
+                    style={[
+                      styles.textarea,
+                      {
+                        color: colors.textPrimary,
+                        borderColor: borderColor,
+                        backgroundColor: `${borderColor}55`,
+                      },
+                    ]}
                     textAlign="right"
                   />
-                  {error ? <AppText variant="micro" style={{ color: "#ef4444", marginTop: 6 }}>{error}</AppText> : null}
+                  {error ? (
+                    <AppText variant="micro" style={{ color: "#ef4444", marginTop: 4 }}>
+                      {error}
+                    </AppText>
+                  ) : null}
                   <Pressable
-                    style={[styles.btn, { backgroundColor: cyan, opacity: text.trim().length < 5 || stage === "parsing" ? 0.5 : 1 }]}
+                    style={[
+                      styles.btn,
+                      {
+                        backgroundColor: cyan,
+                        opacity: text.trim().length < 5 || stage === "parsing" ? 0.5 : 1,
+                      },
+                    ]}
                     onPress={handleParse}
                     disabled={text.trim().length < 5 || stage === "parsing"}
                   >
@@ -260,35 +385,104 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
                     ) : (
                       <>
                         <Ionicons name="sparkles" size={16} color="#fff" />
-                        <AppText variant="bodySm" weight="bold" style={{ color: "#fff" }}>تحليل</AppText>
+                        <AppText variant="bodySm" weight="bold" style={{ color: "#fff" }}>
+                          تحليل
+                        </AppText>
                       </>
                     )}
                   </Pressable>
                 </>
               )}
 
-              {/* Stage: confirm */}
+              {/* ── Stage: confirm ── */}
               {(stage === "confirm" || stage === "saving") && extraction && (
                 <>
-                  <View style={[styles.extractionCard, { borderColor: `${cyan}44`, backgroundColor: `${cyan}0a` }]}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                      <Ionicons name="checkmark-circle" size={16} color={cyan} />
-                      <AppText variant="bodySm" weight="bold" style={{ color: cyan }}>البيانات المستخرجة</AppText>
+                  {/* Warnings from AI engine */}
+                  {warnings.length > 0 && (
+                    <View
+                      style={{
+                        backgroundColor: "#f59e0b18",
+                        borderColor: "#f59e0b44",
+                        borderWidth: 1,
+                        borderRadius: 10,
+                        padding: 10,
+                        marginBottom: 4,
+                        gap: 3,
+                      }}
+                    >
+                      {warnings.map((w, i) => (
+                        <AppText key={i} variant="micro" style={{ color: "#f59e0b" }}>
+                          ⚠ {w}
+                        </AppText>
+                      ))}
                     </View>
-                    {renderExtraction(extraction)}
+                  )}
+
+                  {/* Extracted data preview */}
+                  <View
+                    style={[
+                      styles.previewCard,
+                      { borderColor: `${cyan}44`, backgroundColor: `${cyan}0a` },
+                    ]}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Ionicons name="checkmark-circle" size={16} color={cyan} />
+                      <AppText
+                        variant="bodySm"
+                        weight="bold"
+                        style={{ color: cyan }}
+                      >
+                        البيانات المستخرجة — راجع قبل الحفظ
+                      </AppText>
+                    </View>
+                    <PreviewCard extraction={extraction} />
                   </View>
-                  {error ? <AppText variant="micro" style={{ color: "#ef4444", marginTop: 6 }}>{error}</AppText> : null}
+
+                  {error ? (
+                    <AppText
+                      variant="micro"
+                      style={{ color: "#ef4444", marginTop: 4 }}
+                    >
+                      {error}
+                    </AppText>
+                  ) : null}
+
+                  {/* Action buttons */}
                   <View style={styles.btnRow}>
                     <Pressable
-                      style={[styles.btn, { flex: 1, backgroundColor: border }]}
-                      onPress={() => { setStage("input"); setExtraction(null); }}
+                      style={[styles.btn, { flex: 1, backgroundColor: borderColor }]}
+                      onPress={() => {
+                        setStage("input");
+                        setExtraction(null);
+                        setWarnings([]);
+                      }}
                       disabled={stage === "saving"}
                     >
-                      <Ionicons name="arrow-back" size={16} color={colors.textPrimary} />
-                      <AppText variant="bodySm" weight="bold">تعديل</AppText>
+                      <Ionicons
+                        name="arrow-back"
+                        size={16}
+                        color={colors.textPrimary}
+                      />
+                      <AppText variant="bodySm" weight="bold">
+                        تعديل
+                      </AppText>
                     </Pressable>
                     <Pressable
-                      style={[styles.btn, { flex: 2, backgroundColor: cyan, opacity: stage === "saving" ? 0.6 : 1 }]}
+                      style={[
+                        styles.btn,
+                        {
+                          flex: 2,
+                          backgroundColor: cyan,
+                          opacity: stage === "saving" ? 0.6 : 1,
+                        },
+                      ]}
                       onPress={handleConfirm}
                       disabled={stage === "saving"}
                     >
@@ -297,7 +491,13 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
                       ) : (
                         <>
                           <Ionicons name="save-outline" size={16} color="#fff" />
-                          <AppText variant="bodySm" weight="bold" style={{ color: "#fff" }}>حفظ {MODE_LABEL[mode]}</AppText>
+                          <AppText
+                            variant="bodySm"
+                            weight="bold"
+                            style={{ color: "#fff" }}
+                          >
+                            حفظ {LABEL[mode]}
+                          </AppText>
                         </>
                       )}
                     </Pressable>
@@ -305,13 +505,35 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
                 </>
               )}
 
-              {/* Stage: done */}
+              {/* ── Stage: done ── */}
               {stage === "done" && (
-                <View style={{ alignItems: "center", paddingVertical: 32, gap: 12 }}>
-                  <View style={[styles.iconBg, { backgroundColor: `${colors.success}22`, width: 56, height: 56, borderRadius: 28 }]}>
-                    <Ionicons name="checkmark-done" size={28} color={colors.success} />
+                <View
+                  style={{
+                    alignItems: "center",
+                    paddingVertical: 36,
+                    gap: 12,
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.iconBg,
+                      {
+                        backgroundColor: `${colors.success}22`,
+                        width: 60,
+                        height: 60,
+                        borderRadius: 30,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="checkmark-done" size={30} color={colors.success} />
                   </View>
-                  <AppText variant="body" weight="bold" style={{ color: colors.success }}>تم الحفظ بنجاح</AppText>
+                  <AppText
+                    variant="body"
+                    weight="bold"
+                    style={{ color: colors.success }}
+                  >
+                    تم الحفظ بنجاح
+                  </AppText>
                 </View>
               )}
             </ScrollView>
@@ -325,7 +547,7 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.65)",
     justifyContent: "flex-end",
   },
   sheet: {
@@ -334,9 +556,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    maxHeight: "85%",
-    minHeight: 360,
-    paddingBottom: Platform.OS === "ios" ? 34 : 16,
+    maxHeight: "88%",
+    minHeight: 380,
+    paddingBottom: Platform.OS === "ios" ? 36 : 16,
   },
   handle: {
     width: 40,
@@ -351,7 +573,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     padding: 16,
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
   iconBg: {
     width: 38,
@@ -362,8 +584,8 @@ const styles = StyleSheet.create({
   },
   body: {
     padding: 16,
+    paddingTop: 8,
     gap: 12,
-    paddingTop: 4,
   },
   textarea: {
     minHeight: 120,
@@ -387,7 +609,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
-  extractionCard: {
+  previewCard: {
     borderWidth: 1,
     borderRadius: 14,
     padding: 14,

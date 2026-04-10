@@ -66,8 +66,14 @@ class Settings(BaseSettings):
     AZURE_STORAGE_CONNECTION_STRING: Optional[str] = None
     AZURE_STORAGE_CONTAINER: str = "uploads"
 
-    # AI (Anthropic Claude)
+    # AI (Anthropic Claude — used for agent chat)
     ANTHROPIC_API_KEY: Optional[str] = None
+
+    # AI Structuring Engine (Ollama — local, privacy-first)
+    # Ollama runs on the same machine, bound to 127.0.0.1:11434 only
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
+    OLLAMA_MODEL: str = "llama3.2:3b"
+    OLLAMA_TIMEOUT: int = 60
 
     # Daily.co — غرف فيديو + شات داخل الجلسة (قسم الشركات)
     DAILY_API_KEY: Optional[str] = None

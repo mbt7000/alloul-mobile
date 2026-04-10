@@ -18,6 +18,7 @@ from routers import (
     posts, handover, memory, deals,
     dashboard, marketplace, search, agent, sendbird, stream_chat, daily_workspace, admin, ads,
     stories, follows, projects, notifications, communities, phone,
+    ai_extract, ai_confirm,
 )
 
 @asynccontextmanager
@@ -153,6 +154,9 @@ app.include_router(projects.router)
 app.include_router(notifications.router)
 app.include_router(communities.router)
 app.include_router(phone.router)
+# AI structuring engine — parse (preview) + confirm (save)
+app.include_router(ai_extract.router)
+app.include_router(ai_confirm.router)
 
 
 @app.get("/")

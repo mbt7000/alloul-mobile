@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Column, Float, Integer, String, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -303,6 +303,7 @@ class HandoverRecord(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
     title = Column(String(255), nullable=False)
     from_person = Column(String(255), nullable=True)
     to_person = Column(String(255), nullable=True)
@@ -312,10 +313,26 @@ class HandoverRecord(Base):
     score = Column(Integer, default=0)
     tasks = Column(Integer, default=0)
     completed_tasks = Column(Integer, default=0)
+    # AI-enriched fields (populated on ai/confirm-handover)
+    client_name = Column(String(255), nullable=True)
+    next_owner_name = Column(String(255), nullable=True)
+    next_owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    pending_actions_json = Column(Text, nullable=True)     # JSON list of strings
+    important_contacts_json = Column(Text, nullable=True)  # JSON list of strings
+    referenced_files_json = Column(Text, nullable=True)    # JSON list of strings
+    flagged_amount = Column(Float, nullable=True)
+    currency = Column(String(8), nullable=True)
+    deadline = Column(String(64), nullable=True)
+    risk_level = Column(String(16), nullable=True)         # low/medium/high/critical
+    summary = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    # Audit
+    ai_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    ai_confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    owner = relationship("User")
+    owner = relationship("User", foreign_keys=[user_id])
 
 
 # ─── Memory / Knowledge ──────────────────────────────────────────────────────
@@ -355,6 +372,40 @@ class DealRecord(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     owner = relationship("User")
+
+
+# ─── Sales Ledger ─────────────────────────────────────────────────────────────
+
+class SalesLedger(Base):
+    """
+    Per-company financial transaction ledger.
+    Distinct from DealRecord (CRM pipeline) — this records actual money in/out.
+    Populated via POST /ai/confirm-transaction after AI extraction preview.
+    """
+    __tablename__ = "sales_ledger"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    transaction_type = Column(String(32), nullable=False)   # income, expense, invoice, payment
+    counterparty_name = Column(String(255), nullable=True)
+    item_name = Column(String(255), nullable=True)
+    quantity = Column(Float, nullable=True)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(8), default="SAR")
+    transaction_date = Column(String(32), nullable=True)    # YYYY-MM-DD
+    payment_status = Column(String(32), default="pending")  # pending, paid, overdue, cancelled
+    category = Column(String(128), nullable=True)
+    invoice_number = Column(String(128), nullable=True)
+    notes = Column(Text, nullable=True)
+    # Audit
+    ai_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    ai_confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    company = relationship("Company")
+    creator = relationship("User", foreign_keys=[created_by_user_id])
 
 
 # ─── Stories ─────────────────────────────────────────────────────────────────
@@ -415,13 +466,23 @@ class ProjectTask(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    status = Column(String(32), default="todo")  # todo, in_progress, done
+    status = Column(String(32), default="todo")         # todo, in_progress, done
+    priority = Column(String(16), default="medium")     # high, medium, low
     due_date = Column(String(32), nullable=True)
+    # AI-enriched fields
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    related_client = Column(String(255), nullable=True)
+    tags = Column(Text, nullable=True)                  # JSON array string
+    notes = Column(Text, nullable=True)
+    # Audit
+    ai_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    ai_confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     project = relationship("Project", back_populates="tasks")
-    assignee = relationship("User")
+    assignee = relationship("User", foreign_keys=[assignee_id])
+    creator = relationship("User", foreign_keys=[created_by_user_id])
 
 
 # ─── Notifications ───────────────────────────────────────────────────────────
