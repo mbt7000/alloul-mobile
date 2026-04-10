@@ -6,11 +6,13 @@ import {
   RefreshControl,
   ActivityIndicator,
   Pressable,
+  ScrollView,
+  StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../../state/auth/AuthContext";
-import { getPosts, likePost, unlikePost, type ApiPost } from "../../../api";
+import { getPosts, getFollowingPosts, likePost, unlikePost, repostPost, unrepostPost, savePost, unsavePost, type ApiPost } from "../../../api";
 import { formatApiError } from "../../../shared/utils/apiErrors";
 import InlineErrorRetry from "../../../shared/ui/InlineErrorRetry";
 import { useAppTheme } from "../../../theme/ThemeContext";
@@ -22,10 +24,85 @@ import UnifiedSearchField from "../../../shared/components/UnifiedSearchField";
 import { addRecentSearch } from "../../../storage/recentSearches";
 import MediaPostRow from "../components/MediaPostRow";
 
-type MediaFeedTab = "forYou" | "trending" | "video";
+// ── Static stories data (will be replaced with API when backend is ready) ──
+const DEMO_STORIES = [
+  { id: "1", name: "قصتي", isOwn: true, seen: false },
+  { id: "2", name: "أحمد", isOwn: false, seen: false },
+  { id: "3", name: "سارة", isOwn: false, seen: false },
+  { id: "4", name: "خالد", isOwn: false, seen: true },
+  { id: "5", name: "نورة", isOwn: false, seen: false },
+  { id: "6", name: "فيصل", isOwn: false, seen: true },
+  { id: "7", name: "ريم", isOwn: false, seen: false },
+];
+
+const STORY_COLORS = ["#38e8ff", "#a855f7", "#f472b6", "#fb923c", "#2dd36f", "#3b82f6", "#f59e0b"];
+
+function StoriesBar({ onAddStory, onViewStory }: { onAddStory?: () => void; onViewStory?: (id: string) => void }) {
+  const { colors } = useAppTheme();
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={storiesStyles.row}
+    >
+      {DEMO_STORIES.map((story, idx) => {
+        const ringColor = story.seen ? colors.border : STORY_COLORS[idx % STORY_COLORS.length];
+        return (
+          <Pressable
+            key={story.id}
+            style={({ pressed }) => [storiesStyles.item, pressed && { opacity: 0.8 }]}
+            onPress={() => story.isOwn ? onAddStory?.() : onViewStory?.(story.id)}
+          >
+            <View style={[storiesStyles.ring, { borderColor: ringColor }]}>
+              {story.isOwn ? (
+                <View style={[storiesStyles.avatar, { backgroundColor: "rgba(56,232,255,0.15)" }]}>
+                  <Ionicons name="add" size={22} color={colors.accentCyan} />
+                </View>
+              ) : (
+                <View style={[storiesStyles.avatar, { backgroundColor: `${STORY_COLORS[idx % STORY_COLORS.length]}22` }]}>
+                  <AppText variant="bodySm" weight="bold" style={{ color: STORY_COLORS[idx % STORY_COLORS.length] }}>
+                    {story.name.slice(0, 1)}
+                  </AppText>
+                </View>
+              )}
+            </View>
+            <AppText variant="micro" tone={story.seen ? "muted" : "primary"} numberOfLines={1} style={storiesStyles.label}>
+              {story.name}
+            </AppText>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+const storiesStyles = StyleSheet.create({
+  row: { paddingHorizontal: 0, paddingVertical: 8, gap: 14, flexDirection: "row" },
+  item: { alignItems: "center", width: 62 },
+  ring: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    borderWidth: 2.5,
+    padding: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatar: {
+    width: "100%" as any,
+    height: "100%" as any,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  label: { marginTop: 5, textAlign: "center", maxWidth: 60 },
+});
+
+type MediaFeedTab = "forYou" | "following" | "trending" | "video";
 
 const MEDIA_TABS: Array<{ key: MediaFeedTab; label: string; subtitle: string }> = [
   { key: "forYou", label: "لك", subtitle: "أحدث ما يحدث الآن" },
+  { key: "following", label: "متابَعون", subtitle: "منشورات من تتابعهم" },
   { key: "trending", label: "الترند", subtitle: "الأكثر تفاعلاً في شبكتك" },
   { key: "video", label: "الفيديو", subtitle: "المنشورات المرئية أولاً" },
 ];
@@ -140,10 +217,11 @@ export default function FeedScreen() {
   const [feedError, setFeedError] = useState<string | null>(null);
 
   const fetchPosts = useCallback(
-    async () => {
+    async (currentTab?: MediaFeedTab) => {
       setFeedError(null);
       try {
-        const p = await getPosts(30, 0);
+        const isFollowing = (currentTab ?? tab) === "following";
+        const p = isFollowing ? await getFollowingPosts(30, 0) : await getPosts(30, 0);
         setPosts(Array.isArray(p) ? p : []);
       } catch (e) {
         setFeedError(formatApiError(e));
@@ -151,12 +229,12 @@ export default function FeedScreen() {
       }
       setLoading(false);
     },
-    []
+    [tab]
   );
 
   useEffect(() => {
-    void fetchPosts();
-  }, [fetchPosts]);
+    void fetchPosts(tab);
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -181,6 +259,38 @@ export default function FeedScreen() {
     }
   };
 
+  const handleRepost = async (postId: number) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    const was = post.reposted_by_me;
+    setPosts((prev) => prev.map((p) =>
+      p.id === postId ? { ...p, reposted_by_me: !was, reposts_count: was ? (p.reposts_count || 1) - 1 : (p.reposts_count || 0) + 1 } : p
+    ));
+    try {
+      if (was) await unrepostPost(postId); else await repostPost(postId);
+    } catch {
+      setPosts((prev) => prev.map((p) =>
+        p.id === postId ? { ...p, reposted_by_me: was, reposts_count: post.reposts_count } : p
+      ));
+    }
+  };
+
+  const handleSave = async (postId: number) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    const was = post.saved_by_me;
+    setPosts((prev) => prev.map((p) =>
+      p.id === postId ? { ...p, saved_by_me: !was } : p
+    ));
+    try {
+      if (was) await unsavePost(postId); else await savePost(postId);
+    } catch {
+      setPosts((prev) => prev.map((p) =>
+        p.id === postId ? { ...p, saved_by_me: was } : p
+      ));
+    }
+  };
+
   const visiblePosts = useMemo(() => {
     if (tab === "video") {
       return posts.filter((post) => Boolean(post.image_url));
@@ -197,21 +307,24 @@ export default function FeedScreen() {
     return posts;
   }, [posts, tab]);
 
-  const tabMeta = useMemo(() => MEDIA_TABS.find((item) => item.key === tab) ?? MEDIA_TABS[0], [tab]);
-
   const emptyStateCopy =
     tab === "video"
       ? "أضف منشوراً بصرياً ليظهر هنا."
       : tab === "trending"
         ? "لا توجد منشورات متداولة بعد."
-        : "ابدأ النبض الإعلامي بأول منشور.";
+        : tab === "following"
+          ? "تابع أشخاصاً لترى منشوراتهم هنا."
+          : "ابدأ النبض الإعلامي بأول منشور.";
+
+  const tabMeta = useMemo(() => MEDIA_TABS.find((item) => item.key === tab) ?? MEDIA_TABS[0], [tab]);
+
 
   return (
     <Screen style={{ backgroundColor: colors.mediaCanvas }}>
       <FlatList
         data={visiblePosts}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => <MediaPostRow post={item} onLike={handleLike} />}
+        renderItem={({ item }) => <MediaPostRow post={item} onLike={handleLike} onRepost={handleRepost} onSave={handleSave} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentCyan} />}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
@@ -234,6 +347,12 @@ export default function FeedScreen() {
               <View style={styles.topbarActions}>
                 <Pressable
                   style={styles.iconBtn}
+                  onPress={() => navigation.navigate("DirectMessages")}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textPrimary} />
+                </Pressable>
+                <Pressable
+                  style={styles.iconBtn}
                   onPress={() => {
                     const q = searchDraft.trim();
                     navigation.navigate("Search", {
@@ -248,6 +367,14 @@ export default function FeedScreen() {
                   <Ionicons name="add" size={20} color={colors.white} />
                 </Pressable>
               </View>
+            </View>
+
+            {/* Stories bar */}
+            <View style={{ marginTop: 10 }}>
+              <StoriesBar
+                onAddStory={() => navigation.navigate("CreatePost")}
+                onViewStory={() => {}}
+              />
             </View>
 
             <GlassCard strength="strong" style={styles.composer}>

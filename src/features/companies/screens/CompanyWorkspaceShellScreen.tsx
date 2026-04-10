@@ -899,35 +899,35 @@ function TeamsSection({
         <View style={styles.sectionTopRow}>
           <View style={{ flex: 1 }}>
             <AppText variant="title" weight="bold">
-              Teams
+              الفريق
             </AppText>
             <AppText variant="caption" tone="muted" style={{ marginTop: 4 }}>
-              Org units, roles, and invites—RBAC-ready.
+              الوحدات التنظيمية، الأدوار، والدعوات.
             </AppText>
           </View>
-          <AppButton label="Invite employee" tone="primary" onPress={() => nav.navigate("Teams")} />
+          <AppButton label="دعوة موظف" tone="primary" onPress={() => nav.navigate("Teams")} />
         </View>
         <View style={{ height: 12 }} />
         <View style={styles.quickGrid}>
-          <QuickAction label="New team" icon="add-circle-outline" onPress={() => nav.navigate("Teams")} />
-          <QuickAction label="Directory" icon="list-outline" onPress={() => nav.navigate("Teams")} />
-          <QuickAction label="Projects" icon="folder-outline" onPress={() => nav.navigate("Projects")} />
-          <QuickAction label="Chat" icon="chatbubble-ellipses-outline" onPress={() => nav.navigate("Chat")} />
+          <QuickAction label="فريق جديد" icon="add-circle-outline" onPress={() => nav.navigate("Teams")} />
+          <QuickAction label="الدليل" icon="list-outline" onPress={() => nav.navigate("Teams")} />
+          <QuickAction label="المشاريع" icon="folder-outline" onPress={() => nav.navigate("Projects")} />
+          <QuickAction label="الدردشة" icon="chatbubble-ellipses-outline" onPress={() => nav.navigate("Chat")} />
         </View>
       </GlassCard>
 
       <View style={styles.summaryRow}>
-        <SummaryCard title="Employees" value={emp} icon="people-outline" />
-        <SummaryCard title="Teams" value={loading ? "…" : String(teamCount || 0)} icon="git-network-outline" />
+        <SummaryCard title="الموظفون" value={emp} icon="people-outline" />
+        <SummaryCard title="الفرق" value={loading ? "…" : String(teamCount || 0)} icon="git-network-outline" />
       </View>
       <View style={styles.summaryRow}>
-        <SummaryCard title="New joiners" value="—" icon="person-add-outline" />
-        <SummaryCard title="Pending invites" value="—" icon="mail-unread-outline" />
+        <SummaryCard title="منضمون جدد" value="—" icon="person-add-outline" />
+        <SummaryCard title="دعوات معلقة" value="—" icon="mail-unread-outline" />
       </View>
 
       <GlassCard style={styles.sectionCard}>
         <AppText variant="micro" tone="muted" weight="bold" style={styles.kicker}>
-          Members
+          الأعضاء
         </AppText>
         <View style={{ height: 10 }} />
         <View style={{ gap: 10 }}>
@@ -943,7 +943,7 @@ function TeamsSection({
             ))
           ) : (
             <AppText variant="caption" tone="muted">
-              No members found yet.
+              لا يوجد أعضاء بعد.
             </AppText>
           )}
         </View>
@@ -977,35 +977,35 @@ function ProjectsSection({
         <View style={styles.sectionTopRow}>
           <View style={{ flex: 1 }}>
             <AppText variant="title" weight="bold">
-              Projects
+              المشاريع
             </AppText>
             <AppText variant="caption" tone="muted" style={{ marginTop: 4 }}>
-              Delivery health, risk, and due dates in one glance.
+              صحة التسليم، المخاطر، والمواعيد في لمحة واحدة.
             </AppText>
           </View>
-          <AppButton label="Create project" tone="primary" onPress={() => nav.navigate("Projects")} />
+          <AppButton label="مشروع جديد" tone="primary" onPress={() => nav.navigate("Projects")} />
         </View>
         <View style={{ height: 12 }} />
         <View style={styles.quickGrid}>
-          <QuickAction label="Board view" icon="grid-outline" onPress={() => nav.navigate("Projects")} />
-          <QuickAction label="Tasks" icon="checkbox-outline" onPress={() => nav.navigate("Tasks")} />
-          <QuickAction label="Meetings" icon="videocam-outline" onPress={() => nav.navigate("Meetings")} />
-          <QuickAction label="Handover" icon="swap-horizontal-outline" onPress={() => nav.navigate("Handover")} />
+          <QuickAction label="عرض اللوحة" icon="grid-outline" onPress={() => nav.navigate("Projects")} />
+          <QuickAction label="المهام" icon="checkbox-outline" onPress={() => nav.navigate("Tasks")} />
+          <QuickAction label="الاجتماعات" icon="videocam-outline" onPress={() => nav.navigate("Meetings")} />
+          <QuickAction label="التسليم" icon="swap-horizontal-outline" onPress={() => nav.navigate("Handover")} />
         </View>
       </GlassCard>
 
       <View style={styles.summaryRow}>
-        <SummaryCard title="Active" value={loading ? "…" : String(activeProjects)} icon="folder-open-outline" />
-        <SummaryCard title="At risk" value={risk} icon="alert-circle-outline" />
+        <SummaryCard title="نشط" value={loading ? "…" : String(activeProjects)} icon="folder-open-outline" />
+        <SummaryCard title="في خطر" value={risk} icon="alert-circle-outline" />
       </View>
       <View style={styles.summaryRow}>
-        <SummaryCard title="Completed" value={loading ? "…" : String(completedProjects)} icon="checkmark-done-outline" />
-        <SummaryCard title="Due this week" value={loading ? "…" : String(dueWeek)} icon="calendar-outline" />
+        <SummaryCard title="مكتمل" value={loading ? "…" : String(completedProjects)} icon="checkmark-done-outline" />
+        <SummaryCard title="يستحق هذا الأسبوع" value={loading ? "…" : String(dueWeek)} icon="calendar-outline" />
       </View>
 
       <GlassCard style={styles.sectionCard}>
         <AppText variant="micro" tone="muted" weight="bold" style={styles.kicker}>
-          Active projects
+          المشاريع النشطة
         </AppText>
         <View style={{ height: 10 }} />
         <View style={{ gap: 10 }}>
@@ -1022,7 +1022,7 @@ function ProjectsSection({
             ))
           ) : (
             <AppText variant="caption" tone="muted">
-              No projects found yet.
+              لا توجد مشاريع بعد.
             </AppText>
           )}
         </View>
@@ -1052,30 +1052,30 @@ function TasksSection({
         <View style={styles.sectionTopRow}>
           <View style={{ flex: 1 }}>
             <AppText variant="title" weight="bold">
-              Tasks
+              المهام
             </AppText>
             <AppText variant="caption" tone="muted" style={{ marginTop: 4 }}>
-              Grouped execution—today, in progress, blocked, overdue.
+              تنفيذ مجمّع — اليوم، جارٍ، محظور، متأخر.
             </AppText>
           </View>
-          <AppButton label="Create task" tone="primary" onPress={() => nav.navigate("Tasks")} />
+          <AppButton label="مهمة جديدة" tone="primary" onPress={() => nav.navigate("Tasks")} />
         </View>
         <View style={{ height: 12 }} />
         <View style={styles.quickGrid}>
-          <QuickAction label="Filter" icon="funnel-outline" onPress={() => nav.navigate("Tasks")} />
-          <QuickAction label="Projects" icon="folder-outline" onPress={() => nav.navigate("Projects")} />
-          <QuickAction label="Handover" icon="swap-horizontal-outline" onPress={() => nav.navigate("Handover")} />
-          <QuickAction label="Reports" icon="bar-chart-outline" onPress={() => nav.navigate("Reports")} />
+          <QuickAction label="تصفية" icon="funnel-outline" onPress={() => nav.navigate("Tasks")} />
+          <QuickAction label="المشاريع" icon="folder-outline" onPress={() => nav.navigate("Projects")} />
+          <QuickAction label="التسليم" icon="swap-horizontal-outline" onPress={() => nav.navigate("Handover")} />
+          <QuickAction label="التقارير" icon="bar-chart-outline" onPress={() => nav.navigate("Reports")} />
         </View>
       </GlassCard>
 
       <View style={styles.kanbanRow}>
-        <TaskColumn title="Due today" tone={colors.accentCyan} tasks={taskBuckets.dueToday} onPress={() => nav.navigate("Tasks")} />
-        <TaskColumn title="In progress" tone={colors.accentBlue} tasks={taskBuckets.inProgress} onPress={() => nav.navigate("Tasks")} />
+        <TaskColumn title="يستحق اليوم" tone={colors.accentCyan} tasks={taskBuckets.dueToday} onPress={() => nav.navigate("Tasks")} />
+        <TaskColumn title="جارٍ" tone={colors.accentBlue} tasks={taskBuckets.inProgress} onPress={() => nav.navigate("Tasks")} />
       </View>
       <View style={styles.kanbanRow}>
-        <TaskColumn title="Blocked" tone={colors.accentEmber} tasks={taskBuckets.blocked} onPress={() => nav.navigate("Tasks")} />
-        <TaskColumn title="Overdue" tone={colors.accentRose} tasks={taskBuckets.overdue} onPress={() => nav.navigate("Tasks")} />
+        <TaskColumn title="محظور" tone={colors.accentEmber} tasks={taskBuckets.blocked} onPress={() => nav.navigate("Tasks")} />
+        <TaskColumn title="متأخر" tone={colors.accentRose} tasks={taskBuckets.overdue} onPress={() => nav.navigate("Tasks")} />
       </View>
     </View>
   );
@@ -1106,36 +1106,36 @@ function HandoverSection({
         <View style={styles.sectionTopRow}>
           <View style={{ flex: 1 }}>
             <AppText variant="title" weight="bold">
-              Handover
+              التسليم
             </AppText>
             <AppText variant="caption" tone="muted" style={{ marginTop: 4 }}>
-              Audit-ready transfers when roles and ownership change.
+              نقل ملكية الأدوار والمسؤوليات بشفافية كاملة.
             </AppText>
           </View>
-          <AppButton label="New handover" tone="primary" onPress={() => nav.navigate("Handover")} />
+          <AppButton label="تسليم جديد" tone="primary" onPress={() => nav.navigate("Handover")} />
         </View>
         <View style={{ height: 12 }} />
         <View style={styles.quickGrid}>
-          <QuickAction label="Templates" icon="document-attach-outline" onPress={() => nav.navigate("Handover")} />
-          <QuickAction label="Projects" icon="folder-outline" onPress={() => nav.navigate("Projects")} />
-          <QuickAction label="Knowledge" icon="book-outline" onPress={() => nav.navigate("Knowledge")} />
-          <QuickAction label="Chat" icon="chatbubble-ellipses-outline" onPress={() => nav.navigate("Chat")} />
+          <QuickAction label="القوالب" icon="document-attach-outline" onPress={() => nav.navigate("Handover")} />
+          <QuickAction label="المشاريع" icon="folder-outline" onPress={() => nav.navigate("Projects")} />
+          <QuickAction label="المعرفة" icon="book-outline" onPress={() => nav.navigate("Knowledge")} />
+          <QuickAction label="الدردشة" icon="chatbubble-ellipses-outline" onPress={() => nav.navigate("Chat")} />
         </View>
       </GlassCard>
 
       <View style={styles.summaryRow}>
-        <SummaryCard title="Pending review" value={loading ? "…" : String(reviewCount)} icon="eye-outline" />
-        <SummaryCard title="Completed" value={loading ? "…" : String(doneCount)} icon="checkmark-circle-outline" />
+        <SummaryCard title="في انتظار المراجعة" value={loading ? "…" : String(reviewCount)} icon="eye-outline" />
+        <SummaryCard title="مكتمل" value={loading ? "…" : String(doneCount)} icon="checkmark-circle-outline" />
       </View>
       <View style={styles.summaryRow}>
-        <SummaryCard title="Needs action" value={loading ? "…" : String(actionCount)} icon="flash-outline" />
-        <SummaryCard title="Archived" value={loading ? "…" : String(data.handovers.length)} icon="archive-outline" />
+        <SummaryCard title="يحتاج تدخل" value={loading ? "…" : String(actionCount)} icon="flash-outline" />
+        <SummaryCard title="مؤرشف" value={loading ? "…" : String(data.handovers.length)} icon="archive-outline" />
       </View>
 
       <GlassCard style={styles.sectionCard}>
         <View style={styles.sectionTopRow}>
           <AppText variant="micro" tone="muted" weight="bold" style={styles.kicker}>
-            Recent handovers
+            آخر التسليمات
           </AppText>
           <AppText variant="micro" tone="muted" weight="bold">
             API total {totalApi}
@@ -1169,7 +1169,7 @@ function HandoverSection({
             ))
           ) : (
             <AppText variant="caption" tone="muted">
-              No handover records found.
+              لا توجد سجلات تسليم.
             </AppText>
           )}
         </View>
@@ -1277,18 +1277,18 @@ function ProjectCardRow({
           </AppText>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
             <AppText variant="micro" tone="muted" weight="bold">
-              Due {due}
+              بتاريخ {due}
             </AppText>
             {risk ? (
               <View style={styles.riskPill}>
                 <AppText variant="micro" weight="bold" style={{ color: colors.accentEmber }}>
-                  At risk
+                  في خطر
                 </AppText>
               </View>
             ) : (
               <View style={styles.okPill}>
                 <AppText variant="micro" weight="bold" style={{ color: colors.accentTeal }}>
-                  On track
+                  على المسار
                 </AppText>
               </View>
             )}
@@ -1334,7 +1334,7 @@ function TaskColumn({
       <View style={{ gap: 8 }}>
         {tasks.length === 0 ? (
           <AppText variant="caption" tone="muted" style={{ paddingHorizontal: 4 }}>
-            Nothing here.
+            لا يوجد شيء.
           </AppText>
         ) : (
           tasks.map((t) => (
@@ -1371,10 +1371,10 @@ function HandoverCardRow({
 
   const pill =
     state === "review"
-      ? { label: "Review", bg: "rgba(56,232,255,0.12)", color: colors.accentCyan }
+      ? { label: "مراجعة", bg: "rgba(56,232,255,0.12)", color: colors.accentCyan }
       : state === "action"
-        ? { label: "Action", bg: "rgba(255,122,89,0.14)", color: colors.accentEmber }
-        : { label: "Done", bg: "rgba(45,226,199,0.12)", color: colors.accentTeal };
+        ? { label: "إجراء", bg: "rgba(255,122,89,0.14)", color: colors.accentEmber }
+        : { label: "منجز", bg: "rgba(45,226,199,0.12)", color: colors.accentTeal };
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.95 }]}>
       <GlassCard style={styles.listItemCard}>
@@ -1424,7 +1424,7 @@ function TeamCardRow({
             {name}
           </AppText>
           <AppText variant="micro" tone="muted" style={{ marginTop: 4 }}>
-            {members} members{sublabel ? ` · ${sublabel}` : ""}
+            {members} عضو{sublabel ? ` · ${sublabel}` : ""}
           </AppText>
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

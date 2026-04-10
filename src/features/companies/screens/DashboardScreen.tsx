@@ -1,258 +1,266 @@
 import React, { useCallback, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  RefreshControl,
-  TouchableOpacity,
-} from "react-native";
+import { View, ScrollView, RefreshControl, ActivityIndicator, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import Screen from "../../../shared/layout/Screen";
+import AppText from "../../../shared/ui/AppText";
+import GlassCard from "../../../shared/components/GlassCard";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import { useThemedStyles } from "../../../theme/useThemedStyles";
-import SectionHeader from "../../../shared/components/SectionHeader";
-import StatCard from "../../../shared/components/cards/StatCard";
-import ActionCard from "../../../shared/components/cards/ActionCard";
-import AIInsightCard from "../../../shared/components/cards/AIInsightCard";
-import GlassCard from "../../../shared/components/GlassCard";
+import { useCompany } from "../../../state/company/CompanyContext";
 import {
   getDashboardStats,
-  getDashboardActivity,
   getProjects,
+  getAllCompanyTasks,
+  getCompanyMembers,
   type DashboardStats,
-  type DashboardActivityItem,
   type ProjectRow,
+  type TaskRow,
 } from "../../../api";
+import CompanyWorkModeTopBar from "../components/CompanyWorkModeTopBar";
 
-function num(n: number | undefined): string {
-  if (n == null || Number.isNaN(n)) return "—";
-  return String(n);
-}
-
-function riskLabel(risks: number | undefined): string {
-  if (risks == null) return "—";
-  if (risks <= 0) return "None";
-  if (risks <= 2) return "Low";
-  if (risks <= 5) return "Medium";
-  return "High";
+function num(n?: number): string {
+  return n == null || isNaN(n) ? "—" : String(n);
 }
 
 export default function DashboardScreen() {
-  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const { colors } = useAppTheme();
+  const { company } = useCompany();
   const styles = useThemedStyles((c) => ({
-    container: { flex: 1, backgroundColor: c.bg },
-    header: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      justifyContent: "space-between" as const,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: c.border,
+    body: { padding: 16, paddingBottom: 110, gap: 16 },
+    sectionTitle: { marginBottom: 8 },
+    kpiGrid: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 10 },
+    kpiCard: {
+      width: "47%" as any,
+      padding: 14,
+      gap: 4,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.cardElevated,
     },
-    eyebrow: { color: c.textMuted, fontSize: 12, fontWeight: "600", letterSpacing: 1 },
-    title: { color: c.textPrimary, fontSize: 20, fontWeight: "800" },
-    headerIcon: {
+    kpiIconBg: {
       width: 36,
       height: 36,
-      borderRadius: 12,
+      borderRadius: 10,
       alignItems: "center" as const,
       justifyContent: "center" as const,
-      backgroundColor: "rgba(255,255,255,0.06)",
+      marginBottom: 4,
+    },
+    actionRow: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 10 },
+    actionCard: {
+      flex: 1,
+      minWidth: 140,
+      padding: 14,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: c.border,
+      backgroundColor: c.cardElevated,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: 10,
     },
-    scroll: { padding: 16, paddingBottom: 80, gap: 18 },
-    section: { gap: 12 },
-    row: { flexDirection: "row" as const, gap: 12 },
-    projectCard: { padding: 14, gap: 6 },
-    projectHeader: { flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "space-between" as const },
-    projectTitle: { color: c.textPrimary, fontSize: 15, fontWeight: "700", flex: 1, marginRight: 8 },
-    projectTag: { color: c.accentTeal, fontSize: 11, fontWeight: "700" },
-    projectMeta: { color: c.textMuted, fontSize: 12 },
-    projectFooter: { flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "space-between" as const },
-    projectMetric: { color: c.textSecondary, fontSize: 12 },
-    activityRow: { padding: 12, gap: 4 },
-    activityTitle: { color: c.textPrimary, fontSize: 14, fontWeight: "600" },
-    activityMeta: { flexDirection: "row" as const, alignItems: "center" as const, gap: 10 },
-    activityType: { color: c.textMuted, fontSize: 11, textTransform: "uppercase" as const },
-    activityTime: { color: c.accentCyan, fontSize: 11 },
-    muted: { color: c.textMuted, fontSize: 13, lineHeight: 20 },
-    centered: { flex: 1, alignItems: "center" as const, justifyContent: "center" as const, padding: 24, gap: 16 },
-    errText: { color: c.danger, textAlign: "center" as const, fontSize: 14 },
-    retryBtn: {
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 12,
-      backgroundColor: c.bgCard,
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    retryBtnText: { color: c.accentBlue, fontWeight: "700" },
+    alertCard: { padding: 14, flexDirection: "row" as const, alignItems: "center" as const, gap: 10 },
+    progressBg: { height: 5, borderRadius: 3, backgroundColor: c.border, overflow: "hidden" as const, marginTop: 6 },
+    progressFill: { height: "100%" as const, borderRadius: 3 },
+    projectItem: { padding: 12, gap: 6, borderBottomWidth: 1, borderBottomColor: c.border },
   }));
+
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [activity, setActivity] = useState<DashboardActivityItem[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setError(null);
     try {
-      const [s, a, p] = await Promise.all([
-        getDashboardStats(),
-        getDashboardActivity(12),
-        getProjects(),
+      const [s, p, t] = await Promise.all([
+        getDashboardStats().catch(() => null),
+        getProjects(company?.id).catch(() => [] as ProjectRow[]),
+        getAllCompanyTasks(company?.id).catch(() => [] as TaskRow[]),
       ]);
       setStats(s);
-      setActivity(Array.isArray(a) ? a : []);
       setProjects(Array.isArray(p) ? p : []);
-    } catch (e: unknown) {
-      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Load failed";
-      setError(msg);
-      setStats(null);
-      setActivity([]);
-      setProjects([]);
-    } finally {
+      setTasks(Array.isArray(t) ? t : []);
+    } catch { /* ignore */ }
+    finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [company?.id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      void load();
-    }, [load])
-  );
+  useFocusEffect(useCallback(() => { setLoading(true); void load(); }, [load]));
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    void load();
-  };
+  const tasksDone = tasks.filter((t) => t.status === "done").length;
+  const tasksTodo = tasks.filter((t) => t.status === "todo").length;
+  const tasksInProgress = tasks.filter((t) => t.status === "in_progress").length;
+  const highPriority = tasks.filter((t) => t.priority === "high" && t.status !== "done").length;
+  const activeProjects = projects.filter((p) => p.status === "in_progress").length;
 
-  const brief =
-    stats == null
-      ? "Connect to the workspace API to see your executive summary here."
-      : `Snapshot: ${num(stats.pending_tasks)} pending tasks, ${num(stats.total_handovers)} handovers, ${num(
-          stats.team_size
-        )} team size. Knowledge health ~${num(stats.knowledge_health_score)}%.`;
-
-  const topProjects = projects.slice(0, 4);
+  const QUICK_ACTIONS = [
+    { icon: "folder-open-outline" as const, label: "المشاريع",  screen: "Projects",    color: colors.accentBlue },
+    { icon: "checkbox-outline" as const,    label: "المهام",     screen: "Tasks",        color: colors.accentCyan },
+    { icon: "people-outline" as const,      label: "الفريق",     screen: "Team",         color: "#f5a623" },
+    { icon: "chatbubbles-outline" as const, label: "المحادثات",  screen: "Chat",         color: "#00c9b1" },
+    { icon: "trending-up-outline" as const, label: "العملاء",    screen: "CRM",          color: "#a855f7" },
+    { icon: "swap-horizontal-outline" as const, label: "التسليم", screen: "Handover",    color: "#2dd36f" },
+    { icon: "sparkles-outline" as const,    label: "الذكاء",     screen: "AiAssistant",  color: "#f472b6" },
+    { icon: "bar-chart-outline" as const,   label: "التقارير",   screen: "Reports",      color: "#fb923c" },
+  ];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.eyebrow}>Company Mode</Text>
-          <Text style={styles.title}>Operations Dashboard</Text>
+    <Screen style={{ backgroundColor: colors.mediaCanvas }} edges={["top", "left", "right", "bottom"]}>
+      <CompanyWorkModeTopBar />
+      {/* Header */}
+      <View style={{ paddingHorizontal: 16, paddingVertical: 14, flexDirection: "row", alignItems: "center" }}>
+        <View style={{ flex: 1 }}>
+          <AppText variant="micro" tone="muted" weight="bold">لوحة التحكم</AppText>
+          <AppText variant="h2" weight="bold">{company?.name ?? "مساحة العمل"}</AppText>
         </View>
-        <View style={styles.headerIcon}>
-          <Ionicons name="pulse" size={18} color={colors.accentCyan} />
-        </View>
+        {/* AI Analysis button */}
+        <Pressable
+          onPress={() => navigation.navigate("AiAssistant")}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            backgroundColor: `${colors.accentCyan}20`,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: `${colors.accentCyan}55`,
+          }}
+        >
+          <Ionicons name="sparkles" size={15} color={colors.accentCyan} />
+          <AppText style={{ color: colors.accentCyan, fontSize: 13, fontWeight: "700" }}>
+            تحليل ذكي
+          </AppText>
+        </Pressable>
       </View>
 
       {loading && !refreshing ? (
-        <View style={styles.centered}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator size="large" color={colors.accentCyan} />
-        </View>
-      ) : error ? (
-        <View style={styles.centered}>
-          <Text style={styles.errText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => { setLoading(true); void load(); }}>
-            <Text style={styles.retryBtnText}>Retry</Text>
-          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={styles.body}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentCyan} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.accentCyan} />}
         >
-          <View style={styles.section}>
-            <SectionHeader title="Operational Pulse" actionLabel="Live data" />
-            <View style={styles.row}>
-              <StatCard label="Pending tasks" value={num(stats?.pending_tasks)} icon="checkmark-done" tone="ember" />
-              <StatCard label="Team size" value={num(stats?.team_size)} icon="people" tone="cyan" />
-            </View>
-            <View style={styles.row}>
-              <StatCard label="Handovers" value={num(stats?.total_handovers)} icon="swap-horizontal" tone="lime" />
-              <StatCard label="Memory items" value={num(stats?.total_memory_items)} icon="library" tone="cobalt" />
-            </View>
-            <View style={styles.row}>
-              <StatCard label="Critical risks" value={riskLabel(stats?.critical_risks)} icon="warning" tone="rose" />
-              <StatCard
-                label="Knowledge health"
-                value={`${num(stats?.knowledge_health_score)}%`}
-                icon="school"
-                tone="cobalt"
-              />
+          {/* KPIs */}
+          <View>
+            <AppText variant="bodySm" weight="bold" tone="muted" style={styles.sectionTitle}>الأرقام الحية</AppText>
+            <View style={styles.kpiGrid}>
+              <Pressable style={styles.kpiCard} onPress={() => navigation.navigate("Tasks")}>
+                <View style={[styles.kpiIconBg, { backgroundColor: colors.accentCyan + "22" }]}>
+                  <Ionicons name="checkbox-outline" size={18} color={colors.accentCyan} />
+                </View>
+                <AppText variant="h2" weight="bold">{tasksInProgress}</AppText>
+                <AppText variant="micro" tone="muted">مهام جارية</AppText>
+              </Pressable>
+
+              <Pressable style={styles.kpiCard} onPress={() => navigation.navigate("Tasks")}>
+                <View style={[styles.kpiIconBg, { backgroundColor: "#f59e0b22" }]}>
+                  <Ionicons name="time-outline" size={18} color="#f59e0b" />
+                </View>
+                <AppText variant="h2" weight="bold">{tasksTodo}</AppText>
+                <AppText variant="micro" tone="muted">بانتظار التنفيذ</AppText>
+              </Pressable>
+
+              <Pressable style={styles.kpiCard} onPress={() => navigation.navigate("Projects")}>
+                <View style={[styles.kpiIconBg, { backgroundColor: colors.accentBlue + "22" }]}>
+                  <Ionicons name="folder-open-outline" size={18} color={colors.accentBlue} />
+                </View>
+                <AppText variant="h2" weight="bold">{activeProjects}</AppText>
+                <AppText variant="micro" tone="muted">مشاريع نشطة</AppText>
+              </Pressable>
+
+              <Pressable style={styles.kpiCard} onPress={() => navigation.navigate("Team")}>
+                <View style={[styles.kpiIconBg, { backgroundColor: "#2dd36f22" }]}>
+                  <Ionicons name="people-outline" size={18} color="#2dd36f" />
+                </View>
+                <AppText variant="h2" weight="bold">{num(stats?.team_size)}</AppText>
+                <AppText variant="micro" tone="muted">أعضاء الفريق</AppText>
+              </Pressable>
+
+              <Pressable style={styles.kpiCard} onPress={() => navigation.navigate("Tasks")}>
+                <View style={[styles.kpiIconBg, { backgroundColor: "#ef444422" }]}>
+                  <Ionicons name="warning-outline" size={18} color="#ef4444" />
+                </View>
+                <AppText variant="h2" weight="bold">{highPriority}</AppText>
+                <AppText variant="micro" tone="muted">أولوية عالية</AppText>
+              </Pressable>
+
+              <Pressable style={styles.kpiCard} onPress={() => navigation.navigate("Tasks")}>
+                <View style={[styles.kpiIconBg, { backgroundColor: colors.success + "22" }]}>
+                  <Ionicons name="checkmark-done-outline" size={18} color={colors.success} />
+                </View>
+                <AppText variant="h2" weight="bold">{tasksDone}</AppText>
+                <AppText variant="micro" tone="muted">مهام مكتملة</AppText>
+              </Pressable>
             </View>
           </View>
 
-          <View style={styles.section}>
-            <SectionHeader title="Quick Actions" actionLabel="Workspace" />
-            <View style={styles.row}>
-              <ActionCard title="Projects" subtitle="Open task boards" icon="folder-open" tone="cobalt" />
-              <ActionCard title="Handover" subtitle="Transfers" icon="swap-horizontal" tone="lime" />
-            </View>
-            <View style={styles.row}>
-              <ActionCard title="Memory" subtitle="Knowledge base" icon="book" tone="cyan" />
-              <ActionCard title="Deals" subtitle="Pipeline" icon="trending-up" tone="ember" />
-            </View>
-          </View>
+          {/* Alerts */}
+          {highPriority > 0 ? (
+            <Pressable onPress={() => navigation.navigate("Tasks")}>
+              <GlassCard style={styles.alertCard}>
+                <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                <AppText variant="bodySm" style={{ flex: 1 }}>
+                  {`${highPriority} مهام بأولوية عالية تحتاج اهتمامك`}
+                </AppText>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </GlassCard>
+            </Pressable>
+          ) : null}
 
-          <View style={styles.section}>
-            <SectionHeader title="Your projects" actionLabel={`${projects.length} total`} />
-            {topProjects.length === 0 ? (
-              <Text style={styles.muted}>No projects yet — create one from the API or web app.</Text>
-            ) : (
-              topProjects.map((pr) => (
-                <GlassCard key={pr.id} style={styles.projectCard}>
-                  <View style={styles.projectHeader}>
-                    <Text style={styles.projectTitle}>{pr.name}</Text>
-                    <Text style={styles.projectTag}>{pr.status}</Text>
+          {/* Quick Actions */}
+          <View>
+            <AppText variant="bodySm" weight="bold" tone="muted" style={styles.sectionTitle}>وصول سريع</AppText>
+            <View style={styles.actionRow}>
+              {QUICK_ACTIONS.map((a) => (
+                <Pressable key={a.screen} style={styles.actionCard} onPress={() => navigation.navigate(a.screen)}>
+                  <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: a.color + "22", alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name={a.icon} size={16} color={a.color} />
                   </View>
-                  {pr.description ? <Text style={styles.projectMeta} numberOfLines={2}>{pr.description}</Text> : null}
-                  <View style={styles.projectFooter}>
-                    <Text style={styles.projectMetric}>
-                      Tasks {pr.completed_count ?? 0}/{pr.tasks_count ?? 0}
-                    </Text>
-                    <Ionicons name="arrow-forward" size={14} color={colors.accentCyan} />
-                  </View>
-                </GlassCard>
-              ))
-            )}
+                  <AppText variant="bodySm" weight="bold">{a.label}</AppText>
+                </Pressable>
+              ))}
+            </View>
           </View>
 
-          <View style={styles.section}>
-            <SectionHeader title="Recent activity" actionLabel="API" />
-            {activity.length === 0 ? (
-              <Text style={styles.muted}>No recent activity rows from the server.</Text>
-            ) : (
-              activity.map((item, i) => (
-                <GlassCard key={`${item.type}-${i}`} style={styles.activityRow}>
-                  <Text style={styles.activityTitle}>{item.title}</Text>
-                  <View style={styles.activityMeta}>
-                    <Text style={styles.activityType}>{item.type}</Text>
-                    {item.time ? <Text style={styles.activityTime}>{item.time}</Text> : null}
-                  </View>
-                </GlassCard>
-              ))
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <SectionHeader title="Workspace brief" actionLabel="From stats" />
-            <AIInsightCard summary={brief} />
-          </View>
+          {/* Recent Projects */}
+          {projects.length > 0 ? (
+            <GlassCard style={{ overflow: "hidden", padding: 0 }}>
+              <View style={{ padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <AppText variant="bodySm" weight="bold">المشاريع الأخيرة</AppText>
+                <Pressable onPress={() => navigation.navigate("Projects")}>
+                  <AppText variant="micro" tone="muted">عرض الكل</AppText>
+                </Pressable>
+              </View>
+              {projects.slice(0, 4).map((p, i) => {
+                const pct = p.tasks_count ? Math.round(((p.completed_count ?? 0) / p.tasks_count) * 100) : 0;
+                return (
+                  <Pressable key={p.id} onPress={() => navigation.navigate("Tasks", { projectId: p.id, projectName: p.name })}>
+                    <View style={[styles.projectItem, i === Math.min(projects.length, 4) - 1 && { borderBottomWidth: 0 }]}>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                        <AppText variant="bodySm" weight="bold" numberOfLines={1} style={{ flex: 1 }}>{p.name}</AppText>
+                        <AppText variant="micro" tone="muted">{pct}%</AppText>
+                      </View>
+                      <View style={styles.progressBg}>
+                        <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: pct === 100 ? colors.success : colors.accentCyan }]} />
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </GlassCard>
+          ) : null}
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 }
