@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, Float, Integer, String, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -18,7 +18,7 @@ class User(Base):
     phone = Column(String(32), nullable=True)
     avatar_url = Column(String(512), nullable=True)
     bio = Column(Text, nullable=True)
-    i_code = Column(String(6), unique=True, index=True, nullable=True)
+    i_code = Column(String(12), unique=True, index=True, nullable=True)
     cover_url = Column(String(512), nullable=True)
     location = Column(String(255), nullable=True)
     skills = Column(Text, nullable=True)
@@ -28,6 +28,8 @@ class User(Base):
     posts_count = Column(Integer, default=0)
     firebase_uid = Column(String(255), unique=True, index=True, nullable=True)
     verified = Column(Integer, default=0)
+    expo_push_token = Column(String(512), nullable=True)
+    presence_status = Column(String(16), default="offline")  # online, busy, offline, away
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -333,8 +335,50 @@ class HandoverRecord(Base):
     completed_tasks = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    # AI confirm additions
+    client_name = Column(String(255), nullable=True)
+    next_owner_name = Column(String(255), nullable=True)
+    next_owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    pending_actions_json = Column(Text, nullable=True)      # JSON list
+    important_contacts_json = Column(Text, nullable=True)   # JSON list
+    referenced_files_json = Column(Text, nullable=True)     # JSON list
+    flagged_amount = Column(Float, nullable=True)
+    currency = Column(String(8), nullable=True)
+    deadline = Column(String(32), nullable=True)
+    risk_level = Column(String(16), nullable=True)          # low, medium, high, critical
+    summary = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    ai_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    ai_confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
-    owner = relationship("User")
+    owner = relationship("User", foreign_keys=[user_id])
+
+
+class SalesLedger(Base):
+    """Per-company sales / transaction ledger saved from AI extractions."""
+    __tablename__ = "sales_ledger"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    transaction_type = Column(String(32), nullable=False)   # income, expense, invoice, payment
+    counterparty_name = Column(String(255), nullable=True)
+    item_name = Column(String(255), nullable=True)
+    quantity = Column(Float, nullable=True)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(8), default="SAR")
+    transaction_date = Column(String(32), nullable=True)    # YYYY-MM-DD
+    payment_status = Column(String(32), default="pending")  # pending, paid, overdue, cancelled
+    category = Column(String(128), nullable=True)
+    notes = Column(Text, nullable=True)
+    invoice_number = Column(String(128), nullable=True)
+    ai_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    ai_confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    company = relationship("Company")
+    creator = relationship("User", foreign_keys=[created_by_user_id])
 
 
 # ─── Memory / Knowledge ──────────────────────────────────────────────────────
@@ -420,7 +464,8 @@ class Project(Base):
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(String(32), default="active")  # active, completed, archived
+    status = Column(String(32), default="planning")  # planning, in_progress, completed, archived
+    due_date = Column(String(32), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -437,12 +482,63 @@ class ProjectTask(Base):
     description = Column(Text, nullable=True)
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     status = Column(String(32), default="todo")  # todo, in_progress, done
+    priority = Column(String(16), default="medium")  # high, medium, low
     due_date = Column(String(32), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    # AI confirm additions
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    related_client = Column(String(255), nullable=True)
+    tags = Column(Text, nullable=True)              # JSON array string
+    notes = Column(Text, nullable=True)
+    ai_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    ai_confirmed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     project = relationship("Project", back_populates="tasks")
-    assignee = relationship("User")
+    assignee = relationship("User", foreign_keys=[assignee_id])
+    creator = relationship("User", foreign_keys=[created_by_user_id])
+
+
+# ─── Meetings ────────────────────────────────────────────────────────────────
+
+class Meeting(Base):
+    __tablename__ = "meetings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    meeting_date = Column(String(32), nullable=False)   # YYYY-MM-DD
+    meeting_time = Column(String(10), nullable=True)    # HH:MM
+    duration_minutes = Column(Integer, default=30)
+    location = Column(String(255), nullable=True)       # "Daily" / "Meet" / "Zoom" / custom
+    status = Column(String(32), default="scheduled")    # scheduled, in_progress, done, cancelled
+    notes = Column(Text, nullable=True)                 # post-meeting notes
+    action_items = Column(Text, nullable=True)          # AI-generated or manual action items
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    company = relationship("Company")
+    organizer = relationship("User")
+    project = relationship("Project")
+
+
+class MeetingAttendee(Base):
+    __tablename__ = "meeting_attendees"
+
+    id = Column(Integer, primary_key=True, index=True)
+    meeting_id = Column(Integer, ForeignKey("meetings.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    status = Column(String(16), default="invited")      # invited, accepted, declined
+
+    meeting = relationship("Meeting")
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("meeting_id", "user_id", name="uq_meeting_attendee"),
+    )
 
 
 # ─── Notifications ───────────────────────────────────────────────────────────
@@ -498,3 +594,166 @@ class Ad(Base):
 
     company = relationship("Company")
     creator = relationship("User")
+
+
+# ─── Channels / Team Chat ─────────────────────────────────────────────────────
+
+class Channel(Base):
+    __tablename__ = "channels"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(128), nullable=False)
+    description = Column(String(512), nullable=True)
+    type = Column(String(32), default="general")   # general, department, project, announcement
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    company = relationship("Company")
+    messages = relationship("ChannelMessage", back_populates="channel", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("company_id", "name", name="uq_channel_company_name"),
+    )
+
+
+class ChannelMessage(Base):
+    __tablename__ = "channel_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    channel_id = Column(Integer, ForeignKey("channels.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    channel = relationship("Channel", back_populates="messages")
+    author = relationship("User")
+
+
+# ─── Block ───────────────────────────────────────────────────────────────────
+
+class UserBlock(Base):
+    __tablename__ = "user_blocks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    blocker_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    blocked_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    blocker = relationship("User", foreign_keys=[blocker_id])
+    blocked = relationship("User", foreign_keys=[blocked_id])
+
+    __table_args__ = (
+        UniqueConstraint("blocker_id", "blocked_id", name="uq_user_block"),
+    )
+
+
+# ─── Direct Messages ─────────────────────────────────────────────────────────
+
+class DirectConversation(Base):
+    __tablename__ = "direct_conversations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user1_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user2_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    last_message_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user1 = relationship("User", foreign_keys=[user1_id])
+    user2 = relationship("User", foreign_keys=[user2_id])
+    messages = relationship("DirectMessage", back_populates="conversation", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("user1_id", "user2_id", name="uq_direct_conversation"),
+    )
+
+
+class DirectMessage(Base):
+    __tablename__ = "direct_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("direct_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    read_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    conversation = relationship("DirectConversation", back_populates="messages")
+    sender = relationship("User")
+
+
+# ─── CV / Jobs ───────────────────────────────────────────────────────────────
+
+class UserCV(Base):
+    __tablename__ = "user_cvs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    full_name = Column(String(128), nullable=True)
+    title = Column(String(128), nullable=True)  # e.g. "مطور تطبيقات"
+    summary = Column(Text, nullable=True)
+    phone = Column(String(20), nullable=True)
+    email = Column(String(128), nullable=True)
+    location = Column(String(128), nullable=True)
+    years_experience = Column(Integer, nullable=True)
+    skills = Column(Text, nullable=True)  # JSON array string
+    education = Column(Text, nullable=True)  # JSON array string
+    certifications = Column(Text, nullable=True)  # JSON array string
+    languages = Column(Text, nullable=True)  # JSON array string
+    linkedin_url = Column(String(256), nullable=True)
+    portfolio_url = Column(String(256), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class JobPosting(Base):
+    __tablename__ = "job_postings"
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    posted_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String(128), nullable=False)
+    industry = Column(String(128), nullable=True)
+    job_type = Column(String(32), nullable=True)   # full_time, part_time, remote, contract
+    location = Column(String(128), nullable=True)
+    description = Column(Text, nullable=True)
+    requirements = Column(Text, nullable=True)
+    salary_range = Column(String(64), nullable=True)
+    required_skills = Column(Text, nullable=True)  # JSON
+    min_experience = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    company = relationship("Company", foreign_keys=[company_id])
+    poster = relationship("User", foreign_keys=[posted_by])
+
+
+class JobApplication(Base):
+    __tablename__ = "job_applications"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("job_postings.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    cover_letter = Column(Text, nullable=True)
+    status = Column(String(32), default="pending")  # pending, reviewed, accepted, rejected
+    created_at = Column(DateTime, server_default=func.now())
+    __table_args__ = (UniqueConstraint("job_id", "user_id", name="uq_job_application"),)
+    job = relationship("JobPosting", foreign_keys=[job_id])
+    applicant = relationship("User", foreign_keys=[user_id])
+
+
+# ─── Calls ───────────────────────────────────────────────────────────────────
+
+class CallLog(Base):
+    __tablename__ = "call_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    caller_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    receiver_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    call_type = Column(String(16), default="video")          # video, audio
+    status = Column(String(16), default="ringing")           # ringing, accepted, rejected, missed, ended
+    room_url = Column(String(512), nullable=True)
+    room_name = Column(String(255), nullable=True)
+    duration = Column(Integer, nullable=True)                 # seconds
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+
+    caller = relationship("User", foreign_keys=[caller_id])
+    receiver = relationship("User", foreign_keys=[receiver_id])
