@@ -19,25 +19,35 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.alloul.one",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "Upload photos and stories",
         "NSPhotoLibraryUsageDescription": "Share photos in posts",
+        "NSMicrophoneUsageDescription": "Required for video and audio calls",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "46"
+      "buildNumber": "67"
     },
     "android": {
       "package": "com.alloul.one",
-      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#04070f",
         "foregroundImage": "./assets/icon.png"
       },
-      "versionCode": 2
+      "versionCode": 3
     },
     "plugins": [
       "expo-secure-store",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0ea5e9",
+          "sounds": [],
+          "mode": "production"
+        }
+      ]
     ],
     "extra": {
       "apiUrl": "https://api.alloul.app",
