@@ -1,449 +1,481 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  ScrollView,
-  RefreshControl,
-  ActivityIndicator,
-  Pressable,
-  type ViewStyle,
-  Alert,
-  Linking,
+  View, ScrollView, TouchableOpacity, ActivityIndicator,
+  RefreshControl, Image, TextInput,
 } from "react-native";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useAppTheme } from "../../../theme/ThemeContext";
-import { useThemedStyles } from "../../../theme/useThemedStyles";
 import Screen from "../../../shared/layout/Screen";
-import AppHeader from "../../../shared/layout/AppHeader";
-import GlassCard from "../../../shared/components/GlassCard";
-import ListRow from "../../../shared/ui/ListRow";
 import AppText from "../../../shared/ui/AppText";
-import AppButton from "../../../shared/ui/AppButton";
-import {
-  getDashboardActivity,
-  getHandoverWorkItems,
-  getProjects,
-  type DashboardActivityItem,
-  type HandoverWorkItem,
-  type ProjectRow,
-} from "../../../api";
-import { openMeetingProvider } from "../openMeetingLinks";
-import { radius } from "../../../theme/radius";
 import CompanyWorkModeTopBar from "../../companies/components/CompanyWorkModeTopBar";
+import { useCompany } from "../../../state/company/CompanyContext";
 import { useCompanyDailyRoom } from "../../../lib/useCompanyDailyRoom";
+import { useCallContext } from "../../../context/CallContext";
+import {
+  getCompanyMembers, type CompanyMemberRow,
+  getMeetings, type MeetingRow,
+} from "../../../api";
+import { getUserPresence } from "../../../api/calls.api";
+import { openMeetingProvider } from "../openMeetingLinks";
 
-type AgendaRow = {
-  key: string;
-  title: string;
-  subtitle: string;
-  icon: "videocam-outline" | "swap-horizontal-outline" | "pulse-outline";
-  kind: "activity" | "handover";
+// ─── Presence colors ─────────────────────────────────────────────────────────
+
+const PRESENCE: Record<string, { color: string; label: string }> = {
+  online:  { color: "#10b981", label: "متاح" },
+  away:    { color: "#f59e0b", label: "بعيد" },
+  busy:    { color: "#ef4444", label: "مشغول" },
+  offline: { color: "#6b7280", label: "غير متصل" },
 };
 
-type DemoMeeting = {
-  id: string;
-  title: string;
-  time: string;
-  mode: "online" | "inperson";
-  accent: "blue" | "green";
-  extra: string;
-  participants: number;
-};
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const DEMO_TODAY: DemoMeeting[] = [
-  {
-    id: "m1",
-    title: "مراجعة أداء الربع الأول",
-    time: "10:00 ص",
-    mode: "online",
-    accent: "blue",
-    extra: "عبر الإنترنت",
-    participants: 5,
-  },
-  {
-    id: "m2",
-    title: "اجتماع الفريق التقني",
-    time: "02:30 م",
-    mode: "inperson",
-    accent: "green",
-    extra: "في المكتب",
-    participants: 8,
-  },
-];
+function todayISO() { return new Date().toISOString().slice(0, 10); }
 
-function weekDaysFromToday(): { label: string; dayNum: number; key: string }[] {
-  const out: { label: string; dayNum: number; key: string }[] = [];
-  const labels = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
-  const base = new Date();
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(base);
-    d.setDate(base.getDate() + i);
-    out.push({
-      label: labels[d.getDay()],
-      dayNum: d.getDate(),
-      key: `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`,
-    });
-  }
-  return out;
+function formatTime(t?: string | null) {
+  if (!t) return "";
+  return t.slice(0, 5);
 }
+
+function roleLabel(role: string) {
+  const map: Record<string, string> = {
+    owner: "مالك", admin: "مشرف", manager: "مدير",
+    employee: "موظف", member: "عضو",
+  };
+  return map[role] ?? role;
+}
+
+// ─── MemberCard ───────────────────────────────────────────────────────────────
+
+function MemberCard({
+  member, presence, onVideoCall, onAudioCall,
+  colors,
+}: {
+  member: CompanyMemberRow;
+  presence: string;
+  onVideoCall: () => void;
+  onAudioCall: () => void;
+  colors: any;
+}) {
+  const p = PRESENCE[presence] ?? PRESENCE.offline;
+  const initials = (member.user_name || "U").slice(0, 2).toUpperCase();
+
+  return (
+    <View style={{
+      backgroundColor: colors.bgCard,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 14,
+      marginBottom: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    }}>
+      {/* Avatar + presence dot */}
+      <View style={{ position: "relative" }}>
+        <View style={{
+          width: 48, height: 48, borderRadius: 15,
+          backgroundColor: colors.accentBlue + "22",
+          alignItems: "center", justifyContent: "center",
+          borderWidth: 1.5, borderColor: colors.accentBlue + "44",
+        }}>
+          <AppText style={{ color: colors.accentBlue, fontSize: 16, fontWeight: "800" }}>{initials}</AppText>
+        </View>
+        <View style={{
+          position: "absolute", bottom: -1, right: -1,
+          width: 13, height: 13, borderRadius: 6.5,
+          backgroundColor: p.color,
+          borderWidth: 2, borderColor: colors.bgCard,
+        }} />
+      </View>
+
+      {/* Info */}
+      <View style={{ flex: 1 }}>
+        <AppText variant="bodySm" weight="bold" numberOfLines={1}>{member.user_name || "مستخدم"}</AppText>
+        <AppText variant="micro" tone="muted" numberOfLines={1}>
+          {member.job_title || roleLabel(member.role)}
+        </AppText>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: p.color }} />
+          <AppText style={{ fontSize: 11, color: p.color }}>{p.label}</AppText>
+        </View>
+      </View>
+
+      {/* Quick call buttons */}
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <TouchableOpacity
+          onPress={onAudioCall}
+          style={{
+            width: 36, height: 36, borderRadius: 18,
+            backgroundColor: colors.accentBlue + "18",
+            borderWidth: 1, borderColor: colors.accentBlue + "44",
+            alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <Ionicons name="call-outline" size={16} color={colors.accentBlue} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onVideoCall}
+          style={{
+            width: 36, height: 36, borderRadius: 18,
+            backgroundColor: "#10b981" + "18",
+            borderWidth: 1, borderColor: "#10b981" + "44",
+            alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <Ionicons name="videocam-outline" size={16} color="#10b981" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// ─── MeetingCard ──────────────────────────────────────────────────────────────
+
+function TodayMeetingCard({ meeting, colors, onJoin }: { meeting: MeetingRow; colors: any; onJoin: () => void }) {
+  const isOngoing = meeting.status === "in_progress";
+  const accent = isOngoing ? "#f59e0b" : "#4c6fff";
+
+  return (
+    <TouchableOpacity
+      onPress={onJoin}
+      activeOpacity={0.8}
+      style={{
+        backgroundColor: colors.bgCard,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: isOngoing ? "#f59e0b44" : colors.border,
+        padding: 14,
+        marginBottom: 10,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
+      <View style={{
+        width: 46, height: 46, borderRadius: 14,
+        backgroundColor: accent + "22",
+        borderWidth: 1, borderColor: accent + "44",
+        alignItems: "center", justifyContent: "center",
+      }}>
+        <Ionicons name={isOngoing ? "radio-button-on" : "calendar"} size={20} color={accent} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <AppText variant="bodySm" weight="bold" numberOfLines={1}>{meeting.title}</AppText>
+        <AppText variant="micro" tone="muted">
+          {formatTime(meeting.meeting_time)}{meeting.duration_minutes ? ` · ${meeting.duration_minutes}د` : ""}
+        </AppText>
+      </View>
+      <View style={{
+        paddingHorizontal: 12, paddingVertical: 7,
+        borderRadius: 20,
+        backgroundColor: accent,
+      }}>
+        <AppText style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
+          {isOngoing ? "جارٍ" : "انضم"}
+        </AppText>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function MeetingsInfoScreen() {
   const navigation = useNavigation<any>();
-  const { colors, mode } = useAppTheme();
+  const { colors: c } = useAppTheme();
+  const { company } = useCompany();
   const { openCompanyDaily, dailyLoading } = useCompanyDailyRoom();
-  const weekDays = useMemo(() => weekDaysFromToday(), []);
-  const [dayIndex, setDayIndex] = useState(0);
+  const { startCall } = useCallContext();
 
-  const styles = useThemedStyles((c) => ({
-    scroll: { padding: 16, paddingBottom: 110, gap: 12 },
-    card: { padding: 16 },
-    daysRow: { flexDirection: "row" as const, gap: 8, marginBottom: 4 },
-    dayPill: {
-      minWidth: 56,
-      paddingVertical: 12,
-      paddingHorizontal: 10,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.cardElevated,
-      alignItems: "center" as const,
-    },
-    dayPillActive: {
-      backgroundColor: mode === "dark" ? c.white : c.black,
-      borderColor: mode === "dark" ? c.white : c.black,
-    },
-    meetCard: {
-      borderRadius: radius.xxl,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.cardElevated,
-      padding: 16,
-      marginBottom: 12,
-      overflow: "hidden" as const,
-    },
-    accentBar: {
-      position: "absolute" as const,
-      top: 0,
-      bottom: 0,
-      width: 4,
-      end: 0,
-      borderTopRightRadius: radius.xxl,
-      borderBottomRightRadius: radius.xxl,
-    },
-    meetMeta: { flexDirection: "row" as const, alignItems: "center" as const, gap: 6, marginTop: 8, flexWrap: "wrap" as const },
-    avatars: { flexDirection: "row" as const, alignItems: "center" as const, marginTop: 12 },
-    avatarDot: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: "rgba(76,111,255,0.35)",
-      borderWidth: 2,
-      borderColor: c.cardElevated,
-      marginStart: -8,
-    },
-    joinBtn: { marginTop: 14 },
-    summaryRow: {
-      flexDirection: "row" as const,
-      gap: 8,
-      marginTop: 12,
-    },
-    miniStat: {
-      flex: 1,
-      borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: 12,
-      paddingVertical: 8,
-      paddingHorizontal: 10,
-      backgroundColor: c.bgCard,
-    },
-    actionsRow: {
-      flexDirection: "row" as const,
-      flexWrap: "wrap" as const,
-      gap: 8,
-      marginTop: 12,
-    },
-    listWrap: { gap: 10 },
-    loadingWrap: { paddingVertical: 24, alignItems: "center" as const },
-    sectionLabel: { marginTop: 8, marginBottom: 4 },
-    upcomingRow: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      gap: 12,
-      padding: 14,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.cardElevated,
-      marginBottom: 8,
-    },
-    upcomingBadge: {
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: radius.md,
-      backgroundColor: "rgba(255,255,255,0.08)",
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-  }));
-
-  const [activity, setActivity] = useState<DashboardActivityItem[]>([]);
-  const [projects, setProjects] = useState<ProjectRow[]>([]);
-  const [handoverItems, setHandoverItems] = useState<HandoverWorkItem[]>([]);
+  const [members, setMembers] = useState<CompanyMemberRow[]>([]);
+  const [presenceMap, setPresenceMap] = useState<Record<number, string>>({});
+  const [meetings, setMeetings] = useState<MeetingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [memberSearch, setMemberSearch] = useState("");
 
   const load = useCallback(async () => {
-    setError(null);
     try {
-      const [a, p, h] = await Promise.all([
-        getDashboardActivity(12).catch(() => [] as DashboardActivityItem[]),
-        getProjects().catch(() => [] as ProjectRow[]),
-        getHandoverWorkItems().catch(() => [] as HandoverWorkItem[]),
+      const [mems, mtgs] = await Promise.all([
+        getCompanyMembers().catch(() => [] as CompanyMemberRow[]),
+        getMeetings(true).catch(() => [] as MeetingRow[]),
       ]);
-      setActivity(Array.isArray(a) ? a : []);
-      setProjects(Array.isArray(p) ? p : []);
-      setHandoverItems(Array.isArray(h) ? h : []);
-    } catch (e: unknown) {
-      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "تعذّر تحميل بيانات الاجتماعات";
-      setError(msg);
-      setActivity([]);
-      setProjects([]);
-      setHandoverItems([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+      setMembers(Array.isArray(mems) ? mems : []);
+      setMeetings(Array.isArray(mtgs) ? mtgs.filter((m) => m.meeting_date === todayISO() || m.status === "in_progress") : []);
+
+      // Fetch presence for all members in parallel
+      const presenceEntries = await Promise.allSettled(
+        (Array.isArray(mems) ? mems : []).map(async (m) => {
+          try {
+            const r = await getUserPresence(m.user_id);
+            return [m.user_id, r.presence_status] as [number, string];
+          } catch {
+            return [m.user_id, "offline"] as [number, string];
+          }
+        }),
+      );
+      const pMap: Record<number, string> = {};
+      presenceEntries.forEach((r) => {
+        if (r.status === "fulfilled") {
+          pMap[r.value[0]] = r.value[1];
+        }
+      });
+      setPresenceMap(pMap);
+    } catch {}
+    setLoading(false);
+    setRefreshing(false);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      void load();
-    }, [load])
+  useFocusEffect(useCallback(() => {
+    setLoading(true);
+    void load();
+  }, [load]));
+
+  const filteredMembers = members.filter((m) =>
+    !memberSearch.trim() ||
+    (m.user_name || "").toLowerCase().includes(memberSearch.toLowerCase()) ||
+    (m.job_title || "").toLowerCase().includes(memberSearch.toLowerCase()),
   );
 
-  const agendaRows = useMemo((): AgendaRow[] => {
-    if (activity.length > 0) {
-      return activity.slice(0, 6).map((item, idx) => ({
-        key: `${item.type}-${idx}`,
-        title: item.title || `نشاط ${idx + 1}`,
-        subtitle: item.time ? `${item.type} · ${item.time}` : item.type,
-        icon: "pulse-outline",
-        kind: "activity",
-      }));
-    }
-    return handoverItems.slice(0, 6).map((item) => ({
-      key: item.id,
-      title: item.title,
-      subtitle: `${item.owner_name} · ${item.current_assignee_name}`,
-      icon: "swap-horizontal-outline",
-      kind: "handover",
-    }));
-  }, [activity, handoverItems]);
+  // Sort: online first, then away, then busy, then offline
+  const ORDER = { online: 0, away: 1, busy: 2, offline: 3 };
+  const sortedMembers = [...filteredMembers].sort((a, b) => {
+    const pa = ORDER[presenceMap[a.user_id] as keyof typeof ORDER ?? "offline"] ?? 3;
+    const pb = ORDER[presenceMap[b.user_id] as keyof typeof ORDER ?? "offline"] ?? 3;
+    return pa - pb;
+  });
 
-  const todayCount = Math.min(agendaRows.length, 4);
-  const weekCount = Math.min(agendaRows.length + projects.length, 12);
-
-  const onAgendaPress = useCallback(
-    (row: AgendaRow) => {
-      if (row.kind === "handover") navigation.navigate("Handover");
-      else navigation.navigate("Projects");
-    },
-    [navigation]
-  );
-
-  const accentColor = (a: DemoMeeting["accent"]) => (a === "blue" ? colors.accentBlue : colors.accentNeonGreen);
+  const onlineCount = members.filter((m) => presenceMap[m.user_id] === "online").length;
 
   return (
-    <Screen edges={["top", "left", "right", "bottom"]} style={{ backgroundColor: colors.mediaCanvas }}>
+    <Screen style={{ backgroundColor: c.mediaCanvas }} edges={["top", "left", "right", "bottom"]}>
       <CompanyWorkModeTopBar />
-      <AppHeader
-        title="الاجتماعات"
-        leftButton="none"
-        rightActions={<AppButton label="المشاريع" size="sm" onPress={() => navigation.navigate("Projects")} />}
-      />
+
+      {/* Header */}
+      <View style={{
+        flexDirection: "row", alignItems: "center",
+        paddingHorizontal: 16, paddingVertical: 14,
+        borderBottomWidth: 1, borderBottomColor: c.border, gap: 12,
+      }}>
+        <View style={{ flex: 1 }}>
+          <AppText variant="bodySm" weight="bold">الاجتماعات والفريق</AppText>
+          <AppText variant="micro" tone="muted">
+            {onlineCount} متصل الآن · {members.length} عضو
+          </AppText>
+        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("CallHistory")}
+          style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: c.accentBlue + "18", borderWidth: 1, borderColor: c.accentBlue + "44", alignItems: "center", justifyContent: "center" }}
+        >
+          <Ionicons name="call-outline" size={18} color={c.accentBlue} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Meetings")}
+          style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#4c6fff18", borderWidth: 1, borderColor: "#4c6fff44", alignItems: "center", justifyContent: "center" }}
+        >
+          <Ionicons name="calendar-outline" size={18} color="#4c6fff" />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.accentCyan} />}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} tintColor={c.accentCyan} onRefresh={() => { setRefreshing(true); void load(); }} />}
         showsVerticalScrollIndicator={false}
       >
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.daysRow}>
-          {weekDays.map((d, i) => {
-            const active = i === dayIndex;
-            return (
-              <Pressable
-                key={d.key}
-                onPress={() => setDayIndex(i)}
-                style={({ pressed }) => [styles.dayPill, active && styles.dayPillActive, pressed && { opacity: 0.9 }]}
-              >
-                <AppText variant="micro" weight="bold" style={{ color: active ? (mode === "dark" ? colors.black : colors.white) : colors.textMuted }}>
-                  {d.label}
-                </AppText>
-                <AppText
-                  variant="title"
-                  weight="bold"
+
+        {/* ── Company Video Room ─────────────────────────────── */}
+        <View style={{ padding: 16, paddingBottom: 0 }}>
+          <TouchableOpacity
+            onPress={() => void openCompanyDaily()}
+            disabled={dailyLoading}
+            activeOpacity={0.85}
+            style={{
+              borderRadius: 20,
+              overflow: "hidden",
+              borderWidth: 1.5,
+              borderColor: c.accentCyan + "66",
+              backgroundColor: c.bgCard,
+              padding: 18,
+            }}
+          >
+            {/* Gradient-like background */}
+            <View style={{
+              position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: c.accentCyan,
+              opacity: 0.06,
+              borderRadius: 18,
+            }} />
+
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+              <View style={{
+                width: 52, height: 52, borderRadius: 16,
+                backgroundColor: c.accentCyan + "22",
+                borderWidth: 1.5, borderColor: c.accentCyan + "55",
+                alignItems: "center", justifyContent: "center",
+              }}>
+                <Ionicons name="videocam" size={24} color={c.accentCyan} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodySm" weight="bold">غرفة {company?.name || "الشركة"}</AppText>
+                <AppText variant="micro" tone="muted">فيديو + شات + مشاركة الشاشة</AppText>
+              </View>
+              <View style={{
+                paddingHorizontal: 16, paddingVertical: 9,
+                borderRadius: 20,
+                backgroundColor: dailyLoading ? c.border : c.accentCyan,
+              }}>
+                {dailyLoading
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <AppText style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>ادخل</AppText>
+                }
+              </View>
+            </View>
+
+            {/* Quick provider buttons */}
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
+              {[
+                { key: "meet",  label: "Meet",  color: "#ea4335", icon: "logo-google" as const },
+                { key: "zoom",  label: "Zoom",  color: "#2d8cff", icon: "mic-outline" as const },
+                { key: "teams", label: "Teams", color: "#5558af", icon: "people-outline" as const },
+              ].map((p) => (
+                <TouchableOpacity
+                  key={p.key}
+                  onPress={() => void openMeetingProvider(p.key as any)}
                   style={{
-                    marginTop: 4,
-                    color: active ? (mode === "dark" ? colors.black : colors.white) : colors.textPrimary,
+                    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                    gap: 5, paddingVertical: 9, borderRadius: 14,
+                    borderWidth: 1, borderColor: p.color + "44",
+                    backgroundColor: p.color + "12",
                   }}
                 >
-                  {d.dayNum}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        <AppText variant="micro" tone="muted" weight="bold" style={styles.sectionLabel}>
-          اجتماعات اليوم
-        </AppText>
-        {DEMO_TODAY.map((m) => (
-          <View key={m.id} style={styles.meetCard}>
-            <View style={[styles.accentBar, { backgroundColor: accentColor(m.accent) }]} />
-            <AppText variant="bodySm" weight="bold" numberOfLines={2} style={{ paddingEnd: 8 }}>
-              {m.title}
-            </AppText>
-            <View style={styles.meetMeta}>
-              <Ionicons name={m.mode === "online" ? "videocam-outline" : "location-outline"} size={16} color={colors.textMuted} />
-              <AppText variant="caption" tone="muted">
-                {m.time} · {m.extra}
-              </AppText>
-            </View>
-            <View style={styles.avatars}>
-              {[0, 1, 2].map((j) => (
-                <View key={j} style={[styles.avatarDot, { marginStart: j === 0 ? 0 : -8 }]} />
+                  <Ionicons name={p.icon} size={13} color={p.color} />
+                  <AppText style={{ color: p.color, fontSize: 12, fontWeight: "700" }}>{p.label}</AppText>
+                </TouchableOpacity>
               ))}
-              <AppText variant="micro" tone="muted" style={{ marginStart: 10 }}>
-                +{Math.max(0, m.participants - 3)}
-              </AppText>
             </View>
-            {m.mode === "online" ? (
-              <AppButton
-                label="انضم الآن"
-                tone="primary"
-                style={styles.joinBtn}
-                onPress={() => void openMeetingProvider("meet")}
-              />
-            ) : (
-              <AppButton
-                label="عرض الموقع"
-                tone="primary"
-                style={styles.joinBtn}
-                onPress={() => {
-                  void Linking.openURL("https://maps.google.com").catch(() =>
-                    Alert.alert("الموقع", "تعذّر فتح الخرائط على هذا الجهاز.")
-                  );
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Today's Meetings ──────────────────────────────── */}
+        {meetings.length > 0 ? (
+          <View style={{ padding: 16, paddingBottom: 0 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <AppText variant="bodySm" weight="bold">اجتماعات اليوم</AppText>
+              <TouchableOpacity onPress={() => navigation.navigate("Meetings")}>
+                <AppText variant="micro" style={{ color: c.accentBlue }}>الكل</AppText>
+              </TouchableOpacity>
+            </View>
+            {meetings.map((m) => (
+              <TodayMeetingCard
+                key={m.id}
+                meeting={m}
+                colors={c}
+                onJoin={() => {
+                  const loc = m.location ?? "daily";
+                  if (loc === "daily" || !loc) void openCompanyDaily();
+                  else void openMeetingProvider(loc);
                 }}
               />
-            )}
+            ))}
           </View>
-        ))}
+        ) : null}
 
-        <AppText variant="micro" tone="muted" weight="bold" style={styles.sectionLabel}>
-          قريباً
-        </AppText>
-        <View style={styles.upcomingRow}>
-          <View style={{ flex: 1 }}>
-            <AppText variant="bodySm" weight="bold" numberOfLines={2}>
-              تخطيط مشروع آلول ون
-            </AppText>
-            <AppText variant="caption" tone="muted" style={{ marginTop: 6 }}>
-              11:00 ص · 12 مشاركين
-            </AppText>
-          </View>
-          <View style={styles.upcomingBadge}>
-            <AppText variant="micro" weight="bold" tone="secondary">
-              غداً
-            </AppText>
+        {/* ── AI Quick Actions ──────────────────────────────── */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("AiAssistant")}
+              style={{
+                flex: 1, flexDirection: "row", alignItems: "center", gap: 10,
+                padding: 14, borderRadius: 16,
+                backgroundColor: "#7c3aed18",
+                borderWidth: 1, borderColor: "#7c3aed44",
+              }}
+            >
+              <Ionicons name="sparkles-outline" size={18} color="#7c3aed" />
+              <View>
+                <AppText style={{ color: "#7c3aed", fontWeight: "700", fontSize: 13 }}>مساعد الذكاء</AppText>
+                <AppText variant="micro" tone="muted">ملخص وتحليل</AppText>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("Chat")}
+              style={{
+                flex: 1, flexDirection: "row", alignItems: "center", gap: 10,
+                padding: 14, borderRadius: 16,
+                backgroundColor: "#06b6d418",
+                borderWidth: 1, borderColor: "#06b6d444",
+              }}
+            >
+              <Ionicons name="chatbubbles-outline" size={18} color="#06b6d4" />
+              <View>
+                <AppText style={{ color: "#06b6d4", fontWeight: "700", fontSize: 13 }}>قنوات الشات</AppText>
+                <AppText variant="micro" tone="muted">محادثات الفريق</AppText>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
 
-        <GlassCard style={styles.card}>
-          <AppText variant="bodySm" weight="bold">
-            ابدأ اتصالاً مرئياً
-          </AppText>
-          <AppText variant="caption" tone="muted" style={{ marginTop: 6 }}>
-            غرفة Daily مربوطة بشركتك على الخادم (فيديو + شات). باقي الأزرار تفتح روابط خارجية.
-          </AppText>
-          <View style={styles.actionsRow}>
-            <AppButton
-              label={dailyLoading ? "Daily…" : "Daily (الشركة)"}
-              tone="primary"
-              size="sm"
-              onPress={() => void openCompanyDaily()}
-              disabled={dailyLoading}
-            />
-            <AppButton label="Meet" tone="glass" size="sm" onPress={() => void openMeetingProvider("meet")} />
-            <AppButton label="Zoom" tone="glass" size="sm" onPress={() => void openMeetingProvider("zoom")} />
-            <AppButton label="Teams" tone="glass" size="sm" onPress={() => void openMeetingProvider("teams")} />
-          </View>
-        </GlassCard>
-
-        <GlassCard style={styles.card}>
-          <AppText variant="bodySm" tone="secondary">
-            اربط الاجتماعات بالمشاريع والتسليم والنشاط في المساحة.
-          </AppText>
-          <View style={styles.summaryRow}>
-            <MiniStat label="اليوم" value={loading ? "..." : String(todayCount)} style={styles.miniStat} />
-            <MiniStat label="الأسبوع" value={loading ? "..." : String(weekCount)} style={styles.miniStat} />
-            <MiniStat label="مشاريع" value={loading ? "..." : String(projects.length)} style={styles.miniStat} />
-          </View>
-          <View style={styles.actionsRow}>
-            <AppButton label="التسليم" tone="glass" size="sm" onPress={() => navigation.navigate("Handover")} />
-            <AppButton label="الفريق" tone="glass" size="sm" onPress={() => navigation.navigate("Teams")} />
-            <AppButton label="المحادثات" tone="glass" size="sm" onPress={() => navigation.navigate("Chat")} />
-          </View>
-        </GlassCard>
-
-        <AppText variant="micro" tone="muted" weight="bold" style={styles.sectionLabel}>
-          جدول مختصر
-        </AppText>
-        <View style={styles.listWrap}>
-          {loading && !refreshing ? (
-            <View style={styles.loadingWrap}>
-              <ActivityIndicator color={colors.accentCyan} />
+        {/* ── Team Members ─────────────────────────────────── */}
+        <View style={{ padding: 16, paddingBottom: 0 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <AppText variant="bodySm" weight="bold">أعضاء الفريق</AppText>
+            <View style={{ flexDirection: "row", gap: 4 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#10b981" }} />
+              <AppText variant="micro" tone="muted">{onlineCount} متصل</AppText>
             </View>
-          ) : error ? (
-            <GlassCard style={styles.card}>
-              <AppText variant="caption" style={{ color: colors.danger }}>
-                {error}
-              </AppText>
-              <View style={{ height: 10 }} />
-              <AppButton label="إعادة المحاولة" onPress={() => { setLoading(true); void load(); }} />
-            </GlassCard>
-          ) : agendaRows.length === 0 ? (
-            <GlassCard style={styles.card}>
-              <AppText variant="caption" tone="muted">
-                لا توجد بنود من الخادم بعد. استخدم «انضم الآن» أو المنصات أعلاه.
-              </AppText>
-            </GlassCard>
+          </View>
+
+          {/* Search */}
+          <View style={{
+            flexDirection: "row", alignItems: "center", gap: 8,
+            backgroundColor: c.cardStrong, borderRadius: 12,
+            borderWidth: 1, borderColor: c.border,
+            paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12,
+          }}>
+            <Ionicons name="search-outline" size={16} color={c.textMuted} />
+            <TextInput
+              value={memberSearch}
+              onChangeText={setMemberSearch}
+              placeholder="ابحث عن عضو..."
+              placeholderTextColor={c.textMuted}
+              style={{ flex: 1, color: c.textPrimary, fontSize: 14 }}
+            />
+          </View>
+
+          {loading ? (
+            <ActivityIndicator color={c.accentCyan} style={{ marginVertical: 30 }} />
+          ) : sortedMembers.length === 0 ? (
+            <View style={{ alignItems: "center", paddingVertical: 40 }}>
+              <Ionicons name="people-outline" size={40} color={c.textMuted} />
+              <AppText variant="caption" tone="muted" style={{ marginTop: 8 }}>لا يوجد أعضاء</AppText>
+            </View>
           ) : (
-            agendaRows.map((row) => (
-              <ListRow
-                key={row.key}
-                title={row.title}
-                subtitle={row.subtitle}
-                iconLeft={row.icon}
-                onPress={() => onAgendaPress(row)}
+            sortedMembers.map((member) => (
+              <MemberCard
+                key={member.id}
+                member={member}
+                presence={presenceMap[member.user_id] ?? "offline"}
+                colors={c}
+                onAudioCall={() => void startCall(
+                  member.user_id,
+                  member.user_name || "مستخدم",
+                  undefined,
+                  "audio",
+                )}
+                onVideoCall={() => void startCall(
+                  member.user_id,
+                  member.user_name || "مستخدم",
+                  undefined,
+                  "video",
+                )}
               />
             ))
           )}
         </View>
       </ScrollView>
     </Screen>
-  );
-}
-
-function MiniStat({ label, value, style }: { label: string; value: string; style: ViewStyle }) {
-  return (
-    <View style={style}>
-      <AppText variant="micro" tone="muted" weight="bold">
-        {label}
-      </AppText>
-      <AppText variant="bodySm" weight="bold" style={{ marginTop: 4 }}>
-        {value}
-      </AppText>
-    </View>
   );
 }

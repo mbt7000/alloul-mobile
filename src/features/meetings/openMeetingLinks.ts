@@ -5,9 +5,9 @@ const MEET_NEW = "https://meet.google.com/new";
 const ZOOM_START = "https://zoom.us/start/videomeeting";
 const TEAMS_APP = "https://teams.microsoft.com/v2/";
 
-export type MeetingProvider = "meet" | "zoom" | "teams";
+export type MeetingProvider = "meet" | "zoom" | "teams" | "daily" | (string & {});
 
-const URLS: Record<MeetingProvider, string> = {
+const URLS: Record<string, string> = {
   meet: MEET_NEW,
   zoom: ZOOM_START,
   teams: TEAMS_APP,
@@ -15,7 +15,9 @@ const URLS: Record<MeetingProvider, string> = {
 
 /** Opens the provider in an in-app browser (Expo) with https fallback. */
 export async function openMeetingProvider(kind: MeetingProvider): Promise<void> {
-  const url = URLS[kind];
+  const url = URLS[kind as string];
+  // "daily" and unknown providers have no default URL — caller handles them separately
+  if (!url) return;
   try {
     await WebBrowser.openBrowserAsync(url);
   } catch {
