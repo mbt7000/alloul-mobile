@@ -13,6 +13,10 @@ import {
   TouchableOpacity,
   Clipboard,
   Switch,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useNavigation, useFocusEffect, useRoute } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
@@ -286,6 +290,8 @@ function OwnProfile() {
   const { mode: homeMode, setMode: setHomeMode, canUseCompanyMode, getLastRoute } = useHomeMode();
   const [showCompanyOnProfile, setShowCompanyOnProfile] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCoverModal, setShowCoverModal] = useState(false);
+  const [coverUrlDraft, setCoverUrlDraft] = useState("");
   const [section, setSection] = useState<CompanySection>("overview");
   const [mediaTab, setMediaTab] = useState<MediaProfileTab>("posts");
   const [profilePosts, setProfilePosts] = useState<ApiPost[]>([]);
@@ -766,27 +772,8 @@ function OwnProfile() {
                 <Pressable
                   style={styles.roundIcon}
                   onPress={() => {
-                    Alert.prompt(
-                      "صورة الغلاف",
-                      "أدخل رابط صورة الغلاف (URL)",
-                      [
-                        { text: "إلغاء", style: "cancel" },
-                        {
-                          text: "حفظ",
-                          onPress: async (url) => {
-                            if (!url?.trim()) return;
-                            try {
-                              await updateMe({ cover_url: url.trim() });
-                              await refresh();
-                            } catch {
-                              Alert.alert("خطأ", "فشل تحديث صورة الغلاف");
-                            }
-                          },
-                        },
-                      ],
-                      "plain-text",
-                      user?.cover_url ?? ""
-                    );
+                    setCoverUrlDraft(user?.cover_url ?? "");
+                    setShowCoverModal(true);
                   }}
                 >
                   <Ionicons name="image-outline" size={18} color={colors.white} />
@@ -1307,6 +1294,61 @@ function OwnProfile() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* ── Cover photo URL modal (cross-platform) ── */}
+      <Modal visible={showCoverModal} transparent animationType="fade" onRequestClose={() => setShowCoverModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }} onPress={() => setShowCoverModal(false)}>
+            <Pressable
+              style={{ width: "88%", backgroundColor: colors.bgCard, borderRadius: 20, padding: 20, gap: 14 }}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <AppText variant="bodySm" weight="bold">صورة الغلاف</AppText>
+              <AppText variant="micro" tone="muted">أدخل رابط صورة الغلاف (URL)</AppText>
+              <TextInput
+                value={coverUrlDraft}
+                onChangeText={setCoverUrlDraft}
+                placeholder="https://example.com/cover.jpg"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 12,
+                  padding: 12,
+                  color: colors.textPrimary,
+                  fontSize: 13,
+                  backgroundColor: colors.bgCard,
+                }}
+              />
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <Pressable
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}
+                  onPress={() => setShowCoverModal(false)}
+                >
+                  <AppText variant="bodySm" weight="bold" tone="muted">إلغاء</AppText>
+                </Pressable>
+                <Pressable
+                  style={{ flex: 2, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.accentBlue, alignItems: "center" }}
+                  onPress={async () => {
+                    setShowCoverModal(false);
+                    const url = coverUrlDraft.trim();
+                    try {
+                      await updateMe({ cover_url: url || null });
+                      await refresh();
+                    } catch {
+                      Alert.alert("خطأ", "فشل تحديث صورة الغلاف");
+                    }
+                  }}
+                >
+                  <AppText variant="bodySm" weight="bold" style={{ color: colors.white }}>حفظ</AppText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
     </Screen>
   );
 }
