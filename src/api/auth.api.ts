@@ -7,6 +7,7 @@ export interface AuthUser {
   username: string;
   name?: string;
   avatar_url?: string;
+  cover_url?: string | null;
   bio?: string;
   i_code?: string;
   phone?: string;
@@ -17,6 +18,20 @@ export interface AuthUser {
   created_at?: string;
   is_admin?: boolean;
 }
+
+export interface UpdateMeBody {
+  name?: string | null;
+  bio?: string | null;
+  avatar_url?: string | null;
+  cover_url?: string | null;
+  username?: string | null;
+}
+
+export const updateMe = (body: UpdateMeBody) =>
+  apiFetch<AuthUser>("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
 
 async function persistAccessToken(accessToken: string): Promise<void> {
   await setToken(accessToken);

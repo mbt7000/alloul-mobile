@@ -29,6 +29,7 @@ import {
   getUserProfile, followUser, unfollowUser, blockUser, type UserProfile,
   startConversation,
 } from "../../api";
+import { updateMe } from "../../api/auth.api";
 import { useCallContext } from "../../context/CallContext";
 import UserPresenceIndicator from "../../components/common/UserPresenceIndicator";
 // Note: startConversation is from messages.api, others from companies.api
@@ -754,15 +755,44 @@ function OwnProfile() {
         {homeMode === "public" ? (
           <View>
             {/* ── Cover photo ── */}
-            <View style={{ height: 160, backgroundColor: `${colors.accentBlue}55`, position: "relative" }}>
-              <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(56,232,255,0.08)" }} />
+            <View style={{ height: 160, position: "relative", backgroundColor: `${colors.accentBlue}55` }}>
+              {user?.cover_url ? (
+                <Image source={{ uri: user.cover_url }} style={{ ...StyleSheet.absoluteFillObject, resizeMode: "cover" }} />
+              ) : (
+                <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(56,232,255,0.08)" }} />
+              )}
               {/* top-right action buttons */}
               <View style={{ position: "absolute", top: 12, right: 12, flexDirection: "row", gap: 8 }}>
-                <Pressable style={styles.roundIcon} onPress={() => navigation.navigate("Settings")}>
-                  <Ionicons name="pencil-outline" size={18} color={colors.textPrimary} />
+                <Pressable
+                  style={styles.roundIcon}
+                  onPress={() => {
+                    Alert.prompt(
+                      "صورة الغلاف",
+                      "أدخل رابط صورة الغلاف (URL)",
+                      [
+                        { text: "إلغاء", style: "cancel" },
+                        {
+                          text: "حفظ",
+                          onPress: async (url) => {
+                            if (!url?.trim()) return;
+                            try {
+                              await updateMe({ cover_url: url.trim() });
+                              await refresh();
+                            } catch {
+                              Alert.alert("خطأ", "فشل تحديث صورة الغلاف");
+                            }
+                          },
+                        },
+                      ],
+                      "plain-text",
+                      user?.cover_url ?? ""
+                    );
+                  }}
+                >
+                  <Ionicons name="image-outline" size={18} color={colors.white} />
                 </Pressable>
                 <Pressable style={styles.roundIcon} onPress={() => navigation.navigate("Settings")}>
-                  <Ionicons name="settings-outline" size={18} color={colors.textPrimary} />
+                  <Ionicons name="settings-outline" size={18} color={colors.white} />
                 </Pressable>
               </View>
             </View>
