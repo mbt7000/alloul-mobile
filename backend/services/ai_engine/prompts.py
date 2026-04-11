@@ -40,6 +40,7 @@ Example output:
 }"""
 
     prompt = f"""You are a business operations AI assistant. Extract structured task data from the following text.
+IMPORTANT: Always respond in English regardless of the input language.
 {ctx}
 
 Return ONLY a valid JSON object with these exact fields:
@@ -97,6 +98,7 @@ Example output:
 }"""
 
     prompt = f"""You are a business operations AI assistant. Extract structured handover data from the following text.
+IMPORTANT: Always respond in English regardless of the input language.
 {ctx}
 
 Return ONLY a valid JSON object with these exact fields:
@@ -172,6 +174,7 @@ Example output 2:
 }"""
 
     prompt = f"""You are a business operations AI assistant. Extract structured financial transaction data from the following text.
+IMPORTANT: Always respond in English regardless of the input language.
 {ctx}
 
 Return ONLY a valid JSON object with these exact fields:
@@ -218,6 +221,7 @@ Example output:
 }"""
 
     prompt = f"""You are a business operations AI assistant. Summarize and extract key information from this operational note.
+IMPORTANT: Always respond in English regardless of the input language.
 {ctx}
 
 Return ONLY a valid JSON object with these exact fields:

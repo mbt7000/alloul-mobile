@@ -22,7 +22,7 @@ logger = logging.getLogger("alloul.ai.client")
 
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
-OLLAMA_TIMEOUT: float = float(os.getenv("OLLAMA_TIMEOUT", "60"))
+OLLAMA_TIMEOUT: float = float(os.getenv("OLLAMA_TIMEOUT", "120"))
 
 # Generation options tuned for deterministic structured output
 _DEFAULT_OPTIONS: dict = {
