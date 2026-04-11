@@ -254,20 +254,10 @@ export default function HomeSmartHeader({
           <Pressable style={styles.globeBtn} hitSlop={8}>
             <Ionicons name="globe" size={20} color={colors.white} />
           </Pressable>
-          <View style={styles.stripPill}>
+          <View style={[styles.stripPill, { flex: 1 }]}>
             <AppText variant="micro" weight="bold" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>
               نمط التواصل
             </AppText>
-            <Pressable
-              onPress={() => {
-                if (canUseCompanyMode) onModeChange("company");
-                else Alert.alert("وضع الشركات", "تحتاج عضوية شركة فعّالة للتبديل.");
-              }}
-              hitSlop={8}
-              style={styles.stripSwap}
-            >
-              <Ionicons name="swap-horizontal" size={18} color={colors.textSecondary} />
-            </Pressable>
           </View>
           <Pressable style={styles.roundGhost} onPress={onNotifications} hitSlop={8}>
             <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />

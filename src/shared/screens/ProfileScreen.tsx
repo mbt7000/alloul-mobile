@@ -23,6 +23,7 @@ import GlassCard from "../components/GlassCard";
 import { useAuth } from "../../state/auth/AuthContext";
 import { useCompany } from "../../state/company/CompanyContext";
 import { useHomeMode } from "../../state/mode/HomeModeContext";
+import { ROOT_SHELL_ROUTES } from "../../config/routes";
 import {
   getPosts, likePost, unlikePost, type ApiPost,
   getUserProfile, followUser, unfollowUser, blockUser, type UserProfile,
@@ -281,7 +282,7 @@ function OwnProfile() {
   const navigation = useNavigation<any>();
   const { user, refresh } = useAuth();
   const { company, isMember, loading: companyLoading } = useCompany();
-  const { mode: homeMode, setMode: setHomeMode, canUseCompanyMode } = useHomeMode();
+  const { mode: homeMode, setMode: setHomeMode, canUseCompanyMode, getLastRoute } = useHomeMode();
   const [showCompanyOnProfile, setShowCompanyOnProfile] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [section, setSection] = useState<CompanySection>("overview");
@@ -865,30 +866,55 @@ function OwnProfile() {
             {/* ── Mode switch card ── */}
             {user ? (
               <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgCard, padding: 14 }}>
-                <AppText variant="micro" tone="muted" weight="bold" style={{ marginBottom: 10 }}>وضع العرض</AppText>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <AppText variant="micro" tone="muted" weight="bold">تبديل التجربة</AppText>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: currentHomeMode === "public" ? colors.accentBlue : colors.accentTeal }} />
+                    <AppText variant="micro" tone="muted">{currentHomeMode === "public" ? "ميديا" : "شركات"}</AppText>
+                  </View>
+                </View>
                 <View style={{ flexDirection: "row", gap: 8 }}>
                   <Pressable
-                    onPress={() => setHomeMode("public")}
+                    onPress={() => {
+                      setHomeMode("public");
+                      const rootNav = navigation.getParent?.() as any;
+                      rootNav?.navigate(ROOT_SHELL_ROUTES.media, {
+                        screen: "MediaTabs",
+                        params: { screen: getLastRoute("public") ?? "Feed" },
+                      });
+                    }}
                     style={{
-                      flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: "center", borderWidth: 1,
+                      flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: "center", gap: 4, borderWidth: 1,
                       borderColor: currentHomeMode === "public" ? colors.accentBlue : colors.border,
                       backgroundColor: currentHomeMode === "public" ? `${colors.accentBlue}18` : "transparent",
                     }}
                   >
-                    <Ionicons name="radio-outline" size={16} color={currentHomeMode === "public" ? colors.accentBlue : colors.textMuted} />
-                    <AppText variant="micro" weight="bold" style={{ color: currentHomeMode === "public" ? colors.accentBlue : colors.textMuted, marginTop: 4 }}>ميديا اجتماعية</AppText>
+                    <Ionicons name="radio-outline" size={18} color={currentHomeMode === "public" ? colors.accentBlue : colors.textMuted} />
+                    <AppText variant="bodySm" weight="bold" style={{ color: currentHomeMode === "public" ? colors.accentBlue : colors.textMuted }}>ميديا</AppText>
+                    <AppText variant="micro" tone="muted" style={{ textAlign: "center" }}>سريع وحي</AppText>
                   </Pressable>
                   <Pressable
-                    onPress={() => { if (canUseCompanyMode) setHomeMode("company"); }}
+                    onPress={() => {
+                      if (!canUseCompanyMode) {
+                        Alert.alert("وضع الشركات", "تحتاج عضوية شركة فعّالة للتبديل.");
+                        return;
+                      }
+                      setHomeMode("company");
+                      const rootNav = navigation.getParent?.() as any;
+                      rootNav?.navigate(ROOT_SHELL_ROUTES.company, {
+                        screen: getLastRoute("company") ?? "CompanyWorkspace",
+                      });
+                    }}
                     style={{
-                      flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: "center", borderWidth: 1,
+                      flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: "center", gap: 4, borderWidth: 1,
                       borderColor: currentHomeMode === "company" ? colors.accentTeal : colors.border,
                       backgroundColor: currentHomeMode === "company" ? `${colors.accentTeal}18` : "transparent",
-                      opacity: canUseCompanyMode ? 1 : 0.5,
+                      opacity: canUseCompanyMode ? 1 : 0.45,
                     }}
                   >
-                    <Ionicons name="business-outline" size={16} color={currentHomeMode === "company" ? colors.accentTeal : colors.textMuted} />
-                    <AppText variant="micro" weight="bold" style={{ color: currentHomeMode === "company" ? colors.accentTeal : colors.textMuted, marginTop: 4 }}>أعمال</AppText>
+                    <Ionicons name={canUseCompanyMode ? "business-outline" : "lock-closed-outline"} size={18} color={currentHomeMode === "company" ? colors.accentTeal : colors.textMuted} />
+                    <AppText variant="bodySm" weight="bold" style={{ color: currentHomeMode === "company" ? colors.accentTeal : colors.textMuted }}>شركات</AppText>
+                    <AppText variant="micro" tone="muted" style={{ textAlign: "center" }}>منظّم وتشغيلي</AppText>
                   </Pressable>
                 </View>
               </View>

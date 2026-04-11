@@ -369,28 +369,36 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
                       {error}
                     </AppText>
                   ) : null}
-                  <Pressable
-                    style={[
-                      styles.btn,
-                      {
-                        backgroundColor: cyan,
-                        opacity: text.trim().length < 5 || stage === "parsing" ? 0.5 : 1,
-                      },
-                    ]}
-                    onPress={handleParse}
-                    disabled={text.trim().length < 5 || stage === "parsing"}
-                  >
-                    {stage === "parsing" ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <>
-                        <Ionicons name="sparkles" size={16} color="#fff" />
-                        <AppText variant="bodySm" weight="bold" style={{ color: "#fff" }}>
-                          تحليل
+                  {stage === "parsing" ? (
+                    <View style={[styles.btn, { backgroundColor: `${cyan}22`, borderWidth: 1, borderColor: `${cyan}44`, gap: 10 }]}>
+                      <ActivityIndicator size="small" color={cyan} />
+                      <View style={{ flex: 1 }}>
+                        <AppText variant="bodySm" weight="bold" style={{ color: cyan }}>
+                          جارٍ التحليل بالذكاء الاصطناعي...
                         </AppText>
-                      </>
-                    )}
-                  </Pressable>
+                        <AppText variant="micro" tone="muted">
+                          قد يستغرق حتى دقيقة — لا تغلق النافذة
+                        </AppText>
+                      </View>
+                    </View>
+                  ) : (
+                    <Pressable
+                      style={[
+                        styles.btn,
+                        {
+                          backgroundColor: cyan,
+                          opacity: text.trim().length < 5 ? 0.5 : 1,
+                        },
+                      ]}
+                      onPress={handleParse}
+                      disabled={text.trim().length < 5}
+                    >
+                      <Ionicons name="sparkles" size={16} color="#fff" />
+                      <AppText variant="bodySm" weight="bold" style={{ color: "#fff" }}>
+                        تحليل
+                      </AppText>
+                    </Pressable>
+                  )}
                 </>
               )}
 

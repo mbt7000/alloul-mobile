@@ -44,7 +44,8 @@ export async function pingApiHealth(): Promise<{ ok: boolean; detail: string }> 
 
 export async function apiFetch<T = any>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeoutMs?: number
 ): Promise<T> {
   const token = await getToken();
 
@@ -64,7 +65,7 @@ export async function apiFetch<T = any>(
     res = await fetchWithTimeout(`${apiBaseUrl()}${endpoint}`, {
       ...options,
       headers,
-    });
+    }, timeoutMs);
   } catch (e: unknown) {
     if (e instanceof Error && e.name === "AbortError") {
       throw { message: "NETWORK_TIMEOUT", status: 0 };

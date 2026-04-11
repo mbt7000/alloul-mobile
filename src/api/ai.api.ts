@@ -52,7 +52,7 @@ export const parseTaskText = (text: string) =>
   apiFetch<AITaskParseResponse>("/ai/parse-task", {
     method: "POST",
     body: JSON.stringify({ text }),
-  });
+  }, 120000);
 
 // Confirm payload mirrors ConfirmTaskPayload on the backend
 export interface ConfirmTaskBody {
@@ -116,7 +116,7 @@ export const parseHandoverText = (text: string) =>
   apiFetch<AIHandoverParseResponse>("/ai/parse-handover", {
     method: "POST",
     body: JSON.stringify({ text }),
-  });
+  }, 120000);
 
 export interface ConfirmHandoverBody {
   extraction: {
@@ -178,7 +178,7 @@ export const parseTransactionText = (text: string) =>
   apiFetch<AITransactionParseResponse>("/ai/parse-transaction", {
     method: "POST",
     body: JSON.stringify({ text }),
-  });
+  }, 120000);
 
 export interface ConfirmTransactionBody {
   extraction: {
@@ -230,7 +230,7 @@ export const summarizeNoteText = (text: string) =>
   apiFetch<AINoteSummaryResponse>("/ai/summarize-note", {
     method: "POST",
     body: JSON.stringify({ text }),
-  });
+  }, 120000);
 
 // ─── Health ───────────────────────────────────────────────────────────────
 
