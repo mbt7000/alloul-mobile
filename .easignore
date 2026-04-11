@@ -8,6 +8,9 @@ backend/
 docs/
 ios/Pods/
 ios/build/
+ios/main/
 android/
 dist/
 .expo/
+.claude/
+node_modules/
