@@ -94,6 +94,7 @@ Example output:
   "deadline": "Sunday",
   "risk_level": "medium",
   "summary": "Client X is awaiting final approval with 12,000 AED pending. Ahmed has been in contact. File is in Drive.",
+  "content": "Client X is waiting for final approval. Ahmed has already spoken with them. 12,000 AED is still pending. The relevant file is stored in Drive. Next follow-up is scheduled for Sunday.",
   "notes": null
 }"""
 
@@ -116,6 +117,7 @@ Return ONLY a valid JSON object with these exact fields:
 - deadline: deadline or next follow-up date (string or null)
 - risk_level: one of "low", "medium", "high", "critical" (or null if unclear)
 - summary: a short 1-2 sentence summary of the handover (string or null)
+- content: the full handover body — rewrite the input text in clear professional English as a complete handover note (string or null)
 - notes: any other relevant info (string or null)
 {example}
 

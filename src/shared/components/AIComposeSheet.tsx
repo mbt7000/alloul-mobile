@@ -264,6 +264,7 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
             deadline: d.deadline,
             risk_level: d.risk_level,
             summary: d.summary,
+            content: d.content,
             notes: d.notes,
           },
         });

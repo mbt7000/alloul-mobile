@@ -70,6 +70,7 @@ class HandoverExtraction(BaseModel):
     deadline: Optional[str] = None          # YYYY-MM-DD or natural language
     risk_level: Optional[str] = None
     summary: Optional[str] = None
+    content: Optional[str] = None           # full handover body / detailed notes
     notes: Optional[str] = None
 
     @field_validator("current_status", mode="before")

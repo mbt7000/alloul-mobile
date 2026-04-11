@@ -105,6 +105,7 @@ export interface AIHandoverExtracted {
   deadline?: string | null;
   risk_level?: "low" | "medium" | "high" | "critical" | null;
   summary?: string | null;
+  content?: string | null;
   notes?: string | null;
 }
 
@@ -134,7 +135,7 @@ export interface ConfirmHandoverBody {
     deadline?: string | null;
     risk_level?: string | null;
     summary?: string | null;
-    content?: string | null;
+    content?: string | null;   // full handover body written by AI
     notes?: string | null;
   };
 }
