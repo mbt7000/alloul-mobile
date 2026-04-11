@@ -19,15 +19,17 @@ export const getSubscriptionStatus = () =>
 export interface UserProfile {
   id: number;
   username: string;
-  name?: string;
-  avatar_url?: string;
-  bio?: string;
-  i_code?: string;
+  name?: string | null;
+  avatar_url?: string | null;
+  cover_url?: string | null;
+  bio?: string | null;
+  i_code?: string | null; // only returned when is_self=true
   followers_count: number;
   following_count: number;
   posts_count: number;
   is_following: boolean;
   is_self: boolean;
+  created_at?: string | null;
 }
 
 export const getUserProfile = (id: number | string) =>
@@ -35,6 +37,8 @@ export const getUserProfile = (id: number | string) =>
 
 export const followUser = (id: number) => apiFetch(`/follows/${id}`, { method: "POST" });
 export const unfollowUser = (id: number) => apiFetch(`/follows/${id}`, { method: "DELETE" });
+export const blockUser = (id: number) => apiFetch(`/follows/${id}/block`, { method: "POST" });
+export const unblockUser = (id: number) => apiFetch(`/follows/${id}/block`, { method: "DELETE" });
 
 export interface DashboardStats {
   total_memory_items?: number;
@@ -66,12 +70,63 @@ export interface ProjectRow {
   name: string;
   description?: string | null;
   status: string;
+  due_date?: string | null;
   tasks_count?: number;
   completed_count?: number;
   created_at?: string | null;
 }
 
-export const getProjects = () => apiFetch<ProjectRow[]>("/projects/");
+export interface TaskRow {
+  id: number;
+  project_id: number;
+  title: string;
+  description?: string | null;
+  assignee_id?: number | null;
+  assignee_name?: string | null;
+  status: string;
+  due_date?: string | null;
+  priority: "high" | "medium" | "low";
+  created_at?: string | null;
+}
+
+export const getProjects = (companyId?: number) => {
+  const q = companyId != null ? `?company_id=${companyId}` : "";
+  return apiFetch<ProjectRow[]>(`/projects/${q}`);
+};
+
+export const createProject = (body: {
+  name: string;
+  description?: string;
+  due_date?: string;
+  status?: string;
+}) => apiFetch<ProjectRow>("/projects/", { method: "POST", body: JSON.stringify(body) });
+
+export const updateProject = (id: number, body: { name?: string; description?: string; status?: string; due_date?: string }) =>
+  apiFetch<ProjectRow>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+
+export const getProjectTasks = (projectId: number) =>
+  apiFetch<TaskRow[]>(`/projects/${projectId}/tasks`);
+
+export const getAllCompanyTasks = (companyId?: number) => {
+  const q = companyId != null ? `?company_id=${companyId}` : "";
+  return apiFetch<TaskRow[]>(`/projects/all-tasks${q}`).catch(() => [] as TaskRow[]);
+};
+
+export const createTask = (projectId: number, body: {
+  title: string;
+  description?: string;
+  assignee_id?: number;
+  due_date?: string;
+  priority?: string;
+}) => apiFetch<TaskRow>(`/projects/${projectId}/tasks`, { method: "POST", body: JSON.stringify(body) });
+
+export const updateTask = (projectId: number, taskId: number, body: {
+  title?: string;
+  status?: string;
+  assignee_id?: number;
+  due_date?: string;
+  priority?: string;
+}) => apiFetch<TaskRow>(`/projects/${projectId}/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify(body) });
 
 export interface CompanyStats {
   total_members: number;
@@ -92,11 +147,43 @@ export interface CompanyMemberRow {
   i_code: string;
   manager_id?: number | null;
   job_title?: string | null;
-  /** إن وُجد من الخادم: يُستخدم لـ `tel:` قبل مكالمة Stream */
   phone?: string | null;
+  user_name?: string | null;
+  user_email?: string | null;
 }
 
 export const getCompanyMembers = () => apiFetch<CompanyMemberRow[]>("/companies/members");
+
+export const updateMemberRole = (memberId: number, role: string, jobTitle?: string) =>
+  apiFetch<CompanyMemberRow>(`/companies/members/${memberId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ role, job_title: jobTitle }),
+  });
+
+export const removeMember = (memberId: number) =>
+  apiFetch(`/companies/members/${memberId}`, { method: "DELETE" });
+
+export interface DepartmentRow { id: number; company_id: number; name: string; }
+
+export const getDepartments = () => apiFetch<DepartmentRow[]>("/companies/departments");
+
+export const createDepartment = (name: string) =>
+  apiFetch<DepartmentRow>("/companies/departments", { method: "POST", body: JSON.stringify({ name }) });
+
+export const deleteDepartment = (id: number) =>
+  apiFetch(`/companies/departments/${id}`, { method: "DELETE" });
+
+export const sendInvitation = (iCode: string, role: string = "employee") =>
+  apiFetch<{ id: number; message: string }>("/companies/invite", {
+    method: "POST",
+    body: JSON.stringify({ i_code: iCode, role }),
+  });
+
+export const deleteProject = (id: number) =>
+  apiFetch(`/projects/${id}`, { method: "DELETE" });
+
+export const deleteTask = (projectId: number, taskId: number) =>
+  apiFetch(`/projects/${projectId}/tasks/${taskId}`, { method: "DELETE" });
 
 export interface HandoverRow {
   id: number;
@@ -114,6 +201,32 @@ export interface HandoverRow {
 }
 
 export const getHandovers = () => apiFetch<HandoverRow[]>("/handover/");
+
+export const createHandover = (body: {
+  title: string;
+  from_person?: string;
+  to_person?: string;
+  department?: string;
+  content?: string;
+  status?: string;
+}) => apiFetch<HandoverRow>("/handover/", { method: "POST", body: JSON.stringify(body) });
+
+export const updateHandover = (id: number, body: {
+  title?: string;
+  from_person?: string;
+  to_person?: string;
+  department?: string;
+  status?: string;
+  content?: string;
+  tasks?: number;
+  completed_tasks?: number;
+}) => apiFetch<HandoverRow>(`/handover/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+
+export const deleteHandover = (id: number) =>
+  apiFetch(`/handover/${id}`, { method: "DELETE" });
+
+export const analyzeHandover = (id: number) =>
+  apiFetch<{ analysis: string; handover_id: number }>(`/handover/${id}/ai-analyze`, { method: "POST" });
 
 export type HandoverLifecycleStatus = "open" | "in_progress" | "submitted" | "accepted" | "closed";
 
@@ -169,6 +282,18 @@ export interface DealRow {
 
 export const getDeals = () => apiFetch<DealRow[]>("/deals/");
 
+export const createDeal = (body: {
+  company: string;
+  value: number;
+  stage: string;
+  probability?: number;
+  contact?: string;
+  notes?: string;
+}) => apiFetch<DealRow>("/deals/", { method: "POST", body: JSON.stringify(body) });
+
+export const updateDeal = (id: number, body: { stage?: string; value?: number; probability?: number; notes?: string }) =>
+  apiFetch<DealRow>(`/deals/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+
 export interface AdRow {
   id: number;
   company_id: number;
@@ -193,6 +318,68 @@ export const getAgentHistory = (mode?: string) => {
   const q = mode?.trim() ? `?mode=${encodeURIComponent(mode.trim())}` : "";
   return apiFetch<AgentMessageRow[]>(`/agent/history${q}`);
 };
+
+export const analyzeWorkspace = (topic: "dashboard" | "tasks" | "deals" | "meetings", extra?: string) =>
+  apiFetch<{ summary: string; topic: string }>("/agent/analyze", {
+    method: "POST",
+    body: JSON.stringify({ topic, extra }),
+  });
+
+// ─── Knowledge Base / Memory ──────────────────────────────────────────────────
+
+export interface KnowledgeItem {
+  id: number;
+  user_id: number;
+  company_id?: number | null;
+  type: string;
+  title: string;
+  description?: string | null;
+  project?: string | null;
+  department?: string | null;
+  tags: string[];
+  importance: string;
+  owner?: string | null;
+  date?: string | null;
+  created_at?: string | null;
+}
+
+export interface KnowledgeStats {
+  total: number;
+  by_type: Record<string, number>;
+  high_importance: number;
+}
+
+export const getKnowledgeItems = (params?: {
+  type?: string;
+  q?: string;
+  company?: boolean;
+}) => {
+  const p = new URLSearchParams();
+  if (params?.type) p.set("type", params.type);
+  if (params?.q) p.set("q", params.q);
+  if (params?.company) p.set("company", "true");
+  const qs = p.toString() ? `?${p.toString()}` : "";
+  return apiFetch<KnowledgeItem[]>(`/memory/${qs}`).catch(() => [] as KnowledgeItem[]);
+};
+
+export const getKnowledgeStats = () =>
+  apiFetch<KnowledgeStats>("/memory/stats").catch(() => ({ total: 0, by_type: {}, high_importance: 0 }));
+
+export const createKnowledgeItem = (body: {
+  title: string;
+  type?: string;
+  description?: string;
+  project?: string;
+  department?: string;
+  tags?: string;
+  importance?: string;
+}) => apiFetch<KnowledgeItem>("/memory/", { method: "POST", body: JSON.stringify(body) });
+
+export const deleteKnowledgeItem = (id: number) =>
+  apiFetch(`/memory/${id}`, { method: "DELETE" });
+
+export const importHandoversToKnowledge = () =>
+  apiFetch<{ imported: number; total_handovers: number }>("/memory/import-handovers", { method: "POST" });
 
 // ─── Company Role & Permissions ──────────────────────────────────────────────
 
@@ -266,3 +453,119 @@ export const completeOnboardingStep = (step: "profile" | "team" | "invite" | "pr
     method: "POST",
     body: JSON.stringify({ step }),
   });
+
+// ─── Meetings ─────────────────────────────────────────────────────────────────
+
+export interface MeetingAttendee {
+  user_id: number;
+  status: "invited" | "accepted" | "declined";
+}
+
+export interface MeetingRow {
+  id: number;
+  company_id: number;
+  created_by: number;
+  title: string;
+  description?: string | null;
+  meeting_date: string;
+  meeting_time?: string | null;
+  duration_minutes: number;
+  location?: string | null;
+  status: "scheduled" | "in_progress" | "done" | "cancelled";
+  notes?: string | null;
+  action_items?: string | null;
+  project_id?: number | null;
+  attendees: MeetingAttendee[];
+  created_at?: string | null;
+}
+
+export const getMeetings = (upcoming?: boolean) => {
+  const q = upcoming ? "?upcoming=true" : "";
+  return apiFetch<MeetingRow[]>(`/meetings/${q}`).catch(() => [] as MeetingRow[]);
+};
+
+export const createMeeting = (body: {
+  title: string;
+  description?: string;
+  meeting_date: string;
+  meeting_time?: string;
+  duration_minutes?: number;
+  location?: string;
+  project_id?: number;
+  attendee_ids?: number[];
+}) => apiFetch<MeetingRow>("/meetings/", { method: "POST", body: JSON.stringify(body) });
+
+export const updateMeeting = (id: number, body: {
+  title?: string;
+  status?: string;
+  notes?: string;
+  action_items?: string;
+  meeting_date?: string;
+  meeting_time?: string;
+  location?: string;
+  project_id?: number;
+}) => apiFetch<MeetingRow>(`/meetings/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+
+export const markMeetingDone = (id: number, notes?: string, actionItems?: string) => {
+  const params = new URLSearchParams();
+  if (notes) params.set("notes", notes);
+  if (actionItems) params.set("action_items", actionItems);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  return apiFetch<MeetingRow>(`/meetings/${id}/done${q}`, { method: "POST" });
+};
+
+export const deleteMeeting = (id: number) =>
+  apiFetch(`/meetings/${id}`, { method: "DELETE" });
+
+// ─── Channels / Team Chat ─────────────────────────────────────────────────────
+
+export interface ChannelRow {
+  id: number;
+  company_id: number;
+  name: string;
+  description?: string | null;
+  type: string;
+  created_at?: string | null;
+  last_message?: string | null;
+  last_message_at?: string | null;
+  message_count: number;
+}
+
+export interface ChannelAuthor {
+  id: number;
+  name: string;
+  avatar_url?: string | null;
+}
+
+export interface ChannelMessageRow {
+  id: number;
+  channel_id: number;
+  user_id: number;
+  content: string;
+  author: ChannelAuthor;
+  created_at?: string | null;
+  is_self: boolean;
+}
+
+export const getChannels = () =>
+  apiFetch<ChannelRow[]>("/channels/").catch(() => [] as ChannelRow[]);
+
+export const createChannel = (body: { name: string; type?: string; description?: string }) =>
+  apiFetch<ChannelRow>("/channels/", { method: "POST", body: JSON.stringify(body) });
+
+export const deleteChannel = (id: number) =>
+  apiFetch(`/channels/${id}`, { method: "DELETE" });
+
+export const getChannelMessages = (channelId: number, afterId?: number) => {
+  const q = afterId ? `?after_id=${afterId}&limit=50` : "?limit=50";
+  return apiFetch<ChannelMessageRow[]>(`/channels/${channelId}/messages${q}`).catch(() => [] as ChannelMessageRow[]);
+};
+
+export const sendChannelMessage = (channelId: number, content: string) =>
+  apiFetch<ChannelMessageRow>(`/channels/${channelId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
+
+export const deleteChannelMessage = (channelId: number, messageId: number) =>
+  apiFetch(`/channels/${channelId}/messages/${messageId}`, { method: "DELETE" });

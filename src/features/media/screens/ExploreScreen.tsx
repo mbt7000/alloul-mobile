@@ -1,18 +1,17 @@
-import React, { useMemo } from "react";
-import { View, StyleSheet, FlatList, Pressable } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { View, StyleSheet, FlatList, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import AppText from "../../../shared/ui/AppText";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import { radius } from "../../../theme/radius";
+import { apiFetch } from "../../../api";
 
-/** TODO(api): replace with GET /trending/topics when backend supports it */
-const TRENDING = [
-  { tag: "#AlloulOne", count: "12.4K منشور" },
-  { tag: "#المملكة_العربية_السعودية", count: "80.2K منشور" },
-  { tag: "#رؤية_2030", count: "45.1K منشور" },
-];
+interface TrendingTag {
+  tag: string;
+  count: number;
+}
 
 const TAB_BAR_PAD = 108;
 
@@ -20,6 +19,21 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { colors, toggleMode } = useAppTheme();
+  const [trending, setTrending] = useState<TrendingTag[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadTrending = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiFetch<TrendingTag[]>("/posts/trending-hashtags");
+      setTrending(Array.isArray(data) ? data : []);
+    } catch {
+      setTrending([]);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { void loadTrending(); }, [loadTrending]);
 
   const styles = useMemo(
     () =>
@@ -122,30 +136,53 @@ export default function ExploreScreen() {
         <AppText variant="micro" weight="bold" tone="secondary">
           المواضيع الرائجة
         </AppText>
+        <Pressable onPress={loadTrending} hitSlop={8}>
+          <Ionicons name="refresh-outline" size={14} color={colors.textMuted} />
+        </Pressable>
       </View>
 
-      <FlatList
-        data={TRENDING}
-        keyExtractor={(item) => item.tag}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: TAB_BAR_PAD }}
-        ItemSeparatorComponent={() => <View style={styles.sep} />}
-        ListFooterComponent={<View style={{ height: 24 }} />}
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.topicRow}
-            onPress={() => navigation.navigate("Search", { q: item.tag.replace(/^#/, ""), source: "feed" })}
-          >
-            <View style={{ flex: 1 }}>
-              <AppText variant="bodySm" weight="bold">
-                {item.tag.startsWith("#") ? item.tag : `#${item.tag}`}
-              </AppText>
-              <AppText variant="caption" tone="muted" style={{ marginTop: 4 }}>
-                {item.count}
-              </AppText>
-            </View>
-          </Pressable>
-        )}
-      />
+      {loading ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator color={colors.accentCyan} />
+        </View>
+      ) : trending.length === 0 ? (
+        <View style={{ alignItems: "center", paddingTop: 40, gap: 10 }}>
+          <Ionicons name="pricetags-outline" size={36} color={colors.textMuted} />
+          <AppText variant="caption" tone="muted">لا توجد هاشتاقات رائجة بعد</AppText>
+          <AppText variant="micro" tone="muted">أضف هاشتاقات في منشوراتك لتظهر هنا</AppText>
+        </View>
+      ) : (
+        <FlatList
+          data={trending}
+          keyExtractor={(item) => item.tag}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: TAB_BAR_PAD }}
+          ItemSeparatorComponent={() => <View style={styles.sep} />}
+          ListFooterComponent={<View style={{ height: 24 }} />}
+          renderItem={({ item, index }) => (
+            <Pressable
+              style={styles.topicRow}
+              onPress={() => navigation.navigate("Search", { q: item.tag, source: "explore" })}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <AppText variant="micro" tone="muted" weight="bold" style={{ minWidth: 18 }}>
+                      {index + 1}
+                    </AppText>
+                    <AppText variant="bodySm" weight="bold">
+                      #{item.tag}
+                    </AppText>
+                  </View>
+                  <AppText variant="caption" tone="muted" style={{ marginTop: 4, marginRight: 26 }}>
+                    {item.count} {item.count === 1 ? "منشور" : "منشور"}
+                  </AppText>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </View>
+            </Pressable>
+          )}
+        />
+      )}
     </View>
   );
 }

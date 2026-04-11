@@ -16,6 +16,9 @@ import OnboardingScreen from "./src/features/onboarding/screens/OnboardingScreen
 import { getOnboardingCompleted, setOnboardingCompleted } from "./src/storage/session";
 import RootNavigation from "./src/navigation/RootNavigator";
 import AuthNavigator from "./src/navigation/auth/AuthNavigator";
+import { CallProvider } from "./src/context/CallContext";
+import IncomingCallScreen from "./src/components/calls/IncomingCallScreen";
+import DailyCallScreen from "./src/components/calls/DailyCallScreen";
 
 function buildNavTheme(colors: ReturnType<typeof useAppTheme>["colors"], dark: boolean): NavTheme {
   return {
@@ -109,7 +112,12 @@ export default function App() {
               <NotificationsProvider>
                 <CompanyProvider>
                   <HomeModeProvider>
-                    <AppNavigation />
+                    <CallProvider>
+                      <AppNavigation />
+                      {/* Global call overlays — rendered above Navigation */}
+                      <IncomingCallScreen />
+                      <DailyCallScreen />
+                    </CallProvider>
                   </HomeModeProvider>
                 </CompanyProvider>
               </NotificationsProvider>

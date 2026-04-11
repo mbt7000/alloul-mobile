@@ -74,6 +74,9 @@ module.exports = ({ config }) => {
             githubAuth: {
                 clientId: pickEnv("EXPO_PUBLIC_GITHUB_CLIENT_ID", config.extra?.githubAuth?.clientId),
             },
+            stripe: {
+                publishableKey: pickEnv("EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY", config.extra?.stripe?.publishableKey),
+            },
         },
     };
 };

@@ -1,5 +1,13 @@
-import React, { useMemo } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Linking } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  Alert,
+  Platform,
+  Clipboard,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
@@ -7,10 +15,15 @@ import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import { SUPPORTED_LANGUAGES, setAppLanguage, type AppLanguage } from "../../../i18n/index";
-import { getApiBaseUrl, getApiDocsUrl, pingApiHealth } from "../../../api";
 import { useAuth } from "../../../state/auth/AuthContext";
 import { useCompany } from "../../../state/company/CompanyContext";
 import { useHomeMode } from "../../../state/mode/HomeModeContext";
+import {
+  getSubscriptionStatus,
+  getCompanyMembers,
+  getProjects,
+  getAllCompanyTasks,
+} from "../../../api";
 
 const LANG_META: Record<AppLanguage, { labelKey: string; native: string }> = {
   en: { labelKey: "settings.langEn", native: "English" },
@@ -20,321 +33,404 @@ const LANG_META: Record<AppLanguage, { labelKey: string; native: string }> = {
   hi: { labelKey: "settings.langHi", native: "हिन्दी" },
 };
 
+const PLAN_LABELS: Record<string, { label: string; color: string }> = {
+  starter:    { label: "المبتدئ",          color: "#6b7280" },
+  pro:        { label: "الاحترافي",        color: "#2563eb" },
+  pro_plus:   { label: "الاحترافي المتقدم", color: "#7c3aed" },
+  admin:      { label: "المدير",           color: "#dc2626" },
+};
+
+function avatarColor(name: string) {
+  const palette = ["#2563eb", "#7c3aed", "#059669", "#d97706", "#dc2626", "#0891b2"];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffffff;
+  return palette[Math.abs(h) % palette.length];
+}
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { t, i18n } = useTranslation();
   const { colors, mode, setMode } = useAppTheme();
   const { user, signOut } = useAuth();
   const { company, isMember, isActive } = useCompany();
   const { mode: homeMode, setMode: setHomeMode, canUseCompanyMode } = useHomeMode();
-  const extra = Constants.expoConfig?.extra as Record<string, unknown> | undefined;
-  const firebaseReady = Boolean(
-    extra?.firebase && typeof extra.firebase === "object" && (extra.firebase as { apiKey?: string }).apiKey
-  );
-  const googleAuth = extra?.googleAuth as { iosClientId?: string; webClientId?: string } | undefined;
-  const googleReady = Boolean(googleAuth?.iosClientId || googleAuth?.webClientId);
+
   const appVersion = Constants.expoConfig?.version || "1.0.0";
   const build = Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode || "local";
 
-  const styles = useMemo(
-    () =>
-      StyleSheet.create({
-        container: { flex: 1, backgroundColor: colors.bg },
-        header: {
-          paddingHorizontal: 16,
-          paddingVertical: 14,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: colors.border,
-        },
-        title: { color: colors.textPrimary, fontSize: 22, fontWeight: "800" },
-        scroll: { padding: 16, paddingBottom: 100 },
-        section: { color: colors.textPrimary, fontSize: 16, fontWeight: "700", marginBottom: 6 },
-        sectionHint: { color: colors.textMuted, fontSize: 13, lineHeight: 20, marginBottom: 8 },
-        restartHint: { color: colors.accentCyan, fontSize: 12, marginBottom: 16, lineHeight: 18 },
-        langRow: {
-          flexDirection: "row",
-          alignItems: "center",
-          padding: 14,
-          borderRadius: 14,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.bgCard,
-          marginBottom: 10,
-        },
-        langRowActive: { borderColor: colors.accentBlue, backgroundColor: colors.cardStrong },
-        langTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: "600" },
-        langNative: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
-        diagUrl: {
-          color: colors.accentCyan,
-          fontSize: 12,
-          fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-          marginBottom: 8,
-        },
-        testBtn: {
-          paddingVertical: 12,
-          borderRadius: 12,
-          backgroundColor: colors.bgCard,
-          borderWidth: 1,
-          borderColor: colors.border,
-          alignItems: "center",
-          marginTop: 8,
-        },
-        testBtnText: { color: colors.accentBlue, fontSize: 14, fontWeight: "700" },
-        heroCard: {
-          padding: 14,
-          borderRadius: 14,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.bgCard,
-          marginBottom: 18,
-        },
-        heroTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: "800" },
-        heroSubtitle: { color: colors.textMuted, fontSize: 12, marginTop: 6 },
-        block: {
-          borderRadius: 14,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.bgCard,
-          padding: 12,
-          gap: 10,
-        },
-        modeButton: {
-          marginTop: 4,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: colors.floatingBarBorder,
-          backgroundColor: colors.cardStrong,
-          paddingVertical: 10,
-          alignItems: "center",
-        },
-        modeButtonText: { color: colors.accentCyan, fontSize: 13, fontWeight: "700" },
-        logoutBtn: {
-          marginTop: 4,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: "rgba(255,92,124,0.4)",
-          backgroundColor: "rgba(255,92,124,0.12)",
-          paddingVertical: 11,
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          flexDirection: "row",
-        },
-        logoutText: { color: colors.accentRose, fontSize: 13, fontWeight: "700" },
-        themeRow: {
-          flexDirection: "row",
-          gap: 10,
-          marginTop: 4,
-        },
-        themeChip: {
-          flex: 1,
-          paddingVertical: 12,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.bgSurface,
-          alignItems: "center",
-        },
-        themeChipOn: {
-          borderColor: colors.accentBlue,
-          backgroundColor: colors.cardStrong,
-        },
-        themeChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: "700" },
-        themeChipTextOn: { color: colors.textPrimary },
-        adminRow: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          paddingVertical: 4,
-          paddingHorizontal: 4,
-        },
-      }),
-    [colors]
-  );
+  const [planId, setPlanId] = useState<string | null>(null);
+  const [memberCount, setMemberCount] = useState<number | null>(null);
+  const [projectCount, setProjectCount] = useState<number | null>(null);
+  const [taskCount, setTaskCount] = useState<number | null>(null);
 
-  const selectLang = async (lng: AppLanguage) => {
-    await setAppLanguage(lng);
-  };
+  const loadCompanyData = useCallback(async () => {
+    if (!company?.id) return;
+    const [sub, members, projects, tasks] = await Promise.all([
+      getSubscriptionStatus().catch(() => ({ plan_id: null })),
+      getCompanyMembers().catch(() => [] as any[]),
+      getProjects(company.id).catch(() => [] as any[]),
+      getAllCompanyTasks(company.id).catch(() => [] as any[]),
+    ]);
+    setPlanId((sub as any).plan_id ?? null);
+    setMemberCount(Array.isArray(members) ? members.length : null);
+    setProjectCount(Array.isArray(projects) ? projects.length : null);
+    setTaskCount(Array.isArray(tasks) ? tasks.length : null);
+  }, [company?.id]);
+
+  useEffect(() => { void loadCompanyData(); }, [loadCompanyData]);
+
+  const selectLang = async (lng: AppLanguage) => { await setAppLanguage(lng); };
 
   const confirmSignOut = () => {
-    Alert.alert("Log out", "You are about to end your current session on this device.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: () => void signOut() },
+    Alert.alert("تسجيل الخروج", "هل تريد إنهاء الجلسة الحالية؟", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "خروج", style: "destructive", onPress: () => void signOut() },
     ]);
   };
 
-  const accountSubtitle = user?.is_admin ? `${user?.email || "Signed in"} · Admin` : user?.email || "Signed in";
+  const displayName = user?.name || user?.username || "المستخدم";
+  const initials = displayName.slice(0, 2).toUpperCase();
+  const bg = avatarColor(displayName);
+  const planCfg = planId ? (PLAN_LABELS[planId] ?? { label: planId, color: "#6b7280" }) : null;
+
+  const c = colors;
+
+  // ── Section header ───────────────────────────────────────────
+  const SectionTitle = ({ title, icon }: { title: string; icon: keyof typeof Ionicons.glyphMap }) => (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10, marginTop: 24 }}>
+      <Ionicons name={icon} size={14} color={c.textMuted} />
+      <Text style={{ color: c.textMuted, fontSize: 12, fontWeight: "700", letterSpacing: 0.5, textTransform: "uppercase" }}>
+        {title}
+      </Text>
+    </View>
+  );
+
+  // ── Nav row ───────────────────────────────────────────────────
+  const NavRow = ({
+    icon, iconColor, label, subtitle, onPress, badge,
+  }: {
+    icon: keyof typeof Ionicons.glyphMap;
+    iconColor: string;
+    label: string;
+    subtitle?: string;
+    onPress: () => void;
+    badge?: string;
+  }) => (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        backgroundColor: pressed ? c.cardElevated : "transparent",
+        borderRadius: 12,
+      })}
+    >
+      <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: iconColor + "22", alignItems: "center", justifyContent: "center" }}>
+        <Ionicons name={icon} size={17} color={iconColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: c.textPrimary, fontSize: 14, fontWeight: "700" }}>{label}</Text>
+        {subtitle ? <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 2 }}>{subtitle}</Text> : null}
+      </View>
+      {badge ? (
+        <View style={{ backgroundColor: iconColor + "22", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+          <Text style={{ color: iconColor, fontSize: 11, fontWeight: "700" }}>{badge}</Text>
+        </View>
+      ) : null}
+      <Ionicons name="chevron-forward" size={15} color={c.textMuted} />
+    </Pressable>
+  );
+
+  // ── Card wrapper ──────────────────────────────────────────────
+  const Card = ({ children, style }: { children: React.ReactNode; style?: any }) => (
+    <View style={[{
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.cardElevated,
+      overflow: "hidden" as const,
+    }, style]}>
+      {children}
+    </View>
+  );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{t("settings.title")}</Text>
+    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
+      {/* Header */}
+      <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border }}>
+        <Text style={{ color: c.textPrimary, fontSize: 22, fontWeight: "800" }}>الإعدادات</Text>
       </View>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroCard}>
-          <Text style={styles.heroTitle}>{user?.name || user?.username || t("profile.title")}</Text>
-          <Text style={styles.heroSubtitle}>{user?.email || ""}</Text>
-          {user?.bio ? <Text style={[styles.heroSubtitle, { marginTop: 4 }]}>{user.bio}</Text> : null}
-        </View>
 
-        <Text style={styles.section}>{t("profile.title")}</Text>
-        <View style={styles.block}>
-          <Row icon="person-outline" title={user?.name || user?.username || t("profile.title")} subtitle={accountSubtitle} />
-          <Row icon="mail-outline" title={user?.email || t("auth.email")} subtitle={user?.phone || t("phone.subtitle")} />
-        </View>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
 
-        <Text style={[styles.section, { marginTop: 20 }]}>{t("settings.appearance")}</Text>
-        <View style={styles.block}>
-          <View style={styles.themeRow}>
-            <TouchableOpacity
-              style={[styles.themeChip, mode === "light" && styles.themeChipOn]}
-              onPress={() => setMode("light")}
-              activeOpacity={0.88}
-            >
-              <Text style={[styles.themeChipText, mode === "light" && styles.themeChipTextOn]}>{t("settings.themeLight")}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.themeChip, mode === "dark" && styles.themeChipOn]}
-              onPress={() => setMode("dark")}
-              activeOpacity={0.88}
-            >
-              <Text style={[styles.themeChipText, mode === "dark" && styles.themeChipTextOn]}>{t("settings.themeDark")}</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.sectionHint}>
-            {t("settings.themeActive")}: {mode === "light" ? t("settings.themeLight") : t("settings.themeDark")}
-          </Text>
-        </View>
-
-        {user?.is_admin ? (
-          <>
-            <Text style={[styles.section, { marginTop: 20 }]}>{t("settings.adminConsole")}</Text>
-            <TouchableOpacity
-              style={styles.block}
-              onPress={() => navigation.navigate("AdminHub" as never)}
-              activeOpacity={0.88}
-            >
-              <View style={styles.adminRow}>
-                <View style={{ flex: 1 }}>
-                  <Row icon="shield-checkmark-outline" title={t("settings.adminConsole")} subtitle={t("settings.adminSubtitle")} />
+        {/* ── Profile Hero ── */}
+        <Card style={{ padding: 16, marginBottom: 4 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+            <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: bg, alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ color: "#fff", fontSize: 20, fontWeight: "800" }}>{initials}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: c.textPrimary, fontSize: 18, fontWeight: "800" }}>{displayName}</Text>
+              <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 2 }}>{user?.email || ""}</Text>
+              {user?.is_admin ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 }}>
+                  <View style={{ backgroundColor: "#dc262622", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                    <Text style={{ color: "#dc2626", fontSize: 11, fontWeight: "700" }}>مدير النظام</Text>
+                  </View>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+              ) : null}
+            </View>
+          </View>
+        </Card>
+
+        {/* ── Company Management ── */}
+        {isMember && company ? (
+          <>
+            <SectionTitle title="إدارة الشركة" icon="business-outline" />
+            <Card>
+              {/* Company name + plan badge */}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderBottomWidth: 1, borderBottomColor: c.border }}>
+                <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: c.accentCyan + "22", alignItems: "center", justifyContent: "center" }}>
+                  <Ionicons name="business" size={17} color={c.accentCyan} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.textPrimary, fontSize: 15, fontWeight: "800" }}>{company.name}</Text>
+                  <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 1 }}>كود الدعوة: {company.i_code}</Text>
+                </View>
+                {planCfg ? (
+                  <View style={{ backgroundColor: planCfg.color + "22", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: planCfg.color + "44" }}>
+                    <Text style={{ color: planCfg.color, fontSize: 11, fontWeight: "700" }}>{planCfg.label}</Text>
+                  </View>
+                ) : null}
               </View>
-            </TouchableOpacity>
+
+              {/* Usage stats row */}
+              {(memberCount !== null || projectCount !== null || taskCount !== null) ? (
+                <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: c.border }}>
+                  {[
+                    { label: "أعضاء", value: memberCount, icon: "people-outline" as const, color: "#f59e0b" },
+                    { label: "مشاريع", value: projectCount, icon: "folder-open-outline" as const, color: c.accentBlue },
+                    { label: "مهام", value: taskCount, icon: "checkbox-outline" as const, color: c.accentCyan },
+                  ].map((stat) => (
+                    <View key={stat.label} style={{ flex: 1, alignItems: "center", paddingVertical: 12, gap: 4 }}>
+                      <Ionicons name={stat.icon} size={16} color={stat.color} />
+                      <Text style={{ color: c.textPrimary, fontSize: 18, fontWeight: "800" }}>{stat.value ?? "—"}</Text>
+                      <Text style={{ color: c.textMuted, fontSize: 11 }}>{stat.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              {/* Management nav rows */}
+              <NavRow
+                icon="people-outline"
+                iconColor="#f59e0b"
+                label="أعضاء الفريق"
+                subtitle="إدارة الأعضاء والصلاحيات"
+                onPress={() => navigation.navigate("Team" as never)}
+              />
+              <View style={{ height: 1, backgroundColor: c.border, marginHorizontal: 14 }} />
+              <NavRow
+                icon="star-outline"
+                iconColor="#7c3aed"
+                label="خطط الاشتراك"
+                subtitle={planCfg ? `خطتك الحالية: ${planCfg.label}` : "عرض وترقية خطتك"}
+                onPress={() => navigation.navigate("SubscriptionPlans" as never)}
+                badge={planCfg?.label}
+              />
+              <View style={{ height: 1, backgroundColor: c.border, marginHorizontal: 14 }} />
+              <NavRow
+                icon="copy-outline"
+                iconColor="#059669"
+                label="نسخ كود الدعوة"
+                subtitle={company.i_code}
+                onPress={() => {
+                  Clipboard.setString(company.i_code);
+                  Alert.alert("تم النسخ", `كود الدعوة: ${company.i_code}`);
+                }}
+              />
+
+              {canUseCompanyMode ? (
+                <>
+                  <View style={{ height: 1, backgroundColor: c.border, marginHorizontal: 14 }} />
+                  <Pressable
+                    onPress={() => {
+                      const target = homeMode === "public" ? "company" : "public";
+                      setHomeMode(target);
+                    }}
+                    style={({ pressed }) => ({
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 12,
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      backgroundColor: pressed ? c.cardElevated : "transparent",
+                      borderRadius: 12,
+                    })}
+                  >
+                    <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: c.accentCyan + "22", alignItems: "center", justifyContent: "center" }}>
+                      <Ionicons name="swap-horizontal-outline" size={17} color={c.accentCyan} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: c.textPrimary, fontSize: 14, fontWeight: "700" }}>
+                        {homeMode === "public" ? "التبديل لوضع الشركة" : "التبديل للوضع العام"}
+                      </Text>
+                      <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 2 }}>
+                        الوضع الحالي: {homeMode === "public" ? "عام" : "شركة"}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={15} color={c.textMuted} />
+                  </Pressable>
+                </>
+              ) : null}
+            </Card>
           </>
         ) : null}
 
-        <Text style={[styles.section, { marginTop: 20 }]}>Preferences</Text>
-        <Text style={styles.sectionHint}>{t("settings.languageSubtitle")}</Text>
-        <Text style={styles.restartHint}>{t("settings.restartHint")}</Text>
+        {/* ── Appearance ── */}
+        <SectionTitle title="المظهر" icon="color-palette-outline" />
+        <Card>
+          <View style={{ flexDirection: "row", gap: 10, padding: 14 }}>
+            {(["light", "dark"] as const).map((m) => (
+              <Pressable
+                key={m}
+                onPress={() => setMode(m)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: mode === m ? c.accentBlue : c.border,
+                  backgroundColor: mode === m ? c.cardStrong : c.bgSurface,
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Ionicons
+                  name={m === "light" ? "sunny-outline" : "moon-outline"}
+                  size={18}
+                  color={mode === m ? c.accentBlue : c.textMuted}
+                />
+                <Text style={{ color: mode === m ? c.textPrimary : c.textMuted, fontSize: 13, fontWeight: "700" }}>
+                  {m === "light" ? t("settings.themeLight") : t("settings.themeDark")}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </Card>
 
-        {SUPPORTED_LANGUAGES.map((lng) => {
-          const active = i18n.language === lng || i18n.language.startsWith(`${lng}-`);
-          return (
-            <TouchableOpacity
-              key={lng}
-              style={[styles.langRow, active && styles.langRowActive]}
-              onPress={() => selectLang(lng)}
-              activeOpacity={0.88}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.langTitle}>{t(LANG_META[lng].labelKey)}</Text>
-                <Text style={styles.langNative}>{LANG_META[lng].native}</Text>
-              </View>
-              {active ? <Ionicons name="checkmark-circle" size={22} color={colors.accentCyan} /> : null}
-            </TouchableOpacity>
-          );
-        })}
+        {/* ── Language ── */}
+        <SectionTitle title="اللغة" icon="language-outline" />
+        <Card>
+          {SUPPORTED_LANGUAGES.map((lng, i) => {
+            const active = i18n.language === lng || i18n.language.startsWith(`${lng}-`);
+            return (
+              <React.Fragment key={lng}>
+                {i > 0 ? <View style={{ height: 1, backgroundColor: c.border, marginHorizontal: 14 }} /> : null}
+                <Pressable
+                  onPress={() => selectLang(lng)}
+                  style={({ pressed }) => ({
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
+                    backgroundColor: pressed ? c.cardElevated : "transparent",
+                  })}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.textPrimary, fontSize: 14, fontWeight: active ? "800" : "600" }}>
+                      {t(LANG_META[lng].labelKey)}
+                    </Text>
+                    <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 2 }}>{LANG_META[lng].native}</Text>
+                  </View>
+                  {active ? <Ionicons name="checkmark-circle" size={20} color={c.accentCyan} /> : null}
+                </Pressable>
+              </React.Fragment>
+            );
+          })}
+        </Card>
 
-        <Text style={[styles.section, { marginTop: 24 }]}>{t("drawer.workspace")}</Text>
-        <View style={styles.block}>
-          <Row
-            icon="business-outline"
-            title={company?.name || t("services.noCompany")}
-            subtitle={
-              isMember && isActive
-                ? `${t("drawer.workspace")} · ${company?.i_code || ""}`
-                : t("services.noCompany")
-            }
-          />
-          {canUseCompanyMode ? (
-            <TouchableOpacity
-              style={styles.modeButton}
-              onPress={() => {
-                const target = homeMode === "public" ? "company" : "public";
-                setHomeMode(target);
-              }}
-            >
-              <Text style={styles.modeButtonText}>
-                {homeMode === "public" ? t("drawer.workspace") : t("drawer.media")}
+        {/* ── Admin Console ── */}
+        {user?.is_admin ? (
+          <>
+            <SectionTitle title="الإدارة" icon="shield-checkmark-outline" />
+            <Card>
+              <NavRow
+                icon="shield-checkmark-outline"
+                iconColor="#dc2626"
+                label={t("settings.adminConsole")}
+                subtitle={t("settings.adminSubtitle")}
+                onPress={() => navigation.navigate("AdminHub" as never)}
+              />
+            </Card>
+          </>
+        ) : null}
+
+        {/* ── Account ── */}
+        <SectionTitle title="الحساب" icon="person-outline" />
+        <Card>
+          <Pressable
+            onPress={() => navigation.navigate("PhoneVerify" as never)}
+            style={({ pressed }) => ({
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              padding: 14,
+              backgroundColor: pressed ? c.cardElevated : "transparent",
+              borderRadius: 12,
+            })}
+          >
+            <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: "#059669" + "22", alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="call-outline" size={17} color="#059669" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: c.textPrimary, fontSize: 14, fontWeight: "700" }}>{t("phone.title")}</Text>
+              <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 2 }}>
+                {user?.phone ? t("phone.alreadyVerified") : t("phone.subtitle")}
               </Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.modeButton}
-              onPress={() => navigation.navigate("SubscriptionPlans" as never)}
-            >
-              <Text style={styles.modeButtonText}>{t("common.soon")}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+            </View>
+            <Ionicons name="chevron-forward" size={15} color={c.textMuted} />
+          </Pressable>
 
-        <Text style={[styles.section, { marginTop: 24 }]}>{t("phone.title")}</Text>
-        <View style={styles.block}>
-          <TouchableOpacity onPress={() => navigation.navigate("PhoneVerify" as never)} activeOpacity={0.88}>
-            <Row
-              icon="call-outline"
-              title={t("phone.title")}
-              subtitle={user?.phone ? t("phone.alreadyVerified") : t("phone.subtitle")}
-            />
-          </TouchableOpacity>
-        </View>
+          <View style={{ height: 1, backgroundColor: c.border, marginHorizontal: 14 }} />
 
-        <Text style={[styles.section, { marginTop: 24 }]}>{t("profile.title")}</Text>
-        <View style={styles.block}>
-          <Row icon="information-circle-outline" title={`Version ${appVersion}`} subtitle={`Build ${String(build)} · ${Platform.OS}`} />
-          <TouchableOpacity style={styles.logoutBtn} onPress={confirmSignOut}>
-            <Ionicons name="log-out-outline" size={16} color={colors.accentRose} />
-            <Text style={styles.logoutText}>{t("drawer.signOut")}</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 14 }}>
+            <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: c.border, alignItems: "center", justifyContent: "center" }}>
+              <Ionicons name="information-circle-outline" size={17} color={c.textMuted} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: c.textPrimary, fontSize: 14, fontWeight: "700" }}>الإصدار {appVersion}</Text>
+              <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 2 }}>
+                Build {String(build)} · {Platform.OS}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ height: 1, backgroundColor: c.border, marginHorizontal: 14 }} />
+
+          <Pressable
+            onPress={confirmSignOut}
+            style={({ pressed }) => ({
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              padding: 14,
+              backgroundColor: pressed ? "rgba(255,92,124,0.08)" : "transparent",
+              borderRadius: 12,
+            })}
+          >
+            <Ionicons name="log-out-outline" size={17} color={c.accentRose} />
+            <Text style={{ color: c.accentRose, fontSize: 14, fontWeight: "700" }}>{t("drawer.signOut")}</Text>
+          </Pressable>
+        </Card>
+
       </ScrollView>
-    </View>
-  );
-}
-
-function Row({ icon, title, subtitle }: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string }) {
-  const { colors } = useAppTheme();
-  const rowStyles = useMemo(
-    () =>
-      StyleSheet.create({
-        row: { flexDirection: "row", alignItems: "center", gap: 10 },
-        iconWrap: {
-          width: 30,
-          height: 30,
-          borderRadius: 10,
-          borderWidth: 1,
-          borderColor: colors.floatingBarBorder,
-          backgroundColor: colors.cardStrong,
-          alignItems: "center",
-          justifyContent: "center",
-        },
-        title: { color: colors.textPrimary, fontSize: 14, fontWeight: "700" },
-        subtitle: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-      }),
-    [colors]
-  );
-
-  return (
-    <View style={rowStyles.row}>
-      <View style={rowStyles.iconWrap}>
-        <Ionicons name={icon} size={16} color={colors.accentCyan} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={rowStyles.title}>{title}</Text>
-        <Text style={rowStyles.subtitle}>{subtitle}</Text>
-      </View>
     </View>
   );
 }

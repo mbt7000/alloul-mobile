@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import type { ApiPost } from "../../../api";
 import AppText from "../../../shared/ui/AppText";
 import { useAppTheme } from "../../../theme/ThemeContext";
@@ -24,10 +25,13 @@ function formatCount(value: number): string {
 type Props = {
   post: ApiPost;
   onLike: (id: number) => void;
+  onRepost?: (id: number) => void;
+  onSave?: (id: number) => void;
 };
 
-export default function MediaPostRow({ post, onLike }: Props) {
+export default function MediaPostRow({ post, onLike, onRepost, onSave }: Props) {
   const { colors } = useAppTheme();
+  const navigation = useNavigation<any>();
   const initials = (post.author_name || "U").slice(0, 2).toUpperCase();
   const hasVisual = Boolean(post.image_url);
 
@@ -125,19 +129,21 @@ export default function MediaPostRow({ post, onLike }: Props) {
   );
 
   return (
-    <View style={styles.row}>
+    <Pressable onPress={() => navigation.navigate("PostDetail", { post, postId: post.id })} style={styles.row}>
       <View style={styles.header}>
-        {post.author_avatar ? (
-          <Image source={{ uri: post.author_avatar }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarFallback}>
-            <AppText variant="bodySm" weight="bold" style={styles.avatarText}>
-              {initials}
-            </AppText>
-          </View>
-        )}
+        <Pressable onPress={(e) => { e.stopPropagation?.(); navigation.navigate("UserProfile", { userId: post.user_id }); }}>
+          {post.author_avatar ? (
+            <Image source={{ uri: post.author_avatar }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarFallback}>
+              <AppText variant="bodySm" weight="bold" style={styles.avatarText}>
+                {initials}
+              </AppText>
+            </View>
+          )}
+        </Pressable>
 
-        <View style={styles.meta}>
+        <Pressable style={styles.meta} onPress={(e) => { e.stopPropagation?.(); navigation.navigate("UserProfile", { userId: post.user_id }); }}>
           <View style={styles.nameRow}>
             <AppText variant="bodySm" weight="bold" numberOfLines={1} style={styles.authorName}>
               {post.author_name || "User"}
@@ -150,7 +156,7 @@ export default function MediaPostRow({ post, onLike }: Props) {
           <AppText variant="caption" tone="muted" numberOfLines={1}>
             @{post.author_username || "alloul"}
           </AppText>
-        </View>
+        </Pressable>
 
         {hasVisual ? (
           <View style={styles.visualBadge}>
@@ -169,14 +175,14 @@ export default function MediaPostRow({ post, onLike }: Props) {
       {post.image_url ? <Image source={{ uri: post.image_url }} style={styles.postImage} resizeMode="cover" /> : null}
 
       <View style={styles.actions}>
-        <Pressable style={styles.actionBtn} onPress={() => {}}>
+        <Pressable style={styles.actionBtn} onPress={(e) => { e.stopPropagation?.(); navigation.navigate("PostDetail", { post, postId: post.id }); }}>
           <Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />
           <AppText variant="caption" tone="muted" weight="bold">
             {formatCount(post.comments_count)}
           </AppText>
         </Pressable>
 
-        <Pressable style={styles.actionBtn} onPress={() => {}}>
+        <Pressable style={styles.actionBtn} onPress={(e) => { e.stopPropagation?.(); onRepost?.(post.id); }}>
           <Ionicons
             name="repeat-outline"
             size={18}
@@ -192,7 +198,7 @@ export default function MediaPostRow({ post, onLike }: Props) {
           </AppText>
         </Pressable>
 
-        <Pressable style={styles.actionBtn} onPress={() => onLike(post.id)}>
+        <Pressable style={styles.actionBtn} onPress={(e) => { e.stopPropagation?.(); onLike(post.id); }}>
           <Ionicons
             name={post.liked_by_me ? "heart" : "heart-outline"}
             size={18}
@@ -208,7 +214,7 @@ export default function MediaPostRow({ post, onLike }: Props) {
           </AppText>
         </Pressable>
 
-        <Pressable style={styles.actionBtn}>
+        <Pressable style={styles.actionBtn} onPress={(e) => { e.stopPropagation?.(); onSave?.(post.id); }}>
           <Ionicons
             name={post.saved_by_me ? "bookmark" : "bookmark-outline"}
             size={18}
@@ -216,6 +222,6 @@ export default function MediaPostRow({ post, onLike }: Props) {
           />
         </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 }

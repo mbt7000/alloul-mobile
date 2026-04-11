@@ -33,7 +33,34 @@ export const createPost = (
 
 export const likePost = (id: number) => apiFetch(`/posts/${id}/like`, { method: "POST" });
 export const unlikePost = (id: number) => apiFetch(`/posts/${id}/unlike`, { method: "POST" });
+export const repostPost = (id: number) => apiFetch(`/posts/${id}/repost`, { method: "POST" });
+export const unrepostPost = (id: number) => apiFetch(`/posts/${id}/unrepost`, { method: "DELETE" });
+export const savePost = (id: number) => apiFetch(`/posts/${id}/save`, { method: "POST" });
+export const unsavePost = (id: number) => apiFetch(`/posts/${id}/unsave`, { method: "DELETE" });
 export const deletePost = (id: number) => apiFetch(`/posts/${id}`, { method: "DELETE" });
+
+export interface ApiComment {
+  id: number;
+  post_id: number;
+  user_id: number;
+  content: string;
+  author_name?: string | null;
+  author_username?: string | null;
+  author_avatar?: string | null;
+  created_at?: string | null;
+}
+
+export const getPostComments = (postId: number, limit = 50, offset = 0) =>
+  apiFetch<ApiComment[]>(`/posts/${postId}/comments?limit=${limit}&offset=${offset}`);
+
+export const createComment = (postId: number, content: string) =>
+  apiFetch<ApiComment>(`/posts/${postId}/comments`, { method: "POST", body: JSON.stringify({ content }) });
+
+export const deleteComment = (postId: number, commentId: number) =>
+  apiFetch(`/posts/${postId}/comments/${commentId}`, { method: "DELETE" });
+
+export const getPost = (postId: number) =>
+  apiFetch<ApiPost>(`/posts/${postId}`);
 
 export const getSavedPosts = (limit = 30, offset = 0) =>
   apiFetch<ApiPost[]>(`/posts/saved?limit=${limit}&offset=${offset}`);

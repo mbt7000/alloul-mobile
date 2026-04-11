@@ -11,6 +11,7 @@ import TasksScreen from "../../features/companies/screens/TasksScreen";
 import MeetingsScreen from "../../features/meetings/screens/MeetingsScreen";
 import HandoverScreen from "../../features/handover/screens/HandoverScreen";
 import ChatScreen from "../../features/chat/screens/ChatScreen";
+import ChannelDetailScreen from "../../features/chat/screens/ChannelDetailScreen";
 import KnowledgeScreen from "../../shared/screens/KnowledgeScreen";
 import CRMScreen from "../../features/companies/screens/CRMScreen";
 import ReportsScreen from "../../shared/screens/ReportsScreen";
@@ -26,7 +27,11 @@ import RolesScreen from "../../features/companies/screens/RolesScreen";
 import InternalSearchScreen from "../../features/companies/screens/InternalSearchScreen";
 import CompanyOnboardingScreen from "../../features/companies/screens/CompanyOnboardingScreen";
 import { useCompany } from "../../state/company/CompanyContext";
-import { getOnboardingStatus } from "../../api";
+import { getOnboardingStatus, getSubscriptionStatus } from "../../api";
+import AiAssistantScreen from "../../features/companies/screens/AiAssistantScreen";
+import SubscriptionPlansScreen from "../../features/companies/screens/SubscriptionPlansScreen";
+import JobApplicationsScreen from "../../features/companies/screens/JobApplicationsScreen";
+import CallHistoryScreen from "../../screens/calls/CallHistoryScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -39,19 +44,31 @@ function CompanySelectorEntry({ navigation }: { navigation: any }) {
       navigation.replace("Companies");
       return;
     }
-    // Check onboarding status for new companies — show onboarding if not completed
-    getOnboardingStatus()
-      .then((ob) => {
+
+    // Check subscription before entering workspace
+    void (async () => {
+      try {
+        const sub = await getSubscriptionStatus();
+        const hasAccess = sub.status === "active" || sub.status === "trialing";
+
+        if (!hasAccess) {
+          // No active subscription — show upgrade screen
+          navigation.replace("SubscriptionGate");
+          return;
+        }
+
+        // Has subscription — check onboarding
+        const ob = await getOnboardingStatus().catch(() => null);
         if (ob && !ob.completed) {
           navigation.replace("CompanyOnboarding");
         } else {
           navigation.replace("CompanyWorkspace");
         }
-      })
-      .catch(() => {
-        // On error, go straight to workspace to not block the user
+      } catch {
+        // On any error, allow access (don't block on network failure)
         navigation.replace("CompanyWorkspace");
-      });
+      }
+    })();
   }, [company, loading, navigation]);
 
   return null;
@@ -67,11 +84,13 @@ export default function CompanyNavigator() {
       <Stack.Screen name="Inbox" component={ApprovalsScreen} />
       <Stack.Screen name="Profile" component={CompanyMoreScreen} />
       <Stack.Screen name="Teams" component={TeamScreen} />
+      <Stack.Screen name="Team" component={TeamScreen} />
       <Stack.Screen name="Projects" component={ProjectsScreen} />
       <Stack.Screen name="Tasks" component={TasksScreen} />
       <Stack.Screen name="Meetings" component={MeetingsScreen} />
       <Stack.Screen name="Handover" component={HandoverScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
+      <Stack.Screen name="ChannelDetail" component={ChannelDetailScreen} />
       <Stack.Screen name="Knowledge" component={KnowledgeScreen} />
       <Stack.Screen name="CRM" component={CRMScreen} />
       <Stack.Screen name="Reports" component={ReportsScreen} />
@@ -87,6 +106,11 @@ export default function CompanyNavigator() {
       <Stack.Screen name="HiringBoard" component={HiringBoardScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="CompanyOnboarding" component={CompanyOnboardingScreen} />
+      <Stack.Screen name="AiAssistant" component={AiAssistantScreen} />
+      <Stack.Screen name="SubscriptionGate" component={SubscriptionPlansScreen} />
+      <Stack.Screen name="SubscriptionPlans" component={SubscriptionPlansScreen} />
+      <Stack.Screen name="JobApplications" component={JobApplicationsScreen} />
+      <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
     </Stack.Navigator>
   );
 }
