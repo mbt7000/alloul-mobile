@@ -30,7 +30,7 @@ _DEFAULT_OPTIONS: dict = {
     "top_p": 1.0,
     "repeat_penalty": 1.1,
     "num_predict": 512,
-    "stop": ["\n\n\n", "```"],
+    "stop": ["\n\n\n"],
 }
 
 
