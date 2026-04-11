@@ -448,3 +448,48 @@ def list_saved_posts(
         _post_to_response(post_map[pid], current_user.id, db, liked=pid in liked_ids, reposted=pid in reposted_ids, saved=True)
         for pid in ids if pid in post_map
     ]
+
+
+# ─── Hashtags / Trending ──────────────────────────────────────────────────────
+
+import re as _re
+
+@router.get("/trending-hashtags")
+def trending_hashtags(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    limit: int = Query(10, le=30),
+):
+    """Extract trending hashtags from recent posts."""
+    recent = db.query(Post).order_by(Post.created_at.desc()).limit(500).all()
+    counts: dict[str, int] = {}
+    for p in recent:
+        tags = _re.findall(r"#(\w+)", p.content or "")
+        for tag in tags:
+            t = tag.lower()
+            counts[t] = counts.get(t, 0) + 1
+    sorted_tags = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+    return [{"hashtag": t, "count": c} for t, c in sorted_tags]
+
+
+@router.get("/by-hashtag/{tag}", response_model=list[PostResponse])
+def posts_by_hashtag(
+    tag: str,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    limit: int = Query(30, le=100),
+    offset: int = Query(0, ge=0),
+):
+    """Get posts containing a specific hashtag."""
+    posts = (
+        db.query(Post)
+        .options(joinedload(Post.author))
+        .filter(Post.content.ilike(f"%#{tag}%"))
+        .order_by(Post.created_at.desc())
+        .offset(offset).limit(limit).all()
+    )
+    post_ids = [p.id for p in posts]
+    liked_ids = {r[0] for r in db.query(PostLike.post_id).filter(PostLike.post_id.in_(post_ids), PostLike.user_id == current_user.id).all()} if post_ids else set()
+    reposted_ids = {r[0] for r in db.query(PostRepost.post_id).filter(PostRepost.post_id.in_(post_ids), PostRepost.user_id == current_user.id).all()} if post_ids else set()
+    saved_ids = {r[0] for r in db.query(PostSave.post_id).filter(PostSave.post_id.in_(post_ids), PostSave.user_id == current_user.id).all()} if post_ids else set()
+    return [_post_to_response(p, current_user.id, db, liked=p.id in liked_ids, reposted=p.id in reposted_ids, saved=p.id in saved_ids) for p in posts]

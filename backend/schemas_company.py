@@ -80,6 +80,8 @@ class CompanyMemberResponse(BaseModel):
     manager_id: Optional[int] = None
     job_title: Optional[str] = None
     phone: Optional[str] = None
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -103,3 +105,32 @@ class CompanyStatsResponse(BaseModel):
     plan_id: Optional[str] = None
     subscription_status: Optional[str] = None
     max_employees: Optional[int] = None  # from plan
+
+
+class MyRoleResponse(BaseModel):
+    role: Optional[str] = None        # owner, admin, manager, employee, or null
+    company_id: Optional[int] = None
+    member_id: Optional[int] = None
+
+
+class InviteLinkResponse(BaseModel):
+    invite_code: str
+    company_name: str
+    expires_in_hours: int = 48
+
+
+class OnboardingStatusResponse(BaseModel):
+    step_profile: bool
+    step_team: bool
+    step_invite: bool
+    step_project: bool
+    completed: bool
+
+
+class PendingInvitationResponse(BaseModel):
+    id: int
+    company_id: int
+    company_name: str
+    inviter_name: Optional[str] = None
+    role: str
+    created_at: Optional[str] = None

@@ -7,7 +7,9 @@ from pydantic import BaseModel
 
 from auth import get_current_user
 from database import get_db
-from models import User, DealRecord
+from models import User, DealRecord, CompanyMember
+from plan_limits import require_feature
+from admin_access import user_is_admin
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
@@ -69,6 +71,10 @@ def create_deal(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ):
+    mem = db.query(CompanyMember).filter(CompanyMember.user_id == current_user.id).first()
+    if mem:
+        require_feature(db, mem.company_id, "crm", is_admin=user_is_admin(current_user))
+
     d = DealRecord(
         user_id=current_user.id,
         company=body.company,
@@ -98,10 +104,19 @@ def get_deal(
     return _to_response(d)
 
 
+class DealUpdate(BaseModel):
+    company: Optional[str] = None
+    value: Optional[int] = None
+    stage: Optional[str] = None
+    probability: Optional[int] = None
+    contact: Optional[str] = None
+    notes: Optional[str] = None
+
+
 @router.patch("/{deal_id}", response_model=DealResponse)
 def update_deal(
     deal_id: int,
-    body: DealCreate,
+    body: DealUpdate,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ):

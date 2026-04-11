@@ -18,6 +18,7 @@ from routers import (
     posts, handover, memory, deals,
     dashboard, marketplace, search, agent, sendbird, stream_chat, daily_workspace, admin, ads,
     stories, follows, projects, notifications, communities, phone,
+    meetings, channels, messages, cv, job_postings, calls,
     ai_extract, ai_confirm,
 )
 
@@ -32,8 +33,15 @@ async def lifespan(app: FastAPI):
 def _generate_user_icode(db) -> str:
     from models import User
 
-    for _ in range(100):
-        code = str(random.randint(100000, 999999))
+    count = db.query(User).count()
+    if count < 100_000:
+        lo, hi = 10_000_000, 99_999_999
+    elif count < 1_000_000:
+        lo, hi = 1_000_000_000, 9_999_999_999
+    else:
+        lo, hi = 100_000_000_000, 999_999_999_999
+    for _ in range(200):
+        code = str(random.randint(lo, hi))
         if not db.query(User).filter(User.i_code == code).first():
             return code
     raise RuntimeError("Unable to generate unique i_code")
@@ -154,6 +162,12 @@ app.include_router(projects.router)
 app.include_router(notifications.router)
 app.include_router(communities.router)
 app.include_router(phone.router)
+app.include_router(meetings.router)
+app.include_router(channels.router)
+app.include_router(messages.router)
+app.include_router(cv.router)
+app.include_router(job_postings.router)
+app.include_router(calls.router)
 # AI structuring engine — parse (preview) + confirm (save)
 app.include_router(ai_extract.router)
 app.include_router(ai_confirm.router)

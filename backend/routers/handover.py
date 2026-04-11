@@ -153,6 +153,74 @@ def update_handover(
     return _to_response(h)
 
 
+@router.post("/{handover_id}/ai-analyze", status_code=status.HTTP_200_OK)
+def ai_analyze_handover(
+    handover_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Use AI to analyze a handover and generate structured insights + suggested content."""
+    h = db.query(HandoverRecord).filter(
+        HandoverRecord.id == handover_id, HandoverRecord.user_id == current_user.id
+    ).first()
+    if not h:
+        raise HTTPException(status_code=404, detail="Handover not found")
+
+    import os
+    try:
+        import anthropic as _anthropic
+    except ImportError:
+        return {"analysis": "مكتبة anthropic غير متاحة على الخادم.", "structured": {}}
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return {
+            "analysis": "⚠️ ANTHROPIC_API_KEY غير مُعدّ. بمجرد إعداده ستحصل على تحليل ذكي كامل.",
+            "structured": {},
+        }
+
+    client = _anthropic.Anthropic(api_key=api_key)
+    prompt = (
+        "أنت خبير في إدارة المعرفة المؤسسية. حلّل هذه التسليمة الوظيفية وأعد:\n"
+        "1. ملخصاً موجزاً (3 جمل)\n"
+        "2. نقاط القوة في التسليمة\n"
+        "3. الثغرات والمعلومات الناقصة\n"
+        "4. توصيات للمستلم (3-5 نقاط)\n"
+        "5. درجة الاكتمال من 100\n\n"
+        f"عنوان التسليمة: {h.title}\n"
+        f"من: {h.from_person or 'غير محدد'}\n"
+        f"إلى: {h.to_person or 'غير محدد'}\n"
+        f"القسم: {h.department or 'غير محدد'}\n"
+        f"المحتوى: {h.content or 'لا يوجد محتوى بعد'}\n"
+        f"المهام: {h.tasks or 0} (مكتمل: {h.completed_tasks or 0})\n\n"
+        "أجب بالعربية بتنسيق منظم."
+    )
+
+    try:
+        msg = client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        analysis = msg.content[0].text if msg.content else "لم يتم توليد تحليل."
+    except Exception as e:
+        analysis = f"خطأ في التحليل: {str(e)}"
+
+    # Auto-update score based on AI judgment
+    try:
+        if "درجة الاكتمال" in analysis:
+            import re
+            match = re.search(r"درجة الاكتمال[^\d]*(\d+)", analysis)
+            if match:
+                score = min(100, int(match.group(1)))
+                h.score = score
+                db.commit()
+    except Exception:
+        pass
+
+    return {"analysis": analysis, "handover_id": handover_id}
+
+
 @router.delete("/{handover_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_handover(
     handover_id: int,

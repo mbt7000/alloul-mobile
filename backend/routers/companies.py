@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from auth import get_current_user
 from admin_access import user_is_admin
 from database import get_db
-from models import User, Company, Subscription, Department, CompanyMember, ActivityLog, CompanyInvitation, Notification
+from models import User, Company, Subscription, Department, CompanyMember, ActivityLog, CompanyInvitation, Notification, CompanyOnboarding
 from schemas_company import (
     CompanyCreate,
     CompanyResponse,
@@ -25,6 +25,10 @@ from schemas_company import (
     CompanyMemberResponse,
     ActivityLogResponse,
     CompanyStatsResponse,
+    MyRoleResponse,
+    InviteLinkResponse,
+    OnboardingStatusResponse,
+    PendingInvitationResponse,
 )
 
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -38,7 +42,18 @@ def _member_phone_for_user(db: Session, user_id: int) -> Optional[str]:
     return p or None
 
 
-def _generate_icode(length: int = 6) -> str:
+def _member_info_for_user(db: Session, user_id: int) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Returns (name, email, phone) for a user."""
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        return None, None, None
+    name = u.name or u.username or None
+    email = u.email or None
+    phone = (u.phone.strip() if isinstance(u.phone, str) else None) or None
+    return name, email, phone
+
+
+def _generate_icode(length: int = 8) -> str:
     return "".join(random.choices(string.digits, k=length))
 
 
@@ -64,7 +79,7 @@ def _log_activity(db: Session, company_id: int, user_id: Optional[int], action: 
     db.commit()
 
 
-MAX_EMPLOYEES = {"starter": 10, "pro": 50, "pro_plus": 200}
+MAX_EMPLOYEES = {"starter": 5, "pro": 21, "pro_plus": 33}
 
 
 def _require_active_subscription(
@@ -137,10 +152,13 @@ def create_company(
     member = CompanyMember(
         company_id=company.id,
         user_id=current_user.id,
-        role="admin",
+        role="owner",
         i_code=mem_code,
     )
     db.add(member)
+    # Create onboarding tracker for the new company
+    onboarding = CompanyOnboarding(company_id=company.id)
+    db.add(onboarding)
     db.commit()
     _log_activity(db, company.id, current_user.id, "company_created", f"Company {company.name} created")
     return CompanyResponse(
@@ -202,6 +220,22 @@ def update_my_company(
 
 # ─── Subscription (Stripe) ───────────────────────────────────────────────────
 
+@router.get("/stripe-config")
+def get_stripe_config(
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Return public Stripe config for the frontend."""
+    from config import settings
+    return {
+        "publishable_key": settings.STRIPE_PUBLISHABLE_KEY or "",
+        "plans": {
+            "starter": {"price_id": settings.STRIPE_PRICE_STARTER, "amount": 2400, "employees": 5},
+            "pro":     {"price_id": settings.STRIPE_PRICE_PRO,     "amount": 5900, "employees": 21},
+            "pro_plus":{"price_id": settings.STRIPE_PRICE_PRO_PLUS,"amount": 28900,"employees": 33},
+        },
+    }
+
+
 def _get_stripe_price_id(plan_id: str):
     from config import settings
     m = {
@@ -248,8 +282,10 @@ def subscribe(
             sub = Subscription(company_id=company.id, plan_id=body.plan_id, stripe_customer_id=customer_id)
             db.add(sub)
             db.commit()
-    success_url = f"{settings.FRONTEND_URL}/dashboard?subscription=success"
-    cancel_url = f"{settings.FRONTEND_URL}/pricing"
+    # Deep-link URLs: alloul://subscription-success and alloul://subscription-cancel
+    # These open the mobile app directly after Stripe checkout
+    success_url = "https://alloul.app/subscription-success?plan=" + body.plan_id + "&session_id={CHECKOUT_SESSION_ID}"
+    cancel_url = "https://alloul.app/subscription-cancel"
     session = stripe.checkout.Session.create(
         mode="subscription",
         customer=customer_id,
@@ -401,14 +437,15 @@ def list_members(
     if not company:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No company found")
     members = db.query(CompanyMember).filter(CompanyMember.company_id == company.id).all()
-    return [
-        CompanyMemberResponse(
+    result = []
+    for m in members:
+        name, email, phone = _member_info_for_user(db, m.user_id)
+        result.append(CompanyMemberResponse(
             id=m.id, company_id=m.company_id, user_id=m.user_id, role=m.role,
             department_id=m.department_id, i_code=m.i_code, manager_id=m.manager_id, job_title=m.job_title,
-            phone=_member_phone_for_user(db, m.user_id),
-        )
-        for m in members
-    ]
+            phone=phone, user_name=name, user_email=email,
+        ))
+    return result
 
 
 @router.post("/members", response_model=CompanyMemberResponse)
@@ -452,10 +489,11 @@ def add_member(
     db.commit()
     db.refresh(new_mem)
     _log_activity(db, company.id, current_user.id, "member_added", f"user_id={body.user_id}")
+    _n, _e, _p = _member_info_for_user(db, new_mem.user_id)
     return CompanyMemberResponse(
         id=new_mem.id, company_id=new_mem.company_id, user_id=new_mem.user_id, role=new_mem.role,
         department_id=new_mem.department_id, i_code=new_mem.i_code, manager_id=new_mem.manager_id, job_title=new_mem.job_title,
-        phone=_member_phone_for_user(db, new_mem.user_id),
+        phone=_p, user_name=_n, user_email=_e,
     )
 
 
@@ -487,10 +525,11 @@ def update_member(
         target.manager_id = body.manager_id
     db.commit()
     db.refresh(target)
+    _n, _e, _p = _member_info_for_user(db, target.user_id)
     return CompanyMemberResponse(
         id=target.id, company_id=target.company_id, user_id=target.user_id, role=target.role,
         department_id=target.department_id, i_code=target.i_code, manager_id=target.manager_id, job_title=target.job_title,
-        phone=_member_phone_for_user(db, target.user_id),
+        phone=_p, user_name=_n, user_email=_e,
     )
 
 
@@ -552,7 +591,7 @@ def company_stats(
     sub = db.query(Subscription).filter(Subscription.company_id == company.id).order_by(Subscription.id.desc()).first()
     plan_id = sub.plan_id if sub else None
     status_val = sub.status if sub else None
-    max_employees = {"starter": 10, "pro": 50, "pro_plus": 200}.get(plan_id or "") if plan_id else None
+    max_employees = MAX_EMPLOYEES.get(plan_id or "") if plan_id else None
     return CompanyStatsResponse(
         total_members=total_members,
         total_departments=total_departments,
@@ -697,3 +736,231 @@ def reject_invitation(
     db.delete(invitation)
     db.commit()
     return {"message": "Invitation rejected"}
+
+
+# ─── RBAC Helper ────────────────────────────────────────────────────────────
+
+# Valid roles ordered by permission level (highest to lowest)
+ROLE_HIERARCHY = ["owner", "admin", "manager", "employee", "member"]
+
+
+def _require_role(db: Session, user_id: int, company_id: int, min_role: str) -> CompanyMember:
+    """Raise 403 if user's role is below min_role in the hierarchy."""
+    mem = _get_my_membership(db, user_id, company_id)
+    if not mem:
+        raise HTTPException(status_code=403, detail="You are not a member of this company")
+    allowed = ROLE_HIERARCHY[: ROLE_HIERARCHY.index(min_role) + 1]
+    if mem.role not in allowed:
+        raise HTTPException(status_code=403, detail=f"Requires {min_role} role or higher")
+    return mem
+
+
+# ─── My Role ────────────────────────────────────────────────────────────────
+
+@router.get("/my-role", response_model=MyRoleResponse)
+def get_my_role(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Returns the current user's role and membership info in their company."""
+    company = _get_my_company(db, current_user.id)
+    if not company:
+        return MyRoleResponse(role=None, company_id=None, member_id=None)
+    mem = _get_my_membership(db, current_user.id, company.id)
+    if not mem:
+        return MyRoleResponse(role=None, company_id=company.id, member_id=None)
+    return MyRoleResponse(role=mem.role, company_id=company.id, member_id=mem.id)
+
+
+# ─── Pending Invitations (received) ─────────────────────────────────────────
+
+@router.get("/invitations", response_model=list[PendingInvitationResponse])
+def list_my_invitations(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """List all pending company invitations for the current user."""
+    invitations = (
+        db.query(CompanyInvitation)
+        .filter(CompanyInvitation.invitee_id == current_user.id, CompanyInvitation.status == "pending")
+        .order_by(CompanyInvitation.created_at.desc())
+        .all()
+    )
+    result = []
+    for inv in invitations:
+        company = db.query(Company).filter(Company.id == inv.company_id).first()
+        inviter = db.query(User).filter(User.id == inv.inviter_id).first()
+        result.append(PendingInvitationResponse(
+            id=inv.id,
+            company_id=inv.company_id,
+            company_name=company.name if company else "Unknown",
+            inviter_name=inviter.name or inviter.username if inviter else None,
+            role=inv.role,
+            created_at=inv.created_at.isoformat() if inv.created_at else None,
+        ))
+    return result
+
+
+# ─── Invite Link (shareable code) ─────────────────────────────────────────
+
+import hashlib
+import time as _time
+
+
+def _make_invite_code(company_id: int, secret: str = "alloul_invite") -> str:
+    """Generate a deterministic 8-char invite code for the company."""
+    raw = f"{company_id}:{secret}:{company_id * 31}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:8].upper()
+
+
+@router.get("/invite-link", response_model=InviteLinkResponse)
+def get_invite_link(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Get a shareable invite code for the company. Admin/Owner only."""
+    company = _get_my_company(db, current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="No company found")
+    mem = _get_my_membership(db, current_user.id, company.id)
+    if not mem or mem.role not in ("owner", "admin"):
+        raise HTTPException(status_code=403, detail="Owner or Admin required")
+    invite_code = _make_invite_code(company.id)
+    return InviteLinkResponse(
+        invite_code=invite_code,
+        company_name=company.name,
+        expires_in_hours=48,
+    )
+
+
+class _JoinRequest(BaseModel):
+    invite_code: str
+
+
+@router.post("/join")
+def join_by_invite_code(
+    body: _JoinRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Join a company by invite code (from invite link)."""
+    invite_code = body.invite_code
+    if not invite_code:
+        raise HTTPException(status_code=400, detail="invite_code is required")
+
+    # Find matching company
+    all_companies = db.query(Company).all()
+    target_company: Optional[Company] = None
+    for c in all_companies:
+        if _make_invite_code(c.id) == invite_code.strip().upper():
+            target_company = c
+            break
+
+    if not target_company:
+        raise HTTPException(status_code=404, detail="Invalid or expired invite code")
+
+    # Check not already a member
+    if _get_my_membership(db, current_user.id, target_company.id):
+        raise HTTPException(status_code=400, detail="You are already a member of this company")
+
+    # Check subscription limit
+    sub = _require_active_subscription(db, target_company.id, current_user=current_user)
+    current_count = db.query(CompanyMember).filter(CompanyMember.company_id == target_company.id).count()
+    limit = MAX_EMPLOYEES.get(sub.plan_id, 0)
+    if limit and current_count >= limit:
+        raise HTTPException(status_code=403, detail="Company has reached its member limit")
+
+    # Add as employee
+    for _ in range(50):
+        mem_code = _generate_icode()
+        if not db.query(CompanyMember).filter(
+            CompanyMember.company_id == target_company.id, CompanyMember.i_code == mem_code
+        ).first():
+            break
+    else:
+        mem_code = _generate_icode()
+
+    new_member = CompanyMember(
+        company_id=target_company.id,
+        user_id=current_user.id,
+        role="employee",
+        i_code=mem_code,
+    )
+    db.add(new_member)
+    db.commit()
+    _log_activity(db, target_company.id, current_user.id, "member_joined_via_link",
+                  f"{current_user.name or current_user.username} joined via invite link")
+
+    # Auto-complete the invite onboarding step
+    _tick_onboarding(db, target_company.id, "step_invite")
+
+    return {"message": f"You have joined {target_company.name}", "company_id": target_company.id}
+
+
+# ─── Onboarding ─────────────────────────────────────────────────────────────
+
+class JoinByCodeRequest(BaseModel):
+    invite_code: str
+
+
+def _tick_onboarding(db: Session, company_id: int, step: str) -> None:
+    """Mark an onboarding step as done and check if all complete."""
+    ob = db.query(CompanyOnboarding).filter(CompanyOnboarding.company_id == company_id).first()
+    if not ob:
+        ob = CompanyOnboarding(company_id=company_id)
+        db.add(ob)
+    setattr(ob, step, 1)
+    # Auto-complete when all 4 steps done
+    if ob.step_profile and ob.step_team and ob.step_invite and ob.step_project:
+        ob.completed = 1
+    db.commit()
+
+
+@router.get("/onboarding", response_model=OnboardingStatusResponse)
+def get_onboarding_status(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Returns onboarding completion status for the current user's company."""
+    company = _get_my_company(db, current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="No company found")
+    ob = db.query(CompanyOnboarding).filter(CompanyOnboarding.company_id == company.id).first()
+    if not ob:
+        # Create on-demand for existing companies (migration-safe)
+        ob = CompanyOnboarding(company_id=company.id)
+        db.add(ob)
+        db.commit()
+        db.refresh(ob)
+    return OnboardingStatusResponse(
+        step_profile=bool(ob.step_profile),
+        step_team=bool(ob.step_team),
+        step_invite=bool(ob.step_invite),
+        step_project=bool(ob.step_project),
+        completed=bool(ob.completed),
+    )
+
+
+class CompleteStepRequest(BaseModel):
+    step: str  # profile, team, invite, project
+
+
+@router.post("/onboarding/complete-step")
+def complete_onboarding_step(
+    body: CompleteStepRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Mark an onboarding step as completed."""
+    company = _get_my_company(db, current_user.id)
+    if not company:
+        raise HTTPException(status_code=404, detail="No company found")
+    valid_steps = {"profile": "step_profile", "team": "step_team", "invite": "step_invite", "project": "step_project"}
+    field = valid_steps.get(body.step)
+    if not field:
+        raise HTTPException(status_code=400, detail=f"Invalid step. Valid: {list(valid_steps.keys())}")
+    _tick_onboarding(db, company.id, field)
+    return {"message": f"Step '{body.step}' marked complete"}
+
+
+# ─── Hiring Board (keep existing) ────────────────────────────────────────────

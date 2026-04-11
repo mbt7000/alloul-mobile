@@ -139,6 +139,70 @@ def _log_daily(db: Session, company_id: int, user_id: int, room_name: str) -> No
     db.commit()
 
 
+async def create_1on1_room(user1_id: int, user2_id: int) -> dict:
+    """Create or reuse a private 1-on-1 Daily.co room between two users."""
+    from urllib.parse import quote
+
+    room_name = f"call-{min(user1_id, user2_id)}-{max(user1_id, user2_id)}"
+    subdomain = _daily_subdomain()
+
+    code, _ = _daily_request("GET", f"/rooms/{room_name}")
+    if code != 200:
+        create_body = {
+            "name": room_name,
+            "privacy": "private",
+            "properties": {
+                "enable_chat": False,
+                "enable_screenshare": True,
+                "start_video_off": False,
+                "start_audio_off": False,
+                "max_participants": 2,
+                "exp": int(__import__("time").time()) + 3600,
+            },
+        }
+        c2, _ = _daily_request("POST", "/rooms", create_body)
+        if c2 not in (200, 201):
+            raise HTTPException(status_code=502, detail="Failed to create Daily room")
+
+    token = _create_meeting_token(room_name=room_name, user_name=str(user1_id))
+    join_url = f"https://{subdomain}.daily.co/{room_name}?t={quote(token, safe='')}"
+    return {"join_url": join_url, "room_name": room_name}
+
+
+@router.post("/create-room-1on1", response_model=DailyJoinResponse)
+async def api_create_1on1_room(
+    receiver_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Create a 1-on-1 call room and return join URL (token for current_user)."""
+    from urllib.parse import quote
+
+    room_name = f"call-{min(current_user.id, receiver_id)}-{max(current_user.id, receiver_id)}"
+    subdomain = _daily_subdomain()
+
+    code, _ = _daily_request("GET", f"/rooms/{room_name}")
+    if code != 200:
+        create_body = {
+            "name": room_name,
+            "privacy": "private",
+            "properties": {
+                "enable_chat": False,
+                "enable_screenshare": True,
+                "max_participants": 2,
+                "exp": int(__import__("time").time()) + 3600,
+            },
+        }
+        c2, _ = _daily_request("POST", "/rooms", create_body)
+        if c2 not in (200, 201):
+            raise HTTPException(status_code=502, detail="Failed to create Daily room")
+
+    display = (current_user.name or current_user.username or "user")[:64]
+    token = _create_meeting_token(room_name=room_name, user_name=display)
+    join_url = f"https://{subdomain}.daily.co/{room_name}?t={quote(token, safe='')}"
+    return DailyJoinResponse(join_url=join_url, room_name=room_name)
+
+
 @router.get("/company-join", response_model=DailyJoinResponse)
 def get_company_daily_join(
     current_user: Annotated[User, Depends(get_current_user)],

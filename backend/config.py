@@ -52,11 +52,12 @@ class Settings(BaseSettings):
 
     # Stripe (subscriptions)
     STRIPE_SECRET_KEY: Optional[str] = None
+    STRIPE_PUBLISHABLE_KEY: Optional[str] = None
     STRIPE_WEBHOOK_SECRET: Optional[str] = None
-    STRIPE_PRICE_STARTER: Optional[str] = None
-    STRIPE_PRICE_PRO: Optional[str] = None
-    STRIPE_PRICE_PRO_PLUS: Optional[str] = None
-    FRONTEND_URL: str = "http://localhost:3000"
+    STRIPE_PRICE_STARTER: Optional[str] = "price_1TCmhyGPIIEnFHbUxri6Zbcw"
+    STRIPE_PRICE_PRO: Optional[str] = "price_1TCmiqGPIIEnFHbUahgCLsew"
+    STRIPE_PRICE_PRO_PLUS: Optional[str] = "price_1TCmjpGPIIEnFHbUSeG8GkZK"
+    FRONTEND_URL: str = "https://alloul.app"
 
     # Azure AD / Microsoft SSO (optional – for POST /auth/azure-ad)
     MICROSOFT_CLIENT_ID: Optional[str] = None
@@ -66,24 +67,13 @@ class Settings(BaseSettings):
     AZURE_STORAGE_CONNECTION_STRING: Optional[str] = None
     AZURE_STORAGE_CONTAINER: str = "uploads"
 
-    # AI (Anthropic Claude — used for agent chat)
+    # AI (Anthropic Claude)
     ANTHROPIC_API_KEY: Optional[str] = None
-
-    # AI Structuring Engine (Ollama — local, privacy-first)
-    # Ollama runs on the same machine, bound to 127.0.0.1:11434 only
-    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
-    OLLAMA_MODEL: str = "llama3.2:3b"
-    OLLAMA_TIMEOUT: int = 60
 
     # Daily.co — غرف فيديو + شات داخل الجلسة (قسم الشركات)
     DAILY_API_KEY: Optional[str] = None
     # النطاق الفرعي فقط، مثال: alloul → https://alloul.daily.co
     DAILY_SUBDOMAIN: Optional[str] = None
-
-    # Twilio (optional – for phone OTP verification)
-    TWILIO_ACCOUNT_SID: Optional[str] = None
-    TWILIO_AUTH_TOKEN: Optional[str] = None
-    TWILIO_VERIFY_SERVICE_SID: Optional[str] = None
 
     @computed_field
     @property

@@ -46,6 +46,7 @@ def get_user_profile(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    is_self = user.id == current_user.id
     is_following = db.query(Follow).filter(
         Follow.follower_id == current_user.id,
         Follow.following_id == user_id,
@@ -57,12 +58,12 @@ def get_user_profile(
         avatar_url=user.avatar_url,
         cover_url=user.cover_url,
         bio=user.bio,
-        i_code=user.i_code,
+        i_code=user.i_code if is_self else None,  # only visible to owner
         followers_count=user.followers_count or 0,
         following_count=user.following_count or 0,
         posts_count=user.posts_count or 0,
         is_following=is_following,
-        is_self=(user.id == current_user.id),
+        is_self=is_self,
         created_at=user.created_at.isoformat() if user.created_at else None,
     )
 
@@ -134,7 +135,7 @@ def list_followers(
         ).first() is not None
         result.append(UserMini(
             id=u.id, username=u.username, name=u.name,
-            avatar_url=u.avatar_url, i_code=u.i_code,
+            avatar_url=u.avatar_url, i_code=None,  # i_code never exposed in public lists
             is_following=i_am_following,
         ))
     return result
@@ -156,7 +157,65 @@ def list_following(
         ).first() is not None
         result.append(UserMini(
             id=u.id, username=u.username, name=u.name,
-            avatar_url=u.avatar_url, i_code=u.i_code,
+            avatar_url=u.avatar_url, i_code=None,  # i_code never exposed in public lists
             is_following=i_am_following,
         ))
     return result
+
+
+# ─── Block ───────────────────────────────────────────────────────────────────
+
+@router.post("/{user_id}/block", status_code=status.HTTP_204_NO_CONTENT)
+def block_user(
+    user_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    from models import UserBlock
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot block yourself")
+    existing = db.query(UserBlock).filter(
+        UserBlock.blocker_id == current_user.id, UserBlock.blocked_id == user_id
+    ).first()
+    if not existing:
+        db.add(UserBlock(blocker_id=current_user.id, blocked_id=user_id))
+        # Also unfollow both directions
+        for f in db.query(Follow).filter(
+            ((Follow.follower_id == current_user.id) & (Follow.following_id == user_id)) |
+            ((Follow.follower_id == user_id) & (Follow.following_id == current_user.id))
+        ).all():
+            db.delete(f)
+        db.commit()
+
+
+@router.delete("/{user_id}/block", status_code=status.HTTP_204_NO_CONTENT)
+def unblock_user(
+    user_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    from models import UserBlock
+    b = db.query(UserBlock).filter(
+        UserBlock.blocker_id == current_user.id, UserBlock.blocked_id == user_id
+    ).first()
+    if b:
+        db.delete(b)
+        db.commit()
+
+
+@router.get("/{user_id}/is-blocked")
+def is_blocked(
+    user_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    from models import UserBlock
+    blocked = db.query(UserBlock).filter(
+        ((UserBlock.blocker_id == current_user.id) & (UserBlock.blocked_id == user_id)) |
+        ((UserBlock.blocker_id == user_id) & (UserBlock.blocked_id == current_user.id))
+    ).first()
+    return {"blocked": blocked is not None, "i_blocked": (
+        db.query(UserBlock).filter(
+            UserBlock.blocker_id == current_user.id, UserBlock.blocked_id == user_id
+        ).first() is not None
+    )}

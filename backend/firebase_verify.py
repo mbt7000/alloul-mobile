@@ -4,12 +4,9 @@ Optional: if GOOGLE_APPLICATION_CREDENTIALS is not set, returns None and endpoin
 """
 from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
-
-logger = logging.getLogger(__name__)
 
 _firebase_app = None
 
@@ -54,8 +51,7 @@ def _init_firebase() -> bool:
         from firebase_admin import credentials
         _firebase_app = fa.initialize_app(credentials.Certificate(cred_path))
         return True
-    except Exception as e:
-        logger.error("Firebase initialization failed: %s", e, exc_info=True)
+    except Exception:
         return False
 
 
@@ -65,6 +61,5 @@ def verify_firebase_token(id_token: str) -> Optional[Dict[str, Any]]:
     try:
         from firebase_admin import auth
         return auth.verify_id_token(id_token)
-    except Exception as e:
-        logger.error("Firebase token verification failed: %s", e, exc_info=True)
+    except Exception:
         return None

@@ -30,8 +30,15 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _generate_user_icode(db: Session) -> str:
-    for _ in range(100):
-        code = str(random.randint(100000, 999999))
+    count = db.query(User).count()
+    if count < 100_000:
+        lo, hi = 10_000_000, 99_999_999  # 8 digits
+    elif count < 1_000_000:
+        lo, hi = 1_000_000_000, 9_999_999_999  # 10 digits
+    else:
+        lo, hi = 100_000_000_000, 999_999_999_999  # 12 digits
+    for _ in range(200):
+        code = str(random.randint(lo, hi))
         if not db.query(User).filter(User.i_code == code).first():
             return code
     raise RuntimeError("Unable to generate unique i_code")
@@ -216,6 +223,22 @@ def change_password(
     current_user.hashed_password = get_password_hash(body.new_password)
     db.commit()
     return {"message": "Password changed successfully"}
+
+
+@router.post("/migrate-icodes", include_in_schema=False)
+def migrate_icodes(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Migrate all users with short i_codes to new 8+ digit format."""
+    updated = 0
+    all_users = db.query(User).all()
+    for u in all_users:
+        if not u.i_code or len(u.i_code) < 8:
+            u.i_code = _generate_user_icode(db)
+            updated += 1
+    db.commit()
+    return {"updated": updated}
 
 
 @router.get("/user/{i_code}", response_model=UserResponse)
