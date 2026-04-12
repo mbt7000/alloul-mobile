@@ -323,7 +323,7 @@ export default function LoginScreen() {
         );
 
         let googleIdToken: string | undefined = directIdToken;
-        const authIdToken = (googleResponse.authentication as Record<string, unknown>)?.idToken as string | undefined;
+        const authIdToken = (googleResponse.authentication as unknown as Record<string, unknown>)?.idToken as string | undefined;
         if (!googleIdToken && authIdToken) {
           googleIdToken = authIdToken;
           appendOauthDebug("[G4a] using authentication.idToken");
