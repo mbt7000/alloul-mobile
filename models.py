@@ -30,6 +30,7 @@ class User(Base):
     verified = Column(Integer, default=0)
     expo_push_token = Column(String(512), nullable=True)
     presence_status = Column(String(16), default="offline")  # online, busy, offline, away
+    is_news_channel = Column(Integer, default=0)  # 1 = verified news channel, can go live
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -430,8 +431,9 @@ class Story(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     media_url = Column(String(512), nullable=True)
-    media_type = Column(String(16), default="image")
+    media_type = Column(String(16), default="image")  # image, video, live
     caption = Column(String(500), nullable=True)
+    live_url = Column(String(512), nullable=True)  # URL for live stream (news channels only)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

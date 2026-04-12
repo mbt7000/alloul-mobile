@@ -8,9 +8,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../../../state/auth/AuthContext";
 import { getPosts, getFollowingPosts, likePost, unlikePost, repostPost, unrepostPost, savePost, unsavePost, type ApiPost } from "../../../api";
 import { formatApiError } from "../../../shared/utils/apiErrors";
@@ -23,67 +24,116 @@ import AppText from "../../../shared/ui/AppText";
 import UnifiedSearchField from "../../../shared/components/UnifiedSearchField";
 import { addRecentSearch } from "../../../storage/recentSearches";
 import MediaPostRow from "../components/MediaPostRow";
-
-// ── Static stories data (will be replaced with API when backend is ready) ──
-const DEMO_STORIES = [
-  { id: "1", name: "قصتي", isOwn: true, seen: false },
-  { id: "2", name: "أحمد", isOwn: false, seen: false },
-  { id: "3", name: "سارة", isOwn: false, seen: false },
-  { id: "4", name: "خالد", isOwn: false, seen: true },
-  { id: "5", name: "نورة", isOwn: false, seen: false },
-  { id: "6", name: "فيصل", isOwn: false, seen: true },
-  { id: "7", name: "ريم", isOwn: false, seen: false },
-];
+import { getStories, groupStoriesByUser, type StoryGroup } from "../../../api/stories.api";
 
 const STORY_COLORS = ["#38e8ff", "#a855f7", "#f472b6", "#fb923c", "#2dd36f", "#3b82f6", "#f59e0b"];
 
-function StoriesBar({ onAddStory, onViewStory }: { onAddStory?: () => void; onViewStory?: (id: string) => void }) {
+function StoriesBar({ onAddStory, onViewStory, currentUserId }: {
+  onAddStory?: () => void;
+  onViewStory?: (groups: StoryGroup[], index: number) => void;
+  currentUserId: number;
+}) {
   const { colors } = useAppTheme();
+  const [groups, setGroups] = useState<StoryGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadStories = useCallback(async () => {
+    try {
+      const stories = await getStories();
+      setGroups(groupStoriesByUser(stories, currentUserId));
+    } catch {
+      // If API fails, show empty — no crash
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUserId]);
+
+  useFocusEffect(useCallback(() => { void loadStories(); }, [loadStories]));
+
+  // Check if current user has stories
+  const hasOwnStory = groups.some(g => g.user_id === currentUserId);
+
   return (
     <View>
-      {/* Section header */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <AppText variant="micro" tone="muted" weight="bold">القصص</AppText>
-        <AppText variant="micro" tone="cyan">+ أضف قصة</AppText>
+        <Pressable onPress={onAddStory}>
+          <AppText variant="micro" tone="cyan">+ أضف قصة</AppText>
+        </Pressable>
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={storiesStyles.row}
-      >
-        {DEMO_STORIES.map((story, idx) => {
-          const storyColor = STORY_COLORS[idx % STORY_COLORS.length];
-          const seen = story.seen;
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={storiesStyles.row}>
+        {/* Add story button (always first) */}
+        {!hasOwnStory && (
+          <Pressable style={({ pressed }) => [storiesStyles.item, pressed && { opacity: 0.8 }]} onPress={onAddStory}>
+            <View style={[storiesStyles.outerRing, { borderColor: colors.accentCyan }]}>
+              <View style={[storiesStyles.ring, { borderColor: colors.mediaCanvas ?? "#07091A" }]}>
+                <View style={[storiesStyles.avatar, { backgroundColor: "rgba(56,232,255,0.15)" }]}>
+                  <Ionicons name="add" size={20} color={colors.accentCyan} />
+                </View>
+              </View>
+            </View>
+            <AppText variant="micro" tone="primary" numberOfLines={1} style={storiesStyles.label}>قصتي</AppText>
+          </Pressable>
+        )}
+
+        {/* Story groups */}
+        {groups.map((group, idx) => {
+          const isOwn = group.user_id === currentUserId;
+          const storyColor = group.is_live ? "#ef4444" : STORY_COLORS[idx % STORY_COLORS.length];
+          const seen = group.all_seen && !group.is_live;
+
           return (
             <Pressable
-              key={story.id}
+              key={group.user_id}
               style={({ pressed }) => [storiesStyles.item, pressed && { opacity: 0.8 }]}
-              onPress={() => story.isOwn ? onAddStory?.() : onViewStory?.(story.id)}
+              onPress={() => isOwn && !hasOwnStory ? onAddStory?.() : onViewStory?.(groups, idx)}
             >
-              {/* Double-ring effect: outer ring muted for seen, colored for unseen */}
               <View style={[storiesStyles.outerRing, { borderColor: seen ? colors.border : storyColor }]}>
                 <View style={[storiesStyles.ring, { borderColor: seen ? "transparent" : colors.mediaCanvas ?? "#07091A" }]}>
-                  {story.isOwn ? (
+                  {group.author_avatar ? (
+                    <Image source={{ uri: group.author_avatar }} style={storiesStyles.avatarImg} />
+                  ) : isOwn ? (
                     <View style={[storiesStyles.avatar, { backgroundColor: "rgba(56,232,255,0.15)" }]}>
                       <Ionicons name="add" size={20} color={colors.accentCyan} />
                     </View>
                   ) : (
                     <View style={[storiesStyles.avatar, { backgroundColor: `${storyColor}22` }]}>
                       <AppText variant="bodySm" weight="bold" style={{ color: storyColor }}>
-                        {story.name.slice(0, 1)}
+                        {(group.author_name || "U").slice(0, 1)}
                       </AppText>
                     </View>
                   )}
                 </View>
               </View>
+
+              {/* LIVE badge */}
+              {group.is_live && (
+                <View style={storiesStyles.liveBadge}>
+                  <View style={storiesStyles.liveDot} />
+                  <Text style={storiesStyles.liveText}>LIVE</Text>
+                </View>
+              )}
+
+              {/* News channel verified badge */}
+              {group.is_news_channel && !group.is_live && (
+                <View style={storiesStyles.channelBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color="#0ea5e9" />
+                </View>
+              )}
+
               <AppText variant="micro" tone={seen ? "muted" : "primary"} numberOfLines={1} style={storiesStyles.label}>
-                {story.name}
+                {isOwn ? "قصتي" : group.author_name}
               </AppText>
             </Pressable>
           );
         })}
+
+        {loading && (
+          <View style={[storiesStyles.item, { justifyContent: "center" }]}>
+            <ActivityIndicator size="small" color={colors.accentCyan} />
+          </View>
+        )}
       </ScrollView>
-      {/* Subtle separator */}
       <View style={{ height: 1, backgroundColor: "rgba(255,255,255,0.07)", marginTop: 4 }} />
     </View>
   );
@@ -93,31 +143,33 @@ const storiesStyles = StyleSheet.create({
   row: { paddingHorizontal: 0, paddingVertical: 8, gap: 14, flexDirection: "row" },
   item: { alignItems: "center", width: 66 },
   outerRing: {
-    width: 66,
-    height: 66,
-    borderRadius: 22,
-    borderWidth: 2.5,
-    padding: 3,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 66, height: 66, borderRadius: 22, borderWidth: 2.5, padding: 3,
+    alignItems: "center", justifyContent: "center",
   },
   ring: {
-    width: "100%" as any,
-    height: "100%" as any,
-    borderRadius: 18,
-    borderWidth: 2,
-    padding: 2,
-    alignItems: "center",
-    justifyContent: "center",
+    width: "100%" as any, height: "100%" as any, borderRadius: 18,
+    borderWidth: 2, padding: 2, alignItems: "center", justifyContent: "center",
   },
   avatar: {
-    width: "100%" as any,
-    height: "100%" as any,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
+    width: "100%" as any, height: "100%" as any, borderRadius: 14,
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarImg: {
+    width: "100%" as any, height: "100%" as any, borderRadius: 14,
   },
   label: { marginTop: 5, textAlign: "center", maxWidth: 66 },
+  liveBadge: {
+    position: "absolute", top: 0, right: -2,
+    flexDirection: "row", alignItems: "center", gap: 2,
+    backgroundColor: "#ef4444", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6,
+    borderWidth: 1.5, borderColor: "#0a0a0f",
+  },
+  liveDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#fff" },
+  liveText: { color: "#fff", fontSize: 7, fontWeight: "900", letterSpacing: 0.5 },
+  channelBadge: {
+    position: "absolute", bottom: 18, right: -2,
+    backgroundColor: "#0a0a0f", borderRadius: 10, padding: 1,
+  },
 });
 
 type MediaFeedTab = "forYou" | "following" | "trending" | "video";
@@ -394,8 +446,9 @@ export default function FeedScreen() {
             {/* Stories bar */}
             <View style={{ marginTop: 10 }}>
               <StoriesBar
-                onAddStory={() => navigation.navigate("CreatePost")}
-                onViewStory={() => {}}
+                currentUserId={user?.id ?? 0}
+                onAddStory={() => navigation.navigate("CreateStory" as any)}
+                onViewStory={(groups, index) => navigation.navigate("StoryViewer" as any, { groups, startIndex: index })}
               />
             </View>
 

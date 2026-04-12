@@ -80,22 +80,22 @@ export async function apiFetch<T = any>(
       emitAuthSessionReset("expired");
     }
 
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
 
     let msg: string;
 
-    if (typeof err.detail === "string") msg = err.detail;
-    else if (Array.isArray(err.detail)) {
-      msg = err.detail
+    if (typeof body.detail === "string") msg = body.detail;
+    else if (Array.isArray(body.detail)) {
+      msg = body.detail
         .map((d: { msg?: string }) => d?.msg || JSON.stringify(d))
         .join("; ");
     } else {
-      msg = err.message || "Request failed";
+      msg = body.message || "Request failed";
     }
 
-    const err = new Error(msg);
-    (err as any).status = res.status;
-    throw err;
+    const apiError = new Error(msg);
+    (apiError as any).status = res.status;
+    throw apiError;
   }
 
   if (res.status === 204) return null as T;

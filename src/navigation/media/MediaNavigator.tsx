@@ -18,6 +18,8 @@ import ConversationScreen from "../../features/messages/screens/ConversationScre
 import CVScreen from "../../features/media/screens/CVScreen";
 import JobApplicationsScreen from "../../features/companies/screens/JobApplicationsScreen";
 import CallHistoryScreen from "../../screens/calls/CallHistoryScreen";
+import StoryViewerScreen from "../../features/media/screens/StoryViewerScreen";
+import CreateStoryScreen from "../../features/media/screens/CreateStoryScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -42,6 +44,8 @@ export default function MediaNavigator() {
       <Stack.Screen name="CVScreen" component={CVScreen} />
       <Stack.Screen name="JobApplications" component={JobApplicationsScreen} />
       <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
+      <Stack.Screen name="StoryViewer" component={StoryViewerScreen} options={{ animation: "fade" }} />
+      <Stack.Screen name="CreateStory" component={CreateStoryScreen} options={{ animation: "slide_from_bottom" }} />
     </Stack.Navigator>
   );
 }
