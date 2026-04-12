@@ -886,59 +886,127 @@ function OwnProfile() {
               </View>
             ) : null}
 
-            {/* ── Mode switch card ── */}
+            {/* ── Premium Mode Switcher ── */}
             {user ? (
-              <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bgCard, padding: 14 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                  <AppText variant="micro" tone="muted" weight="bold">تبديل التجربة</AppText>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: currentHomeMode === "public" ? colors.accentBlue : colors.accentTeal }} />
-                    <AppText variant="micro" tone="muted">{currentHomeMode === "public" ? "ميديا" : "شركات"}</AppText>
+              <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 22, overflow: "hidden", borderWidth: 1, borderColor: colors.border }}>
+                {/* Active mode indicator bar */}
+                <View style={{ height: 3, backgroundColor: currentHomeMode === "public" ? colors.accentBlue : colors.accentTeal }} />
+                <View style={{ backgroundColor: colors.bgCard, padding: 16 }}>
+                  {/* Header */}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                    <Ionicons name="swap-horizontal" size={16} color={colors.textMuted} />
+                    <AppText variant="bodySm" weight="bold">تبديل التجربة</AppText>
+                    <View style={{ flex: 1 }} />
+                    <View style={{
+                      flexDirection: "row", alignItems: "center", gap: 5,
+                      backgroundColor: currentHomeMode === "public" ? `${colors.accentBlue}15` : `${colors.accentTeal}15`,
+                      paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+                    }}>
+                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: currentHomeMode === "public" ? colors.accentBlue : colors.accentTeal }} />
+                      <AppText style={{ fontSize: 11, color: currentHomeMode === "public" ? colors.accentBlue : colors.accentTeal, fontWeight: "600" }}>
+                        {currentHomeMode === "public" ? "عالم الميديا" : "عالم الأعمال"}
+                      </AppText>
+                    </View>
                   </View>
-                </View>
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <Pressable
-                    onPress={() => {
-                      setHomeMode("public");
-                      const rootNav = navigation.getParent?.() as any;
-                      rootNav?.navigate(ROOT_SHELL_ROUTES.media, {
-                        screen: "MediaTabs",
-                        params: { screen: getLastRoute("public") ?? "Feed" },
-                      });
-                    }}
-                    style={{
-                      flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: "center", gap: 4, borderWidth: 1,
-                      borderColor: currentHomeMode === "public" ? colors.accentBlue : colors.border,
-                      backgroundColor: currentHomeMode === "public" ? `${colors.accentBlue}18` : "transparent",
-                    }}
-                  >
-                    <Ionicons name="radio-outline" size={18} color={currentHomeMode === "public" ? colors.accentBlue : colors.textMuted} />
-                    <AppText variant="bodySm" weight="bold" style={{ color: currentHomeMode === "public" ? colors.accentBlue : colors.textMuted }}>ميديا</AppText>
-                    <AppText variant="micro" tone="muted" style={{ textAlign: "center" }}>سريع وحي</AppText>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      if (!canUseCompanyMode) {
-                        Alert.alert("وضع الشركات", "تحتاج عضوية شركة فعّالة للتبديل.");
-                        return;
-                      }
-                      setHomeMode("company");
-                      const rootNav = navigation.getParent?.() as any;
-                      rootNav?.navigate(ROOT_SHELL_ROUTES.company, {
-                        screen: getLastRoute("company") ?? "CompanyWorkspace",
-                      });
-                    }}
-                    style={{
-                      flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: "center", gap: 4, borderWidth: 1,
-                      borderColor: currentHomeMode === "company" ? colors.accentTeal : colors.border,
-                      backgroundColor: currentHomeMode === "company" ? `${colors.accentTeal}18` : "transparent",
-                      opacity: canUseCompanyMode ? 1 : 0.45,
-                    }}
-                  >
-                    <Ionicons name={canUseCompanyMode ? "business-outline" : "lock-closed-outline"} size={18} color={currentHomeMode === "company" ? colors.accentTeal : colors.textMuted} />
-                    <AppText variant="bodySm" weight="bold" style={{ color: currentHomeMode === "company" ? colors.accentTeal : colors.textMuted }}>شركات</AppText>
-                    <AppText variant="micro" tone="muted" style={{ textAlign: "center" }}>منظّم وتشغيلي</AppText>
-                  </Pressable>
+
+                  {/* Mode cards */}
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    {/* Media World */}
+                    <Pressable
+                      onPress={() => {
+                        setHomeMode("public");
+                        const rootNav = navigation.getParent?.() as any;
+                        rootNav?.navigate(ROOT_SHELL_ROUTES.media, {
+                          screen: "MediaTabs",
+                          params: { screen: getLastRoute("public") ?? "Feed" },
+                        });
+                      }}
+                      style={{
+                        flex: 1, borderRadius: 16, overflow: "hidden",
+                        borderWidth: currentHomeMode === "public" ? 1.5 : 1,
+                        borderColor: currentHomeMode === "public" ? colors.accentBlue : colors.border,
+                      }}
+                    >
+                      {/* Card gradient header */}
+                      <View style={{
+                        paddingVertical: 14, paddingHorizontal: 12, alignItems: "center",
+                        backgroundColor: currentHomeMode === "public" ? `${colors.accentBlue}18` : "transparent",
+                      }}>
+                        <View style={{
+                          width: 44, height: 44, borderRadius: 22,
+                          backgroundColor: currentHomeMode === "public" ? `${colors.accentBlue}25` : `${colors.accentBlue}10`,
+                          alignItems: "center", justifyContent: "center", marginBottom: 8,
+                          borderWidth: currentHomeMode === "public" ? 2 : 0,
+                          borderColor: `${colors.accentBlue}44`,
+                        }}>
+                          <Ionicons name="globe-outline" size={22} color={currentHomeMode === "public" ? colors.accentBlue : colors.textMuted} />
+                        </View>
+                        <AppText variant="bodySm" weight="bold" style={{ color: currentHomeMode === "public" ? colors.accentBlue : colors.textPrimary }}>
+                          عالم الميديا
+                        </AppText>
+                        <AppText variant="micro" tone="muted" style={{ textAlign: "center", marginTop: 4, lineHeight: 16 }}>
+                          منشورات · مجتمعات · ستوري · اكتشاف
+                        </AppText>
+                      </View>
+                      {currentHomeMode === "public" && (
+                        <View style={{ backgroundColor: colors.accentBlue, paddingVertical: 5, alignItems: "center" }}>
+                          <AppText style={{ color: "#fff", fontSize: 10, fontWeight: "800" }}>مفعّل الآن</AppText>
+                        </View>
+                      )}
+                    </Pressable>
+
+                    {/* Corporate World */}
+                    <Pressable
+                      onPress={() => {
+                        if (!canUseCompanyMode) {
+                          Alert.alert("عالم الأعمال", "تحتاج عضوية في شركة فعّالة.\n\nانضم لشركة أو أنشئ واحدة للوصول لعالم الأعمال.");
+                          return;
+                        }
+                        setHomeMode("company");
+                        const rootNav = navigation.getParent?.() as any;
+                        rootNav?.navigate(ROOT_SHELL_ROUTES.company, {
+                          screen: getLastRoute("company") ?? "CompanyWorkspace",
+                        });
+                      }}
+                      style={{
+                        flex: 1, borderRadius: 16, overflow: "hidden",
+                        borderWidth: currentHomeMode === "company" ? 1.5 : 1,
+                        borderColor: currentHomeMode === "company" ? colors.accentTeal : colors.border,
+                        opacity: canUseCompanyMode ? 1 : 0.5,
+                      }}
+                    >
+                      <View style={{
+                        paddingVertical: 14, paddingHorizontal: 12, alignItems: "center",
+                        backgroundColor: currentHomeMode === "company" ? `${colors.accentTeal}18` : "transparent",
+                      }}>
+                        <View style={{
+                          width: 44, height: 44, borderRadius: 22,
+                          backgroundColor: currentHomeMode === "company" ? `${colors.accentTeal}25` : `${colors.accentTeal}10`,
+                          alignItems: "center", justifyContent: "center", marginBottom: 8,
+                          borderWidth: currentHomeMode === "company" ? 2 : 0,
+                          borderColor: `${colors.accentTeal}44`,
+                        }}>
+                          <Ionicons name={canUseCompanyMode ? "briefcase-outline" : "lock-closed-outline"} size={22} color={currentHomeMode === "company" ? colors.accentTeal : colors.textMuted} />
+                        </View>
+                        <AppText variant="bodySm" weight="bold" style={{ color: currentHomeMode === "company" ? colors.accentTeal : colors.textPrimary }}>
+                          عالم الأعمال
+                        </AppText>
+                        <AppText variant="micro" tone="muted" style={{ textAlign: "center", marginTop: 4, lineHeight: 16 }}>
+                          مهام · اجتماعات · فريق · تقارير
+                        </AppText>
+                      </View>
+                      {currentHomeMode === "company" && (
+                        <View style={{ backgroundColor: colors.accentTeal, paddingVertical: 5, alignItems: "center" }}>
+                          <AppText style={{ color: "#fff", fontSize: 10, fontWeight: "800" }}>مفعّل الآن</AppText>
+                        </View>
+                      )}
+                      {!canUseCompanyMode && (
+                        <View style={{ backgroundColor: "rgba(255,255,255,0.05)", paddingVertical: 5, alignItems: "center" }}>
+                          <AppText style={{ color: colors.textMuted, fontSize: 10, fontWeight: "600" }}>يتطلب عضوية</AppText>
+                        </View>
+                      )}
+                    </Pressable>
+                  </View>
                 </View>
               </View>
             ) : null}

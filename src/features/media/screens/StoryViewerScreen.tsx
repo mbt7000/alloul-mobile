@@ -96,9 +96,12 @@ export default function StoryViewerScreen() {
           style={StyleSheet.absoluteFillObject}
           resizeMode="cover"
           onLoadEnd={() => setImgLoading(false)}
+          onError={() => setImgLoading(false)}
         />
       ) : (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "#0a0a0f" }]} />
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "#0a0a0f", alignItems: "center", justifyContent: "center" }]}>
+          <Ionicons name="image-outline" size={64} color="rgba(255,255,255,0.15)" />
+        </View>
       )}
 
       {/* Dark overlay */}

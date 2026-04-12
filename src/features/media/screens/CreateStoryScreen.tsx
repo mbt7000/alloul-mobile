@@ -71,17 +71,7 @@ export default function CreateStoryScreen() {
 
       nav.goBack();
     } catch (e: any) {
-      // If upload endpoint doesn't exist, create story with local URI as fallback
-      try {
-        await createStory({
-          media_url: imageUri,
-          media_type: "image",
-          caption: caption.trim() || null,
-        });
-        nav.goBack();
-      } catch {
-        Alert.alert("خطأ", "تعذّر نشر القصة. حاول مرة أخرى.");
-      }
+      Alert.alert("خطأ", "تعذّر رفع الصورة. تأكد من اتصالك بالإنترنت وحاول مرة أخرى.");
     } finally {
       setUploading(false);
     }
