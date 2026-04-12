@@ -1,6 +1,6 @@
 import "react-native-gesture-handler";
 import React from "react";
-import { StatusBar, ActivityIndicator, View } from "react-native";
+import { StatusBar, ActivityIndicator, View, Text, TouchableOpacity } from "react-native";
 import { NavigationContainer, DefaultTheme, Theme as NavTheme } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -19,6 +19,41 @@ import AuthNavigator from "./src/navigation/auth/AuthNavigator";
 import { CallProvider } from "./src/context/CallContext";
 import IncomingCallScreen from "./src/components/calls/IncomingCallScreen";
 import DailyCallScreen from "./src/components/calls/DailyCallScreen";
+
+// ─── Global Error Boundary ────────────────────────────────────────────────────
+interface ErrorBoundaryState { hasError: boolean; error: string | null }
+class AppErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  ErrorBoundaryState
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
+    return { hasError: true, error: String(error) };
+  }
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    console.error("[AppCrash]", error, info.componentStack);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#0a0a0f", padding: 24 }}>
+          <Text style={{ color: "#ef4444", fontSize: 18, fontWeight: "700", marginBottom: 12 }}>حدث خطأ غير متوقع</Text>
+          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, textAlign: "center", marginBottom: 32 }}>{this.state.error}</Text>
+          <TouchableOpacity
+            onPress={() => this.setState({ hasError: false, error: null })}
+            style={{ backgroundColor: "#0ea5e9", paddingHorizontal: 28, paddingVertical: 12, borderRadius: 24 }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700" }}>إعادة المحاولة</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function buildNavTheme(colors: ReturnType<typeof useAppTheme>["colors"], dark: boolean): NavTheme {
   return {
@@ -103,6 +138,7 @@ function AppNavigation() {
 
 export default function App() {
   return (
+    <AppErrorBoundary>
     <I18nextProvider i18n={i18n}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
@@ -126,5 +162,6 @@ export default function App() {
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </I18nextProvider>
+    </AppErrorBoundary>
   );
 }

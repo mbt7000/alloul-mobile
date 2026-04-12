@@ -1,6 +1,8 @@
 {
   "expo": {
+    "name": "Alloul One",
     "slug": "t",
+    "version": "1.0.0",
     "extra": {
       "eas": {
         "projectId": "0b7b9938-77bb-4493-877a-8dfb6bdd3d87"
@@ -15,7 +17,8 @@
       }
     },
     "ios": {
-      "runtimeVersion": "1.0.0"
+      "runtimeVersion": "1.0.0",
+      "buildNumber": "10"
     }
   }
 }
