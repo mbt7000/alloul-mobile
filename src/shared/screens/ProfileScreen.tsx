@@ -1296,9 +1296,9 @@ function OwnProfile() {
       </ScrollView>
 
       {/* ── Cover photo URL modal (cross-platform) ── */}
-      <Modal visible={showCoverModal} transparent animationType="fade" onRequestClose={() => setShowCoverModal(false)}>
+      <Modal visible={showCoverModal} transparent animationType="fade" onRequestClose={() => { setCoverUrlDraft(""); setShowCoverModal(false); }}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }} onPress={() => setShowCoverModal(false)}>
+          <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }} onPress={() => { setCoverUrlDraft(""); setShowCoverModal(false); }}>
             <Pressable
               style={{ width: "88%", backgroundColor: colors.bgCard, borderRadius: 20, padding: 20, gap: 14 }}
               onPress={(e) => e.stopPropagation()}

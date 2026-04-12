@@ -61,7 +61,9 @@ export function useExpoPushToken() {
     void (async () => {
       const token = await registerForPushNotifications();
       if (token) {
-        try { await saveExpoPushToken(token); } catch {}
+        try { await saveExpoPushToken(token); } catch (e) {
+          console.warn("[PushToken] save failed:", e);
+        }
       }
     })();
   }, [user?.id]);

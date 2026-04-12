@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearSessionLocalStores();
     setUser(null);
     if (reason === "expired") {
-      setSessionNotice("Your session expired. Please sign in again.");
+      setSessionNotice("انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.");
     } else {
       setSessionNotice(null);
     }

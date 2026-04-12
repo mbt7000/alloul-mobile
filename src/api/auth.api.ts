@@ -35,11 +35,9 @@ export const updateMe = (body: UpdateMeBody) =>
 
 async function persistAccessToken(accessToken: string): Promise<void> {
   await setToken(accessToken);
-  await new Promise((r) => setTimeout(r, 80));
-  let saved = await getToken();
-  if (!saved) saved = await getToken();
+  const saved = await getToken();
   if (!saved) {
-    throw { message: "SESSION_STORAGE_FAILED", status: 0 };
+    throw new Error("SESSION_STORAGE_FAILED");
   }
 }
 

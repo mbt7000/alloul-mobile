@@ -68,9 +68,9 @@ export async function apiFetch<T = any>(
     }, timeoutMs);
   } catch (e: unknown) {
     if (e instanceof Error && e.name === "AbortError") {
-      throw { message: "NETWORK_TIMEOUT", status: 0 };
+      throw new Error("timeout");
     }
-    throw { message: "NETWORK_UNREACHABLE", status: 0 };
+    throw new Error("Network request failed");
   }
 
   if (!res.ok) {
@@ -93,7 +93,9 @@ export async function apiFetch<T = any>(
       msg = err.message || "Request failed";
     }
 
-    throw { message: msg, status: res.status };
+    const err = new Error(msg);
+    (err as any).status = res.status;
+    throw err;
   }
 
   if (res.status === 204) return null as T;
