@@ -237,11 +237,20 @@ export default function AiAssistantScreen() {
       setMessages((prev) =>
         prev.map((m) => m.id === assistantId ? { ...m, streaming: false } : m)
       );
-    } catch {
+    } catch (e: unknown) {
+      const status = e instanceof Error && "status" in e ? (e as any).status : 0;
+      let errorMsg: string;
+      if (status === 503 || status === 502) {
+        errorMsg = "خدمة الذكاء الاصطناعي غير متاحة حالياً. تأكد من تشغيل Ollama على الخادم أو تحقق من مفتاح ANTHROPIC_API_KEY.";
+      } else if (status === 401) {
+        errorMsg = "جلستك انتهت. أعد تسجيل الدخول.";
+      } else {
+        errorMsg = "تعذّر الاتصال بالذكاء الاصطناعي. تحقق من الإنترنت وأعد المحاولة.\n\nإذا استمرت المشكلة، تأكد من إعداد الخادم بشكل صحيح.";
+      }
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
-            ? { ...m, content: "تعذّر الاتصال. تحقق من الإنترنت وأعد المحاولة.", streaming: false }
+            ? { ...m, content: errorMsg, streaming: false }
             : m
         )
       );

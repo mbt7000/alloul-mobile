@@ -844,11 +844,17 @@ function OwnProfile() {
                   <AppText variant="title" weight="bold">{(user.posts_count ?? 0).toLocaleString()}</AppText>
                   <AppText variant="micro" tone="muted" weight="bold">منشور</AppText>
                 </Pressable>
-                <Pressable style={{ alignItems: "center" }}>
+                <Pressable
+                  style={{ alignItems: "center" }}
+                  onPress={() => navigation.navigate("FollowList" as any, { userId: user.id, tab: "followers" })}
+                >
                   <AppText variant="title" weight="bold">{(user.followers_count ?? 0).toLocaleString()}</AppText>
                   <AppText variant="micro" tone="muted" weight="bold">متابع</AppText>
                 </Pressable>
-                <Pressable style={{ alignItems: "center" }}>
+                <Pressable
+                  style={{ alignItems: "center" }}
+                  onPress={() => navigation.navigate("FollowList" as any, { userId: user.id, tab: "following" })}
+                >
                   <AppText variant="title" weight="bold">{(user.following_count ?? 0).toLocaleString()}</AppText>
                   <AppText variant="micro" tone="muted" weight="bold">يتابع</AppText>
                 </Pressable>

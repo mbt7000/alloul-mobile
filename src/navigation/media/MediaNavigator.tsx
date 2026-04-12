@@ -20,6 +20,7 @@ import JobApplicationsScreen from "../../features/companies/screens/JobApplicati
 import CallHistoryScreen from "../../screens/calls/CallHistoryScreen";
 import StoryViewerScreen from "../../features/media/screens/StoryViewerScreen";
 import CreateStoryScreen from "../../features/media/screens/CreateStoryScreen";
+import FollowListScreen from "../../features/media/screens/FollowListScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -46,6 +47,7 @@ export default function MediaNavigator() {
       <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
       <Stack.Screen name="StoryViewer" component={StoryViewerScreen} options={{ animation: "fade" }} />
       <Stack.Screen name="CreateStory" component={CreateStoryScreen} options={{ animation: "slide_from_bottom" }} />
+      <Stack.Screen name="FollowList" component={FollowListScreen} />
     </Stack.Navigator>
   );
 }

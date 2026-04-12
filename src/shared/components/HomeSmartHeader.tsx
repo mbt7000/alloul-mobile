@@ -247,18 +247,10 @@ export default function HomeSmartHeader({
   if (variant === "mediaStrip" && isMedia) {
     return (
       <View style={styles.stripWrap}>
-        <AppText variant="caption" weight="bold" tone="muted" style={styles.brandTop}>
-          ALLOUL&Q
-        </AppText>
         <View style={styles.stripRow}>
-          <Pressable style={styles.globeBtn} hitSlop={8}>
-            <Ionicons name="globe" size={20} color={colors.white} />
-          </Pressable>
-          <View style={[styles.stripPill, { flex: 1 }]}>
-            <AppText variant="micro" weight="bold" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>
-              نمط التواصل
-            </AppText>
-          </View>
+          <AppText variant="body" weight="bold" style={{ flex: 1, color: colors.textPrimary }}>
+            Alloul One
+          </AppText>
           <Pressable style={styles.roundGhost} onPress={onNotifications} hitSlop={8}>
             <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
             {inboxUnreadCount > 0 ? <View style={styles.notifDot} /> : null}

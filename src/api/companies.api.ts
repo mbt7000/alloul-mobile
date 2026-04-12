@@ -40,6 +40,20 @@ export const unfollowUser = (id: number) => apiFetch(`/follows/${id}`, { method:
 export const blockUser = (id: number) => apiFetch(`/follows/${id}/block`, { method: "POST" });
 export const unblockUser = (id: number) => apiFetch(`/follows/${id}/block`, { method: "DELETE" });
 
+export interface FollowUser {
+  id: number;
+  username: string;
+  name: string | null;
+  avatar_url: string | null;
+  is_following: boolean;
+}
+
+export const getFollowers = (userId: number) =>
+  apiFetch<FollowUser[]>(`/follows/${userId}/followers`);
+
+export const getFollowing = (userId: number) =>
+  apiFetch<FollowUser[]>(`/follows/${userId}/following`);
+
 export interface DashboardStats {
   total_memory_items?: number;
   total_handovers?: number;
