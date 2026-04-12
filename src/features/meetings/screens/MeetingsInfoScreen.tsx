@@ -18,6 +18,7 @@ import {
 } from "../../../api";
 import { getUserPresence } from "../../../api/calls.api";
 import { openMeetingProvider } from "../openMeetingLinks";
+import { startConversation } from "../../../api";
 
 // ─── Presence colors ─────────────────────────────────────────────────────────
 
@@ -48,17 +49,19 @@ function roleLabel(role: string) {
 // ─── MemberCard ───────────────────────────────────────────────────────────────
 
 function MemberCard({
-  member, presence, onVideoCall, onAudioCall,
+  member, presence, onVideoCall, onAudioCall, onMessage,
   colors,
 }: {
   member: CompanyMemberRow;
   presence: string;
   onVideoCall: () => void;
   onAudioCall: () => void;
+  onMessage: () => void;
   colors: any;
 }) {
   const p = PRESENCE[presence] ?? PRESENCE.offline;
   const initials = (member.user_name || "U").slice(0, 2).toUpperCase();
+  const roleBadge = ROLE_BADGE[member.role] ?? ROLE_BADGE.member;
 
   return (
     <View style={{
@@ -92,7 +95,15 @@ function MemberCard({
 
       {/* Info */}
       <View style={{ flex: 1 }}>
-        <AppText variant="bodySm" weight="bold" numberOfLines={1}>{member.user_name || "مستخدم"}</AppText>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <AppText variant="bodySm" weight="bold" numberOfLines={1}>{member.user_name || "مستخدم"}</AppText>
+          <View style={{
+            backgroundColor: roleBadge.bg, paddingHorizontal: 6, paddingVertical: 1.5,
+            borderRadius: 6,
+          }}>
+            <AppText style={{ fontSize: 9, color: roleBadge.color, fontWeight: "700" }}>{roleBadge.label}</AppText>
+          </View>
+        </View>
         <AppText variant="micro" tone="muted" numberOfLines={1}>
           {member.job_title || roleLabel(member.role)}
         </AppText>
@@ -102,31 +113,129 @@ function MemberCard({
         </View>
       </View>
 
-      {/* Quick call buttons */}
-      <View style={{ flexDirection: "row", gap: 8 }}>
+      {/* Quick action buttons: message, audio, video */}
+      <View style={{ flexDirection: "row", gap: 6 }}>
+        <TouchableOpacity
+          onPress={onMessage}
+          style={{
+            width: 34, height: 34, borderRadius: 17,
+            backgroundColor: "#a855f718",
+            borderWidth: 1, borderColor: "#a855f744",
+            alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <Ionicons name="chatbubble-outline" size={14} color="#a855f7" />
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={onAudioCall}
           style={{
-            width: 36, height: 36, borderRadius: 18,
+            width: 34, height: 34, borderRadius: 17,
             backgroundColor: colors.accentBlue + "18",
             borderWidth: 1, borderColor: colors.accentBlue + "44",
             alignItems: "center", justifyContent: "center",
           }}
         >
-          <Ionicons name="call-outline" size={16} color={colors.accentBlue} />
+          <Ionicons name="call-outline" size={14} color={colors.accentBlue} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={onVideoCall}
           style={{
-            width: 36, height: 36, borderRadius: 18,
-            backgroundColor: "#10b981" + "18",
-            borderWidth: 1, borderColor: "#10b981" + "44",
+            width: 34, height: 34, borderRadius: 17,
+            backgroundColor: "#10b98118",
+            borderWidth: 1, borderColor: "#10b98144",
             alignItems: "center", justifyContent: "center",
           }}
         >
-          <Ionicons name="videocam-outline" size={16} color="#10b981" />
+          <Ionicons name="videocam-outline" size={14} color="#10b981" />
         </TouchableOpacity>
       </View>
+    </View>
+  );
+}
+
+// ─── Role badges ────────────────────────────────────────────────────────────
+
+const ROLE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  owner:    { label: "مالك", color: "#f59e0b", bg: "#f59e0b18" },
+  admin:    { label: "مشرف", color: "#ef4444", bg: "#ef444418" },
+  manager:  { label: "مدير", color: "#8b5cf6", bg: "#8b5cf618" },
+  employee: { label: "موظف", color: "#3b82f6", bg: "#3b82f618" },
+  member:   { label: "عضو", color: "#6b7280", bg: "#6b728018" },
+};
+
+// ─── Org Chart Tree ─────────────────────────────────────────────────────────
+
+function OrgChartTree({ members, presenceMap, colors }: {
+  members: CompanyMemberRow[];
+  presenceMap: Record<number, string>;
+  colors: any;
+}) {
+  // Build hierarchy: owner → admins → managers → employees → members
+  const roleOrder = ["owner", "admin", "manager", "employee", "member"];
+  const grouped = roleOrder.reduce<Record<string, CompanyMemberRow[]>>((acc, role) => {
+    acc[role] = members.filter(m => m.role === role);
+    return acc;
+  }, {});
+
+  return (
+    <View style={{ gap: 4 }}>
+      {roleOrder.map((role) => {
+        const group = grouped[role];
+        if (!group?.length) return null;
+        const badge = ROLE_BADGE[role] ?? ROLE_BADGE.member;
+        return (
+          <View key={role}>
+            {/* Role header */}
+            <View style={{
+              flexDirection: "row", alignItems: "center", gap: 8,
+              paddingVertical: 8, paddingHorizontal: 4,
+            }}>
+              <View style={{ width: 3, height: 20, borderRadius: 2, backgroundColor: badge.color }} />
+              <AppText style={{ color: badge.color, fontSize: 13, fontWeight: "700" }}>{badge.label}</AppText>
+              <View style={{
+                backgroundColor: badge.bg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10,
+              }}>
+                <AppText style={{ color: badge.color, fontSize: 11, fontWeight: "600" }}>{group.length}</AppText>
+              </View>
+            </View>
+            {/* Members under this role */}
+            <View style={{ paddingRight: 12, borderRightWidth: 2, borderRightColor: badge.color + "33", marginRight: 6 }}>
+              {group.map((m) => {
+                const p = PRESENCE[presenceMap[m.user_id] ?? "offline"] ?? PRESENCE.offline;
+                const initials = (m.user_name || "U").slice(0, 2).toUpperCase();
+                return (
+                  <View key={m.id} style={{
+                    flexDirection: "row", alignItems: "center", gap: 10,
+                    paddingVertical: 8, paddingHorizontal: 8,
+                    marginBottom: 4, borderRadius: 12,
+                    backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border,
+                  }}>
+                    <View style={{ position: "relative" }}>
+                      <View style={{
+                        width: 36, height: 36, borderRadius: 12,
+                        backgroundColor: badge.color + "22",
+                        alignItems: "center", justifyContent: "center",
+                      }}>
+                        <AppText style={{ color: badge.color, fontSize: 13, fontWeight: "800" }}>{initials}</AppText>
+                      </View>
+                      <View style={{
+                        position: "absolute", bottom: -1, right: -1,
+                        width: 10, height: 10, borderRadius: 5,
+                        backgroundColor: p.color, borderWidth: 1.5, borderColor: colors.bgCard,
+                      }} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <AppText variant="bodySm" weight="bold" numberOfLines={1}>{m.user_name || "مستخدم"}</AppText>
+                      <AppText variant="micro" tone="muted" numberOfLines={1}>{m.job_title || ""}</AppText>
+                    </View>
+                    <AppText style={{ fontSize: 10, color: p.color }}>{p.label}</AppText>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -195,6 +304,7 @@ export default function MeetingsInfoScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "tree">("list");
 
   const load = useCallback(async () => {
     try {
@@ -422,9 +532,26 @@ export default function MeetingsInfoScreen() {
         <View style={{ padding: 16, paddingBottom: 0 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <AppText variant="bodySm" weight="bold">أعضاء الفريق</AppText>
-            <View style={{ flexDirection: "row", gap: 4 }}>
-              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#10b981" }} />
-              <AppText variant="micro" tone="muted">{onlineCount} متصل</AppText>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View style={{ flexDirection: "row", gap: 4, alignItems: "center" }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#10b981" }} />
+                <AppText variant="micro" tone="muted">{onlineCount} متصل</AppText>
+              </View>
+              {/* Toggle: list / org tree */}
+              <View style={{ flexDirection: "row", borderRadius: 8, borderWidth: 1, borderColor: c.border, overflow: "hidden" }}>
+                <TouchableOpacity
+                  onPress={() => setViewMode("list")}
+                  style={{ paddingHorizontal: 10, paddingVertical: 5, backgroundColor: viewMode === "list" ? c.accentBlue + "22" : "transparent" }}
+                >
+                  <Ionicons name="list" size={14} color={viewMode === "list" ? c.accentBlue : c.textMuted} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setViewMode("tree")}
+                  style={{ paddingHorizontal: 10, paddingVertical: 5, backgroundColor: viewMode === "tree" ? c.accentBlue + "22" : "transparent" }}
+                >
+                  <Ionicons name="git-network-outline" size={14} color={viewMode === "tree" ? c.accentBlue : c.textMuted} />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -452,6 +579,8 @@ export default function MeetingsInfoScreen() {
               <Ionicons name="people-outline" size={40} color={c.textMuted} />
               <AppText variant="caption" tone="muted" style={{ marginTop: 8 }}>لا يوجد أعضاء</AppText>
             </View>
+          ) : viewMode === "tree" ? (
+            <OrgChartTree members={sortedMembers} presenceMap={presenceMap} colors={c} />
           ) : (
             sortedMembers.map((member) => (
               <MemberCard
@@ -459,6 +588,12 @@ export default function MeetingsInfoScreen() {
                 member={member}
                 presence={presenceMap[member.user_id] ?? "offline"}
                 colors={c}
+                onMessage={async () => {
+                  try {
+                    const conv = await startConversation(member.user_id);
+                    navigation.navigate("Conversation", { conversationId: conv.id, otherUserName: member.user_name });
+                  } catch {}
+                }}
                 onAudioCall={() => void startCall(
                   member.user_id,
                   member.user_name || "مستخدم",
