@@ -22,6 +22,33 @@ export default function IncomingCallScreen() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hapticRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Ring sound + cleanup
+  useEffect(() => {
+    if (!incomingCall) return;
+    let mounted = true;
+    void (async () => {
+      try {
+        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: true });
+        const { sound } = await Audio.Sound.createAsync(
+          require("../../../assets/ringtone.wav"),
+          { isLooping: true, volume: 1.0 },
+        );
+        if (!mounted) { void sound.unloadAsync(); return; }
+        soundRef.current = sound;
+        await sound.playAsync();
+      } catch {
+        // no ringtone file — fall back to haptic only
+      }
+    })();
+    return () => {
+      mounted = false;
+      if (soundRef.current) {
+        void soundRef.current.stopAsync().then(() => soundRef.current?.unloadAsync());
+        soundRef.current = null;
+      }
+    };
+  }, [incomingCall?.call_id]);
+
   // Pulse animation
   useEffect(() => {
     if (!incomingCall) return;
@@ -143,10 +170,20 @@ export default function IncomingCallScreen() {
           </View>
         </View>
 
-        {/* Mute answer */}
+        {/* Silent answer — stop ringtone & haptics, then accept */}
         <TouchableOpacity
           style={styles.muteBtn}
-          onPress={() => void rejectIncoming()}
+          onPress={() => {
+            // Stop sound and haptics immediately
+            if (soundRef.current) {
+              void soundRef.current.stopAsync();
+            }
+            if (hapticRef.current) {
+              clearInterval(hapticRef.current);
+              hapticRef.current = null;
+            }
+            void acceptIncoming();
+          }}
           activeOpacity={0.7}
         >
           <Text style={styles.muteBtnText}>رد بدون صوت</Text>

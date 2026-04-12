@@ -216,8 +216,15 @@ export default function AIComposeSheet({ visible, mode, projectId, onClose, onSa
         setWarnings(res.warnings ?? []);
       }
       setStage("confirm");
-    } catch {
-      setError("فشل في تحليل النص. تحقق من الاتصال وحاول مجدداً.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.includes("timeout") || msg.includes("aborted")) {
+        setError("انتهت المهلة — الذكاء الاصطناعي مشغول. حاول مرة أخرى.");
+      } else if (msg.includes("Network") || msg.includes("fetch")) {
+        setError("تعذر الاتصال بالخادم. تحقق من الإنترنت.");
+      } else {
+        setError("فشل في تحليل النص. تحقق من الاتصال وحاول مجدداً.");
+      }
       setStage("input");
     }
   }, [text, mode]);
