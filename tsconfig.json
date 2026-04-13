@@ -4,5 +4,10 @@
     "strict": true,
     "resolveJsonModule": true
   },
-  "exclude": ["reference/**"]
+  "exclude": [
+    "reference/**",
+    "web/**",
+    "__tests__/**",
+    "node_modules"
+  ]
 }

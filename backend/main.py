@@ -149,6 +149,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ALLOUL&Q — Audit logging for compliance (GDPR/PDPL)
+from middleware import AuditMiddleware  # noqa: E402
+app.add_middleware(AuditMiddleware)
 app.include_router(auth.router)
 app.include_router(companies.router)
 app.include_router(webhooks.router)

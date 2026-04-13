@@ -1,110 +1,151 @@
-# Alloul One Backend (FastAPI)
+# ALLOUL&Q
 
-Auth API for the mobile/web app: email/password and optional Firebase (Google, Apple, GitHub). Azure AD (Microsoft) remains on the API for optional use, not wired in the current mobile app.
+> منصة الأعمال الذكية · The Smart Business Platform
 
-- **GET /** — quick JSON (links to `/health`, `/docs`, auth routes)
-- **GET /health** — `{ "status": "ok" }` (used by the mobile “Test server” button)
+[![CI](https://github.com/mbt7000/alloul-mobile/actions/workflows/ci.yml/badge.svg)](https://github.com/mbt7000/alloul-mobile/actions)
 
-## Client language (optional)
+A mobile-first, AI-powered workspace for modern teams. Corporate collaboration + social media + real-time communication in one platform.
 
-Mobile and web clients can send **`Accept-Language`** (e.g. `ar`, `en`, `fr`, `es`, `hi`) on API requests. Use it later for localized error messages or content when you add server-side catalogs.
+---
 
-## Endpoints
+## ✨ Features
 
-- **POST /auth/login** — Body: `{ "email", "password" }` → `{ "access_token", "token_type" }`
-- **POST /auth/register** — Body: `{ "username", "email", "password" }` → `{ "access_token", "token_type" }`
-- **GET /auth/me** — Header: `Authorization: Bearer <token>` → `{ "id", "email", "username", "name", "avatar_url", "created_at" }`
-- **POST /auth/firebase** — Body: `{ "id_token": "<Firebase ID token>" }` → `{ "access_token", "token_type", "user" }` (creates/updates user, returns JWT)
-- **POST /auth/azure-ad** — Body: `{ "id_token": "<Azure AD id_token>" }` → same (SSO with Microsoft corporate accounts; set MICROSOFT_CLIENT_ID, MICROSOFT_TENANT_ID)
-- **PATCH /auth/me** — Body: `{ "name", "avatar_url" }` → update profile
-- **POST /upload/image** — multipart file → `{ "url" }` (Azure Blob); **POST /upload/file** — same for generic files
+### Corporate Workspace
+- 📊 Dashboard with real-time stats
+- ✅ Tasks, Projects, Meetings, Handovers, Deals, CRM
+- 👥 Team management + org chart hierarchy
+- 🗓️ Meetings via Daily.co, Google Meet, Zoom, Teams
+- 🤖 AI Assistant (Ollama + Claude)
+- 📚 Knowledge base + Hiring board
 
-## Authentication: how the app ties to this backend
+### Social Media
+- 📰 Posts feed (likes, reposts, saves, comments)
+- 📸 Stories (24h expiry, Instagram-style)
+- 🔴 Live streaming for verified news channels
+- 👤 Profiles, followers/following, DMs
+- 🏘️ Communities, Marketplace, Job board
 
-| Method | Mobile does | Backend does | Required on server |
-|--------|-------------|--------------|--------------------|
-| **Email + password** | `POST /auth/login` or `/auth/register` | Validates password, issues JWT | `SECRET_KEY`, DB |
-| **Google / Apple / GitHub (via Firebase)** | User signs in with provider → Firebase **ID token** → `POST /auth/firebase` with `{ "id_token" }` | **Firebase Admin** verifies token, creates/updates user, issues JWT | **`GOOGLE_APPLICATION_CREDENTIALS`** = path to Firebase **service account JSON** (same Firebase project as the app). Enable each provider in Firebase Authentication. |
-| **Microsoft (optional)** | Not used by the shipped mobile app; can call `POST /auth/azure-ad` with Azure AD **id_token** | Validates JWT with Microsoft JWKS | `MICROSOFT_CLIENT_ID`, `MICROSOFT_TENANT_ID` |
+### Platform
+- 🔐 Multi-provider auth (Google, Apple, GitHub, Email, Azure AD)
+- 💳 Stripe subscriptions (3 tiers + Enterprise)
+- 📧 SendGrid email system (29 branded templates)
+- 🛡️ Sentry crash reporting
+- 🌍 5 languages (ar, en, fr, es, hi)
+- 🎨 Glassmorphism dark UI
+- 🔔 Push notifications (Expo)
 
-So **Google is not “OAuth to the backend directly”**: the backend trusts **Firebase only**. The app must obtain a **Firebase ID token** first, then the API verifies it.
+---
 
-### Not implemented yet (security roadmap)
+## 🏗️ Architecture
 
-- **Email verification after register** — today `/auth/register` returns a JWT immediately; there is **no** confirmation link or code sent by email.
-- **Phone OTP when adding/updating a phone number** — `users.phone` can exist, but there is **no** SMS verification flow in this API.
+```
+React Native (Expo SDK 54)   ───▶   FastAPI (Python 3.11+)
+                                     ├── PostgreSQL / SQLite
+                                     ├── Ollama (local AI)
+                                     ├── Stripe
+                                     ├── SendGrid
+                                     ├── Daily.co
+                                     └── Sentry
+```
 
-To add production-grade verification you typically need: an email provider (Resend, SendGrid, SES, …) and/or an SMS provider (Twilio Verify, …), new tables or columns (`email_verified_at`, challenge codes), and guarded routes until verified. Placeholders for future env vars are commented in **`.env.example`**.
+---
 
-## Setup
+## 🚀 Quick Start
 
+### Backend
 ```bash
 cd backend
-python -m venv .venv
-.venv\Scripts\activate   # Windows
-# source .venv/bin/activate  # Linux/macOS
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
-# Edit .env: set SECRET_KEY, CORS_ORIGINS, and optionally DATABASE_URL, GOOGLE_APPLICATION_CREDENTIALS
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+cp .env.example .env  # fill in your keys
+./scripts/migrate.sh stamp  # if upgrading existing DB
+./scripts/migrate.sh up     # fresh install
+uvicorn main:app --reload
 ```
 
-### Docker (from repo root)
+### Mobile
+```bash
+npm install --legacy-peer-deps
+npx expo start
+```
+
+### iOS build
+```bash
+cd ios && pod install
+xcodebuild -scheme AlloulOne -workspace AlloulOne.xcworkspace \
+  -configuration Release -destination "generic/platform=iOS" \
+  archive -archivePath /tmp/AlloulOne.xcarchive
+```
+
+---
+
+## 📂 Project Structure
+
+See [PROJECT_STATUS.md](PROJECT_STATUS.md) for a full audit report.
+
+```
+alloul-mobile/
+├── src/                    # React Native frontend
+│   ├── api/               # API clients (15+ files)
+│   ├── features/          # Feature modules
+│   ├── navigation/        # Stack/tab navigators
+│   ├── components/ui/     # Design system
+│   ├── brand/             # ALLOUL&Q brand constants
+│   ├── theme/             # Design tokens
+│   └── config/            # Sentry, env
+├── backend/               # FastAPI backend (canonical)
+│   ├── routers/          # 34 API routers
+│   ├── services/         # email, sentry, ai_engine
+│   ├── middleware/       # audit logging
+│   ├── migrations/       # Alembic
+│   └── tests/            # pytest
+├── assets/logo/          # Brand assets
+├── ios/                  # Native iOS project
+└── android/              # Native Android project
+```
+
+---
+
+## 💳 Subscription Plans
+
+| Plan | Price | Employees | Features |
+|---|---|---|---|
+| **Starter** | $30/mo, $300/yr | 5 | 14-day trial, core features |
+| **Professional** | $90/mo, $900/yr | 15 | Advanced reports, priority support |
+| **Business** | $210/mo, $2100/yr | 32 | API access, custom integrations |
+| **Enterprise** | Contact sales | Unlimited | SLA, dedicated support, custom |
+
+---
+
+## 🛠️ Development
 
 ```bash
-cp backend/.env.example backend/.env   # edit SECRET_KEY at minimum
-docker compose up --build
+# Frontend TypeScript check
+NODE_OPTIONS="--max-old-space-size=8192" npx tsc --noEmit
+
+# Backend tests
+cd backend && pytest tests/ -v
+
+# Create a database migration
+cd backend && ./scripts/migrate.sh new "describe your change"
 ```
 
-API: `http://localhost:8000` — OpenAPI: `http://localhost:8000/docs`
+---
 
-### Mobile app (Expo / TestFlight)
+## 🔐 Environment Variables
 
-The app reads **`EXPO_PUBLIC_API_URL`** at **build time**. It must be a **public HTTPS URL** (not `localhost`) for real devices. See **`docs/connect-backend-mobile-ar.md`**.
+See [backend/.env.example](backend/.env.example) for the full list.
 
-Tables are created on startup. For Firebase OAuth, set `GOOGLE_APPLICATION_CREDENTIALS` to the path of your Firebase service account JSON.
+**Required for production:**
+- `DATABASE_URL`, `SECRET_KEY`
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*`
+- `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`
+- `DAILY_API_KEY`, `DAILY_SUBDOMAIN`
+- `SENTRY_DSN`
+- Firebase, OAuth client IDs
 
-**Sign in with Apple (mobile):** In [Firebase Console](https://console.firebase.google.com/) → Authentication → Sign-in method → enable **Apple**. In Apple Developer → Identifiers → your App ID (`com.alloul.one`) → enable **Sign In with Apple**. The app exchanges the Apple identity token for a Firebase ID token, then calls **POST /auth/firebase** like Google.
+---
 
-### QA: grant company membership (test company workspace)
+## 📄 License
 
-If a user exists but has no `company_members` row, the app cannot load “my company”. Admins can still open the company shell after `ADMIN_ALLOWED_EMAILS`; to attach a real company for API tests:
-
-```bash
-cd /path/to/backend   # e.g. /root/allou-backend
-source .venv/bin/activate   # or .venv/bin/activate.fish
-python scripts/grant_company_membership.py --email you@example.com
-# optional: --company-id 2   (default = first company by id)
-```
-
-Requires at least one row in `companies` (create via the app or `POST /companies` with a logged-in user who is not already in a company).
-
-### Member phone + in-app calling (Stream)
-
-- **`users.phone`** (اختياري): عمود نصي لرقم الجوال. على قاعدة موجودة نفّذ مثلاً:
-  - SQLite: `ALTER TABLE users ADD COLUMN phone VARCHAR(32);`
-  - PostgreSQL: `ALTER TABLE users ADD COLUMN phone VARCHAR(32);`
-- **GET `/companies/members`** يعيد **`phone`** لكل عضو مأخوذ من المستخدم المرتبط — التطبيق يستخدمه مع `tel:`.
-- إذا **تسجيل الدخول بالبريد** أعاد **503** مع تلميح قاعدة البيانات: نفّذ على Postgres **`scripts/add_users_phone_postgres.sql`** (أو نفس `ALTER TABLE` يدوياً) ثم أعد تشغيل الـ API.
-- **مكالمة داخل التطبيق (GetStream):** عيّن `STREAM_API_KEY` و `STREAM_API_SECRET` في `.env`. الموبايل يجلب **`GET /stream/credentials`**؛ معرّف كل مستخدم لدى Stream هو **`user_<id>`** (نفس ما يولّده الخادم في الـ JWT). الربط الكامل يتطلب تثبيت **Stream Video / Chat SDK** في تطبيق React Native (غالباً مع **Expo dev client** وليس Expo Go فقط).
-
-### Daily.co — غرفة فيديو + شات لأعضاء الشركة
-
-- **`DAILY_API_KEY`**: مفتاح API من [لوحة Daily](https://dashboard.daily.co/).
-- **`DAILY_SUBDOMAIN`**: النطاق الفرعي فقط (مثلاً `alloul` لـ `https://alloul.daily.co`).
-- **`GET /daily/company-join`** (Bearer JWT): يتطلب صفاً في **`company_members`**. ينشئ غرفة خاصة بالشركة عند الحاجة (`co{id}hub`)، يصدر **meeting token**، ويعيد **`join_url`**. التطبيق يفتح الرابط في المتصفح المضمّن (Expo). يُسجَّل **`daily_company_join`** في **`activity_logs`**. الشات النصي داخل الجلسة يظهر في واجهة Daily.
-
-## Deploy
-
-- Set `DATABASE_URL` to your PostgreSQL connection string.
-- Set `SECRET_KEY` to a strong random value.
-- Set `ENVIRONMENT=production`.
-- Set `CORS_ORIGINS` to explicit allowed origins (do not use `*` in production).
-- Keep `SEED_ADMIN_ENABLED=false` in production. If you need initial admin bootstrap, set `SEED_ADMIN_ENABLED=true` once with `SEED_ADMIN_EMAIL` and a strong `SEED_ADMIN_PASSWORD`, then disable it again.
-- For **two-device QA** (e.g. two admins on two phones), enable `SEED_SECOND_USER_ENABLED` with `SEED_SECOND_USER_*`, and set `ADMIN_ALLOWED_EMAILS` / `ADMIN_USERNAMES` so both accounts match `admin_access` (see `backend/.env.example` commented block).
-- For OAuth: set `GOOGLE_APPLICATION_CREDENTIALS` or upload the service account file and set the path.
-- **Microsoft SSO (optional / API-only):** Set `MICROSOFT_CLIENT_ID` and `MICROSOFT_TENANT_ID` in `.env` for **POST /auth/azure-ad** if you integrate a client; the current Expo app uses Google, Apple, and GitHub via Firebase instead.
-- **Azure Blob Storage:** Set `AZURE_STORAGE_CONNECTION_STRING` and optionally `AZURE_STORAGE_CONTAINER` (default: uploads) for profile/company logo and file uploads.
-- **Stripe:** Create Products and recurring Prices in [Stripe Dashboard](https://dashboard.stripe.com/products) for Starter ($24/mo), Pro ($59/mo), Pro+ (your price). Copy each Price ID and set `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_PRO_PLUS` in `.env`. Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (from Stripe Developers → Webhooks). **Never commit secret keys to the repo.** Use env vars only.
-- Run: `uvicorn main:app --host 0.0.0.0 --port 8000` (or use Gunicorn: `gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker`).
-- Point the mobile app build env **`EXPO_PUBLIC_API_URL`** (and web `NEXT_PUBLIC_API_URL` if any) to this backend URL.
+© 2026 Alloul Digital. All rights reserved.
