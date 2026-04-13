@@ -2,6 +2,8 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import CompanyListScreen from "../../features/companies/screens/CompanyListScreen";
 import CompanyWorkspaceShellScreen from "../../features/companies/screens/CompanyWorkspaceShellScreen";
+import CompanyDashboardScreen from "../../features/companies/screens/CompanyDashboardScreen";
+import CompanyServicesScreen from "../../features/companies/screens/CompanyServicesScreen";
 import ServicesHubScreen from "../../features/companies/screens/ServicesHubScreen";
 import ApprovalsScreen from "../../features/companies/screens/ApprovalsScreen";
 import CompanyMoreScreen from "../../features/companies/screens/CompanyMoreScreen";
@@ -79,8 +81,10 @@ export default function CompanyNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="CompanySelector" component={CompanySelectorEntry} />
       <Stack.Screen name="Companies" component={CompanyListScreen} />
-      <Stack.Screen name="CompanyWorkspace" component={CompanyWorkspaceShellScreen} />
-      <Stack.Screen name="Apps" component={ServicesHubScreen} />
+      <Stack.Screen name="CompanyWorkspace" component={CompanyDashboardScreen} />
+      <Stack.Screen name="CompanyWorkspaceLegacy" component={CompanyWorkspaceShellScreen} />
+      <Stack.Screen name="Apps" component={CompanyServicesScreen} />
+      <Stack.Screen name="AppsLegacy" component={ServicesHubScreen} />
       <Stack.Screen name="Inbox" component={ApprovalsScreen} />
       <Stack.Screen name="Profile" component={CompanyMoreScreen} />
       <Stack.Screen name="Teams" component={TeamScreen} />
