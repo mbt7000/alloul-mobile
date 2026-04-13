@@ -22,6 +22,7 @@ import CreateStoryScreen from "../../features/media/screens/CreateStoryScreen";
 import FollowListScreen from "../../features/media/screens/FollowListScreen";
 import XSettingsScreen from "../../features/settings/screens/XSettingsScreen";
 import EditProfileScreen from "../../features/settings/screens/EditProfileScreen";
+import ChangePasswordScreen from "../../features/settings/screens/ChangePasswordScreen";
 import PricingScreen from "../../features/billing/screens/PricingScreen";
 import BillingScreen from "../../features/billing/screens/BillingScreen";
 
@@ -42,6 +43,7 @@ export default function MediaNavigator() {
       <Stack.Screen name="UserProfile" component={ProfileScreen} />
       <Stack.Screen name="Settings" component={XSettingsScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       <Stack.Screen name="Pricing" component={PricingScreen} />
       <Stack.Screen name="Billing" component={BillingScreen} />
       <Stack.Screen name="AdminHub" component={AdminHubScreen} />
