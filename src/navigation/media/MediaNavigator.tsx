@@ -22,6 +22,8 @@ import CreateStoryScreen from "../../features/media/screens/CreateStoryScreen";
 import FollowListScreen from "../../features/media/screens/FollowListScreen";
 import XSettingsScreen from "../../features/settings/screens/XSettingsScreen";
 import EditProfileScreen from "../../features/settings/screens/EditProfileScreen";
+import PricingScreen from "../../features/billing/screens/PricingScreen";
+import BillingScreen from "../../features/billing/screens/BillingScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -40,6 +42,8 @@ export default function MediaNavigator() {
       <Stack.Screen name="UserProfile" component={ProfileScreen} />
       <Stack.Screen name="Settings" component={XSettingsScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="Pricing" component={PricingScreen} />
+      <Stack.Screen name="Billing" component={BillingScreen} />
       <Stack.Screen name="AdminHub" component={AdminHubScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="DirectMessages" component={DirectMessagesScreen} />

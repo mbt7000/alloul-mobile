@@ -20,6 +20,8 @@ import CRMScreen from "../../features/companies/screens/CRMScreen";
 import ReportsScreen from "../../shared/screens/ReportsScreen";
 import XSettingsScreen from "../../features/settings/screens/XSettingsScreen";
 import EditProfileScreen from "../../features/settings/screens/EditProfileScreen";
+import PricingScreen from "../../features/billing/screens/PricingScreen";
+import BillingScreen from "../../features/billing/screens/BillingScreen";
 import AdminHubScreen from "../../features/settings/screens/AdminHubScreen";
 import ApprovalDetailScreen from "../../features/companies/screens/ApprovalDetailScreen";
 import CompanyProfileScreen from "../../shared/screens/CompanyProfileScreen";
@@ -103,6 +105,8 @@ export default function CompanyNavigator() {
       <Stack.Screen name="Reports" component={ReportsScreen} />
       <Stack.Screen name="Settings" component={XSettingsScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="Pricing" component={PricingScreen} />
+      <Stack.Screen name="Billing" component={BillingScreen} />
       <Stack.Screen name="AdminHub" component={AdminHubScreen} />
       <Stack.Screen name="ApprovalDetail" component={ApprovalDetailScreen} />
       <Stack.Screen name="Company" component={CompanyProfileScreen} />
