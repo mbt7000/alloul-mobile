@@ -24,7 +24,7 @@ export function initSentry(): void {
 
   try {
     // Lazy require so missing package doesn't break dev
-    // @ts-expect-error — dynamic require, optional dep
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const Sentry = require("@sentry/react-native");
     Sentry.init({
       dsn,
@@ -51,7 +51,7 @@ export function initSentry(): void {
 export function captureException(error: unknown, context?: Record<string, any>): void {
   if (!initialized) return;
   try {
-    // @ts-expect-error — dynamic require
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const Sentry = require("@sentry/react-native");
     Sentry.captureException(error, context ? { extra: context } : undefined);
   } catch {
