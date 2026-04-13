@@ -26,3 +26,4 @@ anthropic==0.39.0
 python-dotenv==1.0.1
 pydantic-settings==2.6.1
 alembic>=1.13.0
+sentry-sdk[fastapi,sqlalchemy]>=2.8.0

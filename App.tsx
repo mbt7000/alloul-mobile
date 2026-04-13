@@ -1,4 +1,7 @@
 import "react-native-gesture-handler";
+import { initSentry, captureException } from "./src/config/sentry";
+initSentry();
+
 import React from "react";
 import { StatusBar, ActivityIndicator, View, Text, TouchableOpacity } from "react-native";
 import { NavigationContainer, DefaultTheme, Theme as NavTheme } from "@react-navigation/native";
@@ -35,6 +38,7 @@ class AppErrorBoundary extends React.Component<
   }
   componentDidCatch(error: unknown, info: React.ErrorInfo) {
     console.error("[AppCrash]", error, info.componentStack);
+    captureException(error, { componentStack: info.componentStack });
   }
   render() {
     if (this.state.hasError) {

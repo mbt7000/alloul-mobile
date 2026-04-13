@@ -10,6 +10,11 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
+# ALLOUL&Q — Initialize Sentry BEFORE importing app modules so
+# errors during startup are captured too.
+from services.sentry import init_sentry
+init_sentry()
+
 import database
 from config import settings
 from database import engine, Base
