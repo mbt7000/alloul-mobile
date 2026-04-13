@@ -22,8 +22,12 @@ class CallManager:
     def __init__(self) -> None:
         self.connections: dict[int, WebSocket] = {}
 
-    async def connect(self, user_id: int, ws: WebSocket) -> None:
-        await ws.accept()
+    async def connect(self, user_id: int, ws: WebSocket, subprotocol: str | None = None) -> None:
+        # If client sent a subprotocol (bearer auth), echo it back on accept.
+        if subprotocol:
+            await ws.accept(subprotocol=subprotocol)
+        else:
+            await ws.accept()
         self.connections[user_id] = ws
 
     def disconnect(self, user_id: int) -> None:
@@ -126,9 +130,31 @@ def get_user_presence(
 async def websocket_endpoint(
     websocket: WebSocket,
     user_id: int,
-    token: str = Query(...),
+    token: str = Query(default=None),  # Legacy fallback — deprecated
 ):
-    payload = decode_token(token)
+    # SECURITY: Prefer token from Sec-WebSocket-Protocol header.
+    # Client sends subprotocols: ["bearer", "<token>"]
+    # Falls back to ?token= query for older clients (deprecated).
+    header_token: str | None = None
+    try:
+        subprotocols_header = websocket.headers.get("sec-websocket-protocol", "")
+        if subprotocols_header:
+            parts = [p.strip() for p in subprotocols_header.split(",")]
+            if len(parts) >= 2 and parts[0].lower() == "bearer":
+                header_token = parts[1]
+    except Exception:
+        header_token = None
+
+    effective_token = header_token or token
+
+    if not effective_token:
+        await websocket.close(code=4001)
+        return
+
+    # Accept the subprotocol echo (browsers require this for header-based flow)
+    accept_subprotocol = "bearer" if header_token else None
+
+    payload = decode_token(effective_token)
     if not payload or payload.get("sub") != str(user_id):
         await websocket.close(code=4001)
         return
@@ -140,7 +166,7 @@ async def websocket_endpoint(
             await websocket.close(code=4004)
             return
 
-        await call_manager.connect(user_id, websocket)
+        await call_manager.connect(user_id, websocket, accept_subprotocol)
         user.presence_status = "online"
         db.commit()
 

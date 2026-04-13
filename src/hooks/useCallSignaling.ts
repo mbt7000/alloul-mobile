@@ -52,10 +52,16 @@ export function useCallSignaling(options: UseCallSignalingOptions) {
     if (!token || !mountedRef.current) return;
 
     const base = buildWsUrl(getApiBaseUrl());
-    const url = `${base}/ws/${user.id}?token=${encodeURIComponent(token)}`;
+    const url = `${base}/ws/${user.id}`;
+
+    // SECURITY: token is passed via Sec-WebSocket-Protocol instead of URL query.
+    // Prevents the token from leaking into access logs, browser history, or proxies.
+    // Backend reads the token from: request.headers["sec-websocket-protocol"]
+    // Format: "bearer, <token>"   (comma-separated subprotocols)
+    const protocols = ["bearer", token];
 
     try {
-      const ws = new WebSocket(url);
+      const ws = new WebSocket(url, protocols);
       wsRef.current = ws;
 
       ws.onopen = () => {
