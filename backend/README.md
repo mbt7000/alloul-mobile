@@ -108,3 +108,42 @@ Requires at least one row in `companies` (create via the app or `POST /companies
 - **Stripe:** Create Products and recurring Prices in [Stripe Dashboard](https://dashboard.stripe.com/products) for Starter ($24/mo), Pro ($59/mo), Pro+ (your price). Copy each Price ID and set `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_PRO_PLUS` in `.env`. Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (from Stripe Developers → Webhooks). **Never commit secret keys to the repo.** Use env vars only.
 - Run: `uvicorn main:app --host 0.0.0.0 --port 8000` (or use Gunicorn: `gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker`).
 - Point the mobile app build env **`EXPO_PUBLIC_API_URL`** (and web `NEXT_PUBLIC_API_URL` if any) to this backend URL.
+
+## Database Migrations (Alembic)
+
+Schema changes are managed via Alembic migrations, NOT `Base.metadata.create_all()`.
+
+### Setup
+```bash
+cd backend
+pip install alembic  # already in requirements.txt
+```
+
+### Common commands
+```bash
+./scripts/migrate.sh up              # Apply all pending migrations
+./scripts/migrate.sh down            # Rollback one migration
+./scripts/migrate.sh new "add X"     # Create new migration (autogenerate)
+./scripts/migrate.sh stamp           # Stamp existing DB at current head (first-time setup)
+./scripts/migrate.sh current         # Show current revision
+./scripts/migrate.sh history         # Show migration history
+```
+
+### First-time setup on existing database
+If your database was bootstrapped via `create_all()`, run:
+```bash
+./scripts/migrate.sh stamp
+```
+This tells Alembic the DB is already at the baseline revision.
+
+### Development (create_all fallback)
+For quick local iteration, set `ALLOW_CREATE_ALL=1` to keep the old behavior.
+**Never set this in production.**
+
+### Creating a new migration
+```bash
+# Edit models.py, then:
+./scripts/migrate.sh new "describe the change"
+# Review the generated file in migrations/versions/
+./scripts/migrate.sh up
+```

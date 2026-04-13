@@ -25,3 +25,4 @@ anthropic==0.39.0
 # Env
 python-dotenv==1.0.1
 pydantic-settings==2.6.1
+alembic>=1.13.0

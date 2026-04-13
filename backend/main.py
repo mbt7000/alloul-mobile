@@ -24,7 +24,12 @@ from routers import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    # ALLOUL&Q — Production schema is managed via Alembic migrations.
+    # Run `./scripts/migrate.sh up` to apply migrations.
+    # For local dev only, create_all() runs if ALLOW_CREATE_ALL=1
+    import os as _os
+    if _os.getenv("ALLOW_CREATE_ALL") == "1":
+        Base.metadata.create_all(bind=engine)
     _validate_runtime_safety()
     _seed_bootstrap_users()
     yield
