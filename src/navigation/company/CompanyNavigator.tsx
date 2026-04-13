@@ -4,6 +4,10 @@ import CompanyListScreen from "../../features/companies/screens/CompanyListScree
 import CompanyWorkspaceShellScreen from "../../features/companies/screens/CompanyWorkspaceShellScreen";
 import CompanyDashboardScreen from "../../features/companies/screens/CompanyDashboardScreen";
 import CompanyServicesScreen from "../../features/companies/screens/CompanyServicesScreen";
+import CompanyProfileMenuScreen from "../../features/companies/screens/CompanyProfileMenuScreen";
+import CompanyTeamHierarchyScreen from "../../features/companies/screens/CompanyTeamHierarchyScreen";
+import CompanyNewsScreen from "../../features/companies/screens/CompanyNewsScreen";
+import CompanyEditServicesScreen from "../../features/companies/screens/CompanyEditServicesScreen";
 import ServicesHubScreen from "../../features/companies/screens/ServicesHubScreen";
 import ApprovalsScreen from "../../features/companies/screens/ApprovalsScreen";
 import CompanyMoreScreen from "../../features/companies/screens/CompanyMoreScreen";
@@ -85,8 +89,12 @@ export default function CompanyNavigator() {
       <Stack.Screen name="CompanyWorkspaceLegacy" component={CompanyWorkspaceShellScreen} />
       <Stack.Screen name="Apps" component={CompanyServicesScreen} />
       <Stack.Screen name="AppsLegacy" component={ServicesHubScreen} />
+      <Stack.Screen name="EditServices" component={CompanyEditServicesScreen} />
+      <Stack.Screen name="TeamHierarchy" component={CompanyTeamHierarchyScreen} />
+      <Stack.Screen name="CompanyNews" component={CompanyNewsScreen} />
       <Stack.Screen name="Inbox" component={ApprovalsScreen} />
-      <Stack.Screen name="Profile" component={CompanyMoreScreen} />
+      <Stack.Screen name="Profile" component={CompanyProfileMenuScreen} />
+      <Stack.Screen name="ProfileLegacy" component={CompanyMoreScreen} />
       <Stack.Screen name="Teams" component={TeamScreen} />
       <Stack.Screen name="Team" component={TeamScreen} />
       <Stack.Screen name="Projects" component={ProjectsScreen} />

@@ -44,7 +44,7 @@ const QUICK_ACTIONS = [
 ];
 
 const MAIN_SERVICES = [
-  { key: "team",     icon: "people"           as const, label: "الفريق",      sub: "الموظفون والأدوار", route: "Team",       color: "#8b5cf6" },
+  { key: "team",     icon: "people"           as const, label: "الفريق",      sub: "الموظفون والأدوار", route: "TeamHierarchy", color: "#8b5cf6" },
   { key: "projects", icon: "folder"           as const, label: "المشاريع",    sub: "كل المشاريع",       route: "Projects",   color: "#06b6d4" },
   { key: "tasks",    icon: "list"             as const, label: "المهام",      sub: "قائمة كاملة",       route: "Tasks",      color: "#3b82f6" },
   { key: "meetings", icon: "calendar"         as const, label: "الاجتماعات",  sub: "الجدولة والفريق",   route: "Meetings",   color: "#10b981" },
@@ -154,9 +154,14 @@ export default function CompanyDashboardScreen() {
         {/* ═══════════════ 3. MAIN SERVICES GRID (2 columns) ═══════════════ */}
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <AppText style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>الخدمات</AppText>
-          <Pressable onPress={() => nav.navigate("Apps")}>
-            <AppText style={{ color: c.accentCyan, fontSize: 12, fontWeight: "600" }}>عرض الكل</AppText>
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <Pressable onPress={() => nav.navigate("EditServices")}>
+              <AppText style={{ color: "#888", fontSize: 12, fontWeight: "600" }}>تعديل</AppText>
+            </Pressable>
+            <Pressable onPress={() => nav.navigate("Apps")}>
+              <AppText style={{ color: c.accentCyan, fontSize: 12, fontWeight: "600" }}>عرض الكل</AppText>
+            </Pressable>
+          </View>
         </View>
 
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
