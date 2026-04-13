@@ -31,6 +31,7 @@ import {
   type DashboardStats,
   type DashboardActivityItem,
 } from "../../../api";
+import { useCompanyDailyRoom } from "../../../lib/useCompanyDailyRoom";
 
 // ─── Service definitions ─────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ export default function CompanyDashboardScreen() {
   const { colors: c } = useAppTheme();
   const { user } = useAuth();
   const { company } = useCompany();
+  const { openCompanyDaily, dailyLoading } = useCompanyDailyRoom();
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activity, setActivity] = useState<DashboardActivityItem[]>([]);
@@ -150,6 +152,57 @@ export default function CompanyDashboardScreen() {
             </Pressable>
           ))}
         </ScrollView>
+
+        {/* ═══════════════ Company Daily Room (prominent) ═══════════════ */}
+        <Pressable
+          onPress={() => void openCompanyDaily()}
+          disabled={dailyLoading}
+          style={({ pressed }) => ({
+            backgroundColor: "#0f1e29",
+            borderRadius: 20,
+            borderWidth: 1.5,
+            borderColor: "#0ea5e966",
+            padding: 18,
+            marginBottom: 22,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 14,
+            opacity: pressed || dailyLoading ? 0.75 : 1,
+          })}
+        >
+          <View style={{
+            width: 52, height: 52, borderRadius: 16,
+            backgroundColor: "#0ea5e922",
+            borderWidth: 1, borderColor: "#0ea5e944",
+            alignItems: "center", justifyContent: "center",
+          }}>
+            <Ionicons name={dailyLoading ? "hourglass" : "videocam"} size={24} color="#0ea5e9" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <AppText style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>
+                غرفة الشركة المباشرة
+              </AppText>
+              <View style={{
+                backgroundColor: "#ef444422",
+                paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+                flexDirection: "row", alignItems: "center", gap: 3,
+              }}>
+                <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: "#ef4444" }} />
+                <Text style={{ color: "#ef4444", fontSize: 9, fontWeight: "800" }}>LIVE</Text>
+              </View>
+            </View>
+            <AppText style={{ color: "#888", fontSize: 11, marginTop: 3 }}>
+              {dailyLoading ? "جارٍ الاتصال..." : "انضم للاجتماع المباشر فوراً"}
+            </AppText>
+          </View>
+          <View style={{
+            paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
+            backgroundColor: "#0ea5e9",
+          }}>
+            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>انضم</Text>
+          </View>
+        </Pressable>
 
         {/* ═══════════════ 3. MAIN SERVICES GRID (2 columns) ═══════════════ */}
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>

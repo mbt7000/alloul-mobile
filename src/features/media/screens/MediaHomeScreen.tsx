@@ -180,18 +180,54 @@ export default function MediaHomeScreen() {
       <View style={styles.glowTop} pointerEvents="none" />
       <View style={styles.glowBlue} pointerEvents="none" />
 
-      <HomeSmartHeader
-        variant="mediaStrip"
-        firstName={firstName}
-        mode={mode}
-        onModeChange={handleModeChange}
-        companyName={company?.name}
-        companyLoading={companyLoading}
-        canUseCompanyMode={canUseCompanyMode}
-        onSearch={() => navigation.navigate("Search", { source: "home" })}
-        onNotifications={() => navigation.navigate("Inbox")}
-        inboxUnreadCount={displayUnreadCount}
-      />
+      {/* X-style minimal header */}
+      <View style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: "rgba(255,255,255,0.06)",
+      }}>
+        <Pressable onPress={() => navigation.navigate("Profile" as any)} hitSlop={8}>
+          {user?.avatar_url ? (
+            <Image source={{ uri: user.avatar_url }} style={{ width: 32, height: 32, borderRadius: 16 }} />
+          ) : (
+            <View style={{
+              width: 32, height: 32, borderRadius: 16,
+              backgroundColor: colors.accentBlue + "22",
+              alignItems: "center", justifyContent: "center",
+            }}>
+              <AppText style={{ color: colors.accentBlue, fontSize: 12, fontWeight: "800" }}>
+                {(user?.name || user?.username || "U").slice(0, 1).toUpperCase()}
+              </AppText>
+            </View>
+          )}
+        </Pressable>
+        <AppText style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "800", letterSpacing: 0.3 }}>
+          Alloul
+        </AppText>
+        <Pressable
+          onPress={() => navigation.navigate("Inbox")}
+          style={{ position: "relative" }}
+          hitSlop={8}
+        >
+          <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
+          {displayUnreadCount > 0 && (
+            <View style={{
+              position: "absolute", top: -4, right: -6,
+              backgroundColor: "#ef4444",
+              borderRadius: 8, paddingHorizontal: 4, minWidth: 14,
+              alignItems: "center", justifyContent: "center",
+            }}>
+              <AppText style={{ color: "#fff", fontSize: 9, fontWeight: "800" }}>
+                {displayUnreadCount > 99 ? "99+" : displayUnreadCount}
+              </AppText>
+            </View>
+          )}
+        </Pressable>
+      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
