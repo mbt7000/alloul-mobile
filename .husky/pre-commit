@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# Prevent committing Python files at repo root — backend/ is canonical
+
+ROOT_PY=$(git diff --cached --name-only --diff-filter=A | grep -E '^[^/]+\.py$' | head -5)
+if [ -n "$ROOT_PY" ]; then
+  echo "❌ Python files at repo root are not allowed. backend/ is the canonical source."
+  echo "Rejected files:"
+  echo "$ROOT_PY"
+  exit 1
+fi
+
+ROOT_ROUTERS=$(git diff --cached --name-only --diff-filter=A | grep -E '^routers/' | head -5)
+if [ -n "$ROOT_ROUTERS" ]; then
+  echo "❌ routers/ at repo root is not allowed. Use backend/routers/ instead."
+  exit 1
+fi
