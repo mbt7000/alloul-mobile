@@ -13,7 +13,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import type { AppPalette } from "../../../theme/palettes";
@@ -48,6 +48,7 @@ function badgeForType(type: string, colors: AppPalette): { icon: keyof typeof Io
 export default function NotificationsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const { colors, toggleMode } = useAppTheme();
   const {
     notifications: items,
@@ -143,8 +144,34 @@ export default function NotificationsScreen() {
     }, [refresh])
   );
 
-  const onPressItem = async (id: number) => {
-    await markNotificationRead(id);
+  const onPressItem = async (item: NotificationItem) => {
+    // Mark as read first (optimistic)
+    void markNotificationRead(item.id);
+
+    // Route to detail based on type
+    const type = (item.type || "").toLowerCase();
+    const refId = item.reference_id;
+
+    if ((type.includes("like") || type.includes("comment") || type.includes("mention") || type.includes("repost") || type.includes("reply") || type.includes("tag")) && refId) {
+      // Post-related → open post detail
+      navigation.navigate("PostDetail", { postId: refId });
+      return;
+    }
+    if (type.includes("follow") && refId) {
+      // Follow → open user profile
+      navigation.navigate("UserProfile", { userId: refId });
+      return;
+    }
+    if (type.includes("message") && refId) {
+      // DM → open conversation
+      navigation.navigate("Conversation", { conversationId: refId });
+      return;
+    }
+    if (type.includes("call") && refId) {
+      navigation.navigate("CallHistory");
+      return;
+    }
+    // Default: just mark as read (no navigation)
   };
 
   const showInitialLoader = loading && items.length === 0 && !error;
@@ -237,7 +264,7 @@ export default function NotificationsScreen() {
               item={item}
               colors={colors}
               styles={styles}
-              onPress={() => void onPressItem(item.id)}
+              onPress={() => void onPressItem(item)}
             />
           )}
         />

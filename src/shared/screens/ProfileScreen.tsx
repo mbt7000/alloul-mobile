@@ -226,22 +226,7 @@ function OtherUserProfile({ userId }: { userId: number }) {
             >
               <Ionicons name="chatbubble-outline" size={18} color={c.textPrimary} />
             </TouchableOpacity>
-            {/* Audio call */}
-            <TouchableOpacity
-              onPress={() => void startCall(userId, profile?.name || profile?.username || "مستخدم", profile?.avatar_url ?? undefined, "audio")}
-              disabled={actionLoading}
-              style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 999, backgroundColor: c.accentBlue + "18", borderWidth: 1.5, borderColor: c.accentBlue + "44", alignItems: "center", justifyContent: "center" }}
-            >
-              <Ionicons name="call-outline" size={18} color={c.accentBlue} />
-            </TouchableOpacity>
-            {/* Video call */}
-            <TouchableOpacity
-              onPress={() => void startCall(userId, profile?.name || profile?.username || "مستخدم", profile?.avatar_url ?? undefined, "video")}
-              disabled={actionLoading}
-              style={{ paddingHorizontal: 14, paddingVertical: 12, borderRadius: 999, backgroundColor: "#10b981" + "18", borderWidth: 1.5, borderColor: "#10b981" + "44", alignItems: "center", justifyContent: "center" }}
-            >
-              <Ionicons name="videocam-outline" size={18} color="#10b981" />
-            </TouchableOpacity>
+            {/* Calls are only available in the Company section — removed from media profiles */}
           </View>
         </View>
 
@@ -769,6 +754,22 @@ function OwnProfile() {
               )}
               {/* top-right action buttons */}
               <View style={{ position: "absolute", top: 12, right: 12, flexDirection: "row", gap: 8 }}>
+                {/* Compact world switcher (tiny arrow button) */}
+                {canUseCompanyMode && (
+                  <Pressable
+                    style={[styles.roundIcon, { backgroundColor: "rgba(0,0,0,0.5)" }]}
+                    onPress={() => {
+                      setHomeMode("company");
+                      const rootNav = navigation.getParent?.() as any;
+                      rootNav?.navigate(ROOT_SHELL_ROUTES.company, {
+                        screen: getLastRoute("company") ?? "CompanyWorkspace",
+                      });
+                    }}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="briefcase-outline" size={16} color={colors.accentTeal} />
+                  </Pressable>
+                )}
                 <Pressable
                   style={styles.roundIcon}
                   onPress={() => {

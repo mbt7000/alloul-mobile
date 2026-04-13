@@ -53,18 +53,19 @@ export default function XSettingsScreen() {
     {
       title: "الحساب",
       items: [
+        { key: "edit-profile", icon: "create-outline", title: "تعديل الملف الشخصي", subtitle: "الاسم، الصورة، النبذة", route: "EditProfile" },
         { key: "account-info", icon: "person-outline", title: "معلومات الحساب", subtitle: user?.email, route: "UserProfile" },
-        { key: "security", icon: "lock-closed-outline", title: "الأمان والخصوصية", subtitle: "كلمة المرور والدخول" },
+        { key: "security", icon: "lock-closed-outline", title: "الأمان وكلمة المرور", subtitle: "حماية حسابك", onPress: () => Alert.alert("الأمان", "تغيير كلمة المرور سيتوفر قريباً") },
         { key: "cv", icon: "document-text-outline", title: "السيرة الذاتية", subtitle: "عرض وتحرير", route: "CVScreen" },
-        { key: "subscription", icon: "card-outline", title: "الاشتراك والفواتير", subtitle: "الخطة الحالية" },
+        { key: "subscription", icon: "card-outline", title: "الاشتراك والفواتير", subtitle: "الخطة الحالية", onPress: () => Alert.alert("الاشتراك", "إدارة الاشتراك قريباً") },
       ],
     },
     {
       title: "الإشعارات والصوت",
       items: [
-        { key: "notifications", icon: "notifications-outline", title: "الإشعارات", subtitle: "إدارة التنبيهات" },
-        { key: "push", icon: "phone-portrait-outline", title: "إشعارات الجهاز" },
-        { key: "sound", icon: "volume-medium-outline", title: "الأصوات والاهتزاز" },
+        { key: "notifications", icon: "notifications-outline", title: "الإشعارات", subtitle: "إدارة التنبيهات", route: "Inbox" },
+        { key: "push", icon: "phone-portrait-outline", title: "إشعارات الجهاز", onPress: () => Alert.alert("إشعارات الجهاز", "الإشعارات مفعّلة — أدرها من إعدادات iOS") },
+        { key: "sound", icon: "volume-medium-outline", title: "الأصوات والاهتزاز", onPress: () => Alert.alert("الأصوات", "الأصوات مفعّلة افتراضياً") },
       ],
     },
     {
@@ -90,18 +91,18 @@ export default function XSettingsScreen() {
     {
       title: "الخصوصية",
       items: [
-        { key: "blocked", icon: "ban-outline", title: "الحسابات المحظورة" },
-        { key: "muted", icon: "volume-mute-outline", title: "الحسابات الكتومة" },
-        { key: "data", icon: "server-outline", title: "استخدام البيانات" },
+        { key: "blocked", icon: "ban-outline", title: "الحسابات المحظورة", onPress: () => Alert.alert("المحظورون", "لا يوجد حسابات محظورة") },
+        { key: "muted", icon: "volume-mute-outline", title: "الحسابات الكتومة", onPress: () => Alert.alert("الكتومة", "لا يوجد حسابات كتومة") },
+        { key: "data", icon: "server-outline", title: "استخدام البيانات", onPress: () => Alert.alert("البيانات", "استخدام عادي") },
       ],
     },
     {
       title: "مصادر إضافية",
       items: [
-        { key: "help", icon: "help-circle-outline", title: "مركز المساعدة" },
-        { key: "terms", icon: "document-outline", title: "شروط الخدمة" },
-        { key: "privacy", icon: "shield-outline", title: "سياسة الخصوصية" },
-        { key: "about", icon: "information-circle-outline", title: "عن التطبيق", subtitle: `v${appVersion}` },
+        { key: "help", icon: "help-circle-outline", title: "مركز المساعدة", onPress: () => Alert.alert("المساعدة", "للدعم راسل: support@alloul.app") },
+        { key: "terms", icon: "document-outline", title: "شروط الخدمة", onPress: () => Alert.alert("الشروط", "Alloul One © 2026") },
+        { key: "privacy", icon: "shield-outline", title: "سياسة الخصوصية", onPress: () => Alert.alert("الخصوصية", "نحترم خصوصيتك بالكامل") },
+        { key: "about", icon: "information-circle-outline", title: "عن التطبيق", subtitle: `v${appVersion}`, onPress: () => Alert.alert("Alloul One", `الإصدار ${appVersion}\n© 2026 Alloul`) },
       ],
     },
     {

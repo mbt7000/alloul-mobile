@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View, Image, Pressable, StyleSheet, TextInput,
   ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
@@ -18,19 +18,21 @@ export default function CreateStoryScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [uploading, setUploading] = useState(false);
+  const autoLaunched = useRef(false);
 
-  const pickImage = async (source: "camera" | "gallery") => {
+  const pickImage = async (source: "camera" | "gallery", videoToo = false) => {
     const opts: ImagePicker.ImagePickerOptions = {
-      mediaTypes: "images",
+      mediaTypes: videoToo ? "videos" : "images",
       quality: 0.8,
       allowsEditing: true,
       aspect: [9, 16],
+      videoMaxDuration: 15,
     };
 
     let result: ImagePicker.ImagePickerResult;
     if (source === "camera") {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) { Alert.alert("تحتاج إذن الكاميرا"); return; }
+      if (!perm.granted) { Alert.alert("تحتاج إذن الكاميرا"); nav.goBack(); return; }
       result = await ImagePicker.launchCameraAsync(opts);
     } else {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -40,8 +42,20 @@ export default function CreateStoryScreen() {
 
     if (!result.canceled && result.assets[0]) {
       setImageUri(result.assets[0].uri);
+    } else if (source === "camera" && autoLaunched.current) {
+      // User cancelled camera → go back
+      nav.goBack();
     }
   };
+
+  // Auto-launch camera on mount (Snapchat-style)
+  useEffect(() => {
+    if (!autoLaunched.current) {
+      autoLaunched.current = true;
+      void pickImage("camera");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePublish = async () => {
     if (!imageUri) return;
@@ -125,11 +139,20 @@ export default function CreateStoryScreen() {
         <View style={styles.actions}>
           {!imageUri ? (
             <View style={styles.sourceRow}>
-              <Pressable style={styles.sourceBtn} onPress={() => pickImage("camera")}>
+              {/* Camera: tap = photo, hold = video (Snapchat-style) */}
+              <Pressable
+                style={styles.sourceBtn}
+                onPress={() => pickImage("camera", false)}
+                onLongPress={() => pickImage("camera", true)}
+                delayLongPress={400}
+              >
                 <View style={[styles.sourceBtnIcon, { backgroundColor: "#0ea5e922" }]}>
                   <Ionicons name="camera" size={28} color="#0ea5e9" />
                 </View>
                 <AppText variant="bodySm" weight="bold" style={{ color: "#fff" }}>الكاميرا</AppText>
+                <AppText style={{ color: "#71767b", fontSize: 10, marginTop: 2 }}>
+                  اضغط: صورة · اضغط طويلاً: فيديو
+                </AppText>
               </Pressable>
               <Pressable style={styles.sourceBtn} onPress={() => pickImage("gallery")}>
                 <View style={[styles.sourceBtnIcon, { backgroundColor: "#a855f722" }]}>

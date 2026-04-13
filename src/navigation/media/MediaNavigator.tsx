@@ -22,6 +22,7 @@ import StoryViewerScreen from "../../features/media/screens/StoryViewerScreen";
 import CreateStoryScreen from "../../features/media/screens/CreateStoryScreen";
 import FollowListScreen from "../../features/media/screens/FollowListScreen";
 import XSettingsScreen from "../../features/settings/screens/XSettingsScreen";
+import EditProfileScreen from "../../features/settings/screens/EditProfileScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -40,6 +41,7 @@ export default function MediaNavigator() {
       <Stack.Screen name="UserProfile" component={ProfileScreen} />
       <Stack.Screen name="Settings" component={XSettingsScreen} />
       <Stack.Screen name="SettingsLegacy" component={SettingsScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="AdminHub" component={AdminHubScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="DirectMessages" component={DirectMessagesScreen} />
