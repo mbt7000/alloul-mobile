@@ -118,6 +118,20 @@ export const login = (email: string, password: string) =>
     body: JSON.stringify({ email, password }),
   });
 
+export const register = (username: string, email: string, password: string) =>
+  apiFetch<{ access_token: string }>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ username, email, password }),
+  });
+
+// OAuth: get Firebase ID token from provider (Google/Apple/GitHub), exchange
+// for our backend JWT via /auth/firebase — same flow as the mobile app.
+export const loginWithFirebase = (idToken: string) =>
+  apiFetch<{ access_token: string }>('/auth/firebase', {
+    method: 'POST',
+    body: JSON.stringify({ id_token: idToken }),
+  });
+
 export const getCurrentUser = () => apiFetch<import('./auth').AuthUser>('/auth/me');
 
 export const getPosts = (limit = 30, offset = 0) =>

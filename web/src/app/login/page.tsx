@@ -3,34 +3,66 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
-import { login, getCurrentUser } from '@/lib/api-client';
+import { Lock, Mail, Loader2, AlertCircle, User as UserIcon } from 'lucide-react';
+import { login, register, loginWithFirebase, getCurrentUser } from '@/lib/api-client';
 import { setToken, setCachedUser, isAuthenticated } from '@/lib/auth';
+import { signInWithGoogle, signInWithGithub, signInWithApple } from '@/lib/firebase';
+
+type Mode = 'login' | 'register';
+type Provider = 'google' | 'apple' | 'github' | null;
 
 export default function LoginPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<Provider>(null);
 
   useEffect(() => {
     if (isAuthenticated()) router.replace('/');
   }, [router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const finishLogin = async (accessToken: string) => {
+    setToken(accessToken);
+    const me = await getCurrentUser();
+    setCachedUser(me);
+    router.replace('/');
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const res = await login(email.trim(), password);
-      setToken(res.access_token);
-      const me = await getCurrentUser();
-      setCachedUser(me);
-      router.replace('/');
+      const res = mode === 'login'
+        ? await login(email.trim(), password)
+        : await register(username.trim(), email.trim(), password);
+      await finishLogin(res.access_token);
     } catch (err: any) {
-      setError(err?.message || 'فشل تسجيل الدخول');
+      setError(err?.message || (mode === 'login' ? 'فشل تسجيل الدخول' : 'فشل إنشاء الحساب'));
       setLoading(false);
+    }
+  };
+
+  const handleOAuth = async (provider: 'google' | 'apple' | 'github') => {
+    setError(null);
+    setOauthLoading(provider);
+    try {
+      const idToken =
+        provider === 'google' ? await signInWithGoogle() :
+        provider === 'apple'  ? await signInWithApple() :
+                                await signInWithGithub();
+      const res = await loginWithFirebase(idToken);
+      await finishLogin(res.access_token);
+    } catch (err: any) {
+      const msg = err?.message || `فشل تسجيل الدخول عبر ${provider}`;
+      if (!msg.includes('popup-closed-by-user') && !msg.includes('cancelled')) {
+        setError(msg);
+      }
+      setOauthLoading(null);
     }
   };
 
@@ -42,7 +74,7 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md relative">
         {/* Brand */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-logo items-center justify-center shadow-glow-primary mb-4">
             <span className="text-white font-black text-xl">A<span className="text-secondary-200">Q</span></span>
           </div>
@@ -50,68 +82,189 @@ export default function LoginPage() {
           <p className="text-white/50 text-sm mt-2">منصة الأعمال الذكية</p>
         </div>
 
-        {/* Form card */}
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-3xl border border-primary/20 bg-dark-bg-800/80 backdrop-blur-xl p-8 space-y-5 shadow-glow-primary"
-        >
-          <h2 className="text-white font-bold text-xl mb-2">تسجيل الدخول</h2>
-          <p className="text-white/50 text-sm">ادخل بحسابك من التطبيق</p>
+        {/* Card */}
+        <div className="rounded-3xl border border-primary/20 bg-dark-bg-800/80 backdrop-blur-xl p-7 shadow-glow-primary">
+          {/* Mode tabs */}
+          <div className="flex bg-white/5 rounded-full p-1 mb-6">
+            {(['login', 'register'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => { setMode(m); setError(null); }}
+                className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${
+                  mode === m ? 'bg-gradient-primary text-white shadow-glow-primary' : 'text-white/60 hover:text-white'
+                }`}
+              >
+                {m === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب'}
+              </button>
+            ))}
+          </div>
 
           {error && (
-            <div className="flex items-start gap-2 p-3 rounded-xl bg-danger/10 border border-danger/30">
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-danger/10 border border-danger/30 mb-4">
               <AlertCircle size={16} className="text-danger flex-shrink-0 mt-0.5" />
               <span className="text-danger text-sm">{error}</span>
             </div>
           )}
 
-          <div>
-            <label className="text-white/60 text-xs font-bold block mb-2">البريد الإلكتروني</label>
-            <div className="relative">
-              <Mail size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pr-11 pl-4 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 focus:bg-white/[0.07]"
-              />
+          {/* OAuth buttons */}
+          <div className="space-y-2.5 mb-5">
+            <OAuthButton
+              provider="google"
+              loading={oauthLoading === 'google'}
+              disabled={oauthLoading !== null || loading}
+              onClick={() => handleOAuth('google')}
+            />
+            <OAuthButton
+              provider="apple"
+              loading={oauthLoading === 'apple'}
+              disabled={oauthLoading !== null || loading}
+              onClick={() => handleOAuth('apple')}
+            />
+            <OAuthButton
+              provider="github"
+              loading={oauthLoading === 'github'}
+              disabled={oauthLoading !== null || loading}
+              onClick={() => handleOAuth('github')}
+            />
+          </div>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 mb-5">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-white/40 text-xs">أو بالبريد الإلكتروني</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+
+          {/* Email/password form */}
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
+            {mode === 'register' && (
+              <div>
+                <label className="text-white/60 text-xs font-bold block mb-2">اسم المستخدم</label>
+                <div className="relative">
+                  <UserIcon size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    placeholder="username"
+                    minLength={3}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pr-11 pl-4 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 focus:bg-white/[0.07]"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="text-white/60 text-xs font-bold block mb-2">البريد الإلكتروني</label>
+              <div className="relative">
+                <Mail size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@example.com"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pr-11 pl-4 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 focus:bg-white/[0.07]"
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="text-white/60 text-xs font-bold block mb-2">كلمة المرور</label>
-            <div className="relative">
-              <Lock size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pr-11 pl-4 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 focus:bg-white/[0.07]"
-              />
+            <div>
+              <label className="text-white/60 text-xs font-bold block mb-2">كلمة المرور</label>
+              <div className="relative">
+                <Lock size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  minLength={mode === 'register' ? 12 : 6}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pr-11 pl-4 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 focus:bg-white/[0.07]"
+                />
+              </div>
+              {mode === 'register' && (
+                <p className="text-white/40 text-xs mt-2">12 حرف على الأقل، مع حرف كبير ورقم ورمز خاص</p>
+              )}
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading || !email || !password}
-            className="w-full bg-gradient-primary text-white font-bold py-3.5 rounded-xl shadow-glow-primary hover:shadow-glow-accent transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-            <span>{loading ? 'جاري الدخول...' : 'دخول'}</span>
-          </button>
+            <button
+              type="submit"
+              disabled={loading || oauthLoading !== null || !email || !password || (mode === 'register' && !username)}
+              className="w-full bg-gradient-primary text-white font-bold py-3.5 rounded-xl shadow-glow-primary hover:shadow-glow-accent transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 size={18} className="animate-spin" /> : null}
+              <span>{loading ? 'جاري...' : mode === 'login' ? 'دخول' : 'إنشاء الحساب'}</span>
+            </button>
+          </form>
 
-          <div className="text-center text-white/40 text-xs pt-2">
-            ما عندك حساب؟{' '}
-            <Link href="/start-trial" className="text-accent hover:underline">
-              ابدأ تجربة مجانية
-            </Link>
+          <div className="text-center text-white/40 text-xs pt-5 mt-5 border-t border-white/5">
+            بالمتابعة أنت توافق على{' '}
+            <Link href="/terms" className="text-accent hover:underline">شروط الخدمة</Link>
+            {' '}و{' '}
+            <Link href="/privacy" className="text-accent hover:underline">سياسة الخصوصية</Link>
           </div>
-        </form>
+        </div>
       </div>
     </div>
+  );
+}
+
+// ─── OAuth Button Component ─────────────────────────────────────────────────
+
+function OAuthButton({
+  provider, loading, disabled, onClick,
+}: {
+  provider: 'google' | 'apple' | 'github';
+  loading: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const styles = {
+    google: {
+      bg: 'bg-white hover:bg-white/90',
+      text: 'text-[#1f1f1f]',
+      label: 'المتابعة مع Google',
+      logo: (
+        <svg width="18" height="18" viewBox="0 0 48 48">
+          <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+          <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+          <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+          <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+        </svg>
+      ),
+    },
+    apple: {
+      bg: 'bg-black hover:bg-black/80 border border-white/10',
+      text: 'text-white',
+      label: 'المتابعة مع Apple',
+      logo: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.05,20.28C16.07,21.23 15.03,21.08 14.03,20.68C12.95,20.26 11.96,20.24 10.82,20.68C9.39,21.26 8.64,21.09 7.78,20.28C3.21,15.64 3.86,8.34 9.05,8.05C10.36,8.12 11.27,8.8 12.04,8.85C13.19,8.63 14.29,7.99 15.53,8.07C17.09,8.19 18.26,8.84 19.03,10.03C15.79,12.06 16.56,16.26 19.53,17.49C18.94,18.8 18.18,20.09 17.04,20.29L17.05,20.28M12,8C11.88,6.04 13.47,4.43 15.31,4.26C15.57,6.5 13.34,8.22 12,8Z"/>
+        </svg>
+      ),
+    },
+    github: {
+      bg: 'bg-[#24292e] hover:bg-[#2f363d] border border-white/10',
+      text: 'text-white',
+      label: 'المتابعة مع GitHub',
+      logo: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+        </svg>
+      ),
+    },
+  }[provider];
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`w-full ${styles.bg} ${styles.text} font-bold py-3 rounded-xl flex items-center justify-center gap-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+    >
+      {loading ? <Loader2 size={18} className="animate-spin" /> : styles.logo}
+      <span className="text-sm">{styles.label}</span>
+    </button>
   );
 }
