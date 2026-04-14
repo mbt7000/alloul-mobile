@@ -1,72 +1,63 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Sparkles, Loader2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import StoriesBar from '@/components/StoriesBar';
 import FeedPost from '@/components/FeedPost';
-import { Sparkles } from 'lucide-react';
+import { getPosts, ApiError, type ApiPost } from '@/lib/api-client';
+import { isAuthenticated } from '@/lib/auth';
 
 const FEED_TABS = ['لك', 'متابَعون', 'الترند'];
 
-const DEMO_POSTS = [
-  {
-    author: 'ALLOUL&Q',
-    handle: 'alloul_q',
-    verified: true,
-    time: '٢د',
-    content: 'أطلقنا اليوم خطط اشتراك جديدة 🚀\n\n· Starter ($24/شهر)\n· Pro ($59/شهر)\n· Pro Plus ($289/شهر)\n\n14 يوم تجربة مجانية — بدون بطاقة ائتمان.',
-    stats: { likes: 1247, comments: 84, reposts: 156, views: 24800 },
-    avatarColor: '#2E8BFF',
-  },
-  {
-    author: 'Alloul AI',
-    handle: 'alloul_ai',
-    verified: true,
-    time: '١٥د',
-    content: 'ميزة جديدة: الآن تقدر تكتب مهام وتسليمات بلغة طبيعية، والـ AI ينظمها لك تلقائياً ويحفظها في مساحة العمل.',
-    stats: { likes: 892, comments: 42, reposts: 98, views: 15200 },
-    avatarColor: '#14E0A4',
-  },
-  {
-    author: 'Alloul News',
-    handle: 'alloul_news',
-    verified: true,
-    time: '٣٠د',
-    content: '🔴 مباشر الآن: قمة الذكاء الاصطناعي في الرياض — تغطية حصرية من فريقنا.',
-    stats: { likes: 543, comments: 28, reposts: 72, views: 9800 },
-    avatarColor: '#FF4757',
-  },
-  {
-    author: 'محمد التركي',
-    handle: 'm_alturki',
-    time: '١س',
-    content: 'ثاني يوم في ALLOUL&Q وحرفياً غيّر طريقة فريقي في إدارة المشاريع 👏\n\nالـ Kanban + AI Assistant + Daily.co كلها في منصة واحدة.',
-    stats: { likes: 234, comments: 18, reposts: 32 },
-    avatarColor: '#00D4FF',
-    initial: 'م',
-  },
-  {
-    author: 'سارة الدوسري',
-    handle: 's_aldosary',
-    time: '٢س',
-    content: 'التصميم العربي في ALLOUL&Q أنظف ما شفته في أي SaaS محلي. الخط + الـ RTL + الألوان = 10/10 ✨',
-    stats: { likes: 187, comments: 12, reposts: 24 },
-    avatarColor: '#8B5CF6',
-    initial: 'س',
-  },
-  {
-    author: 'فيصل البدر',
-    handle: 'f_albader',
-    time: '٣س',
-    content: 'ملاحظة للفرق اللي تبي تجرّب ALLOUL&Q: جرّب ميزة التسليم (Handover) — غيّرت طريقة استلام المهام بين الشفتات بالكامل.',
-    stats: { likes: 156, comments: 9, reposts: 18 },
-    avatarColor: '#F59E0B',
-    initial: 'ف',
-  },
-];
+function formatRelative(iso?: string | null): string {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    const diff = Date.now() - d.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'الآن';
+    if (mins < 60) return `${mins}د`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}س`;
+    const days = Math.floor(hrs / 24);
+    return `${days}ي`;
+  } catch { return ''; }
+}
 
 export default function HomePage() {
+  const router = useRouter();
+  const [posts, setPosts] = useState<ApiPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.replace('/login');
+      return;
+    }
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await getPosts(30, 0);
+        if (mounted) setPosts(Array.isArray(data) ? data : []);
+      } catch (e: any) {
+        if (e instanceof ApiError && e.status === 401) {
+          router.replace('/login');
+          return;
+        }
+        if (mounted) setError(e?.message || 'فشل تحميل المنشورات');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [router]);
+
   return (
     <AppShell>
-      {/* Sticky tab header (X/Twitter style) */}
-      <header className="sticky top-0 md:top-0 z-20 bg-dark-bg-900/85 backdrop-blur-xl border-b border-primary/10">
+      <header className="sticky top-0 z-20 bg-dark-bg-900/85 backdrop-blur-xl border-b border-primary/10">
         <div className="px-4 py-3 flex items-center justify-between">
           <h1 className="text-white font-black text-xl">الرئيسية</h1>
           <button className="p-2 rounded-full hover:bg-white/5">
@@ -120,9 +111,44 @@ export default function HomePage() {
 
       {/* Feed */}
       <div className="pb-24 md:pb-10">
-        {DEMO_POSTS.map((p, i) => (
-          <FeedPost key={i} {...p} />
-        ))}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 size={24} className="text-primary animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="p-8 text-center">
+            <p className="text-white/60 text-sm mb-2">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-accent text-sm font-bold hover:underline"
+            >
+              إعادة المحاولة
+            </button>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="text-white/60 text-base font-bold mb-2">لا يوجد منشورات بعد</p>
+            <p className="text-white/40 text-sm">كن أول من ينشر!</p>
+          </div>
+        ) : (
+          posts.map((p) => (
+            <FeedPost
+              key={p.id}
+              author={p.author_name || p.author_username || 'مستخدم'}
+              handle={p.author_username || 'user'}
+              verified={p.author_verified}
+              time={formatRelative(p.created_at)}
+              content={p.content}
+              imageUrl={p.image_url ?? undefined}
+              stats={{
+                likes: p.likes_count,
+                comments: p.comments_count,
+                reposts: p.reposts_count,
+              }}
+              initial={(p.author_name || p.author_username || 'U').slice(0, 1)}
+            />
+          ))
+        )}
       </div>
     </AppShell>
   );

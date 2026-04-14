@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
   Home, Search, Bell, MessageSquare, Bookmark, User, Briefcase,
-  Sparkles, MoreHorizontal, Plus, Menu, X,
+  MoreHorizontal, Plus, Menu, X, LogOut,
 } from 'lucide-react';
+import { getCachedUser, clearToken, type AuthUser } from '@/lib/auth';
 
 // ALLOUL&Q web shell — mirrors the mobile app's navigation
 // Left sidebar (desktop) → mobile bottom nav equivalent
@@ -38,7 +39,18 @@ function LogoMark({ size = 40 }: { size?: number }) {
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    setUser(getCachedUser());
+  }, []);
+
+  const handleLogout = () => {
+    clearToken();
+    router.push('/login');
+  };
 
   return (
     <div className="min-h-screen bg-dark-bg-900 text-white relative">
@@ -94,17 +106,40 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <span className="hidden lg:inline">نشر منشور</span>
           </Link>
 
-          {/* User card */}
-          <div className="mt-4 flex items-center gap-3 px-3 py-3 rounded-full hover:bg-white/5 transition-colors cursor-pointer">
-            <div className="w-10 h-10 rounded-full bg-gradient-logo flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-xs">أنا</span>
-            </div>
-            <div className="hidden lg:flex flex-col flex-1 min-w-0">
-              <span className="text-white text-sm font-bold truncate">ضيف</span>
-              <span className="text-white/40 text-xs truncate">@guest</span>
-            </div>
-            <MoreHorizontal size={18} className="hidden lg:block text-white/60 flex-shrink-0" />
-          </div>
+          {/* User card — real data */}
+          {user ? (
+            <button
+              onClick={handleLogout}
+              className="mt-4 flex items-center gap-3 px-3 py-3 rounded-full hover:bg-white/5 transition-colors w-full"
+              title="تسجيل الخروج"
+            >
+              {user.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatar_url} alt={user.username} className="w-10 h-10 rounded-full flex-shrink-0 object-cover" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gradient-logo flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-xs">
+                    {(user.name || user.username || 'U').slice(0, 1).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <div className="hidden lg:flex flex-col flex-1 min-w-0 text-right">
+                <span className="text-white text-sm font-bold truncate">{user.name || user.username}</span>
+                <span className="text-white/40 text-xs truncate">@{user.username}</span>
+              </div>
+              <LogOut size={16} className="hidden lg:block text-white/40 flex-shrink-0" />
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="mt-4 flex items-center gap-3 px-3 py-3 rounded-full hover:bg-white/5 transition-colors"
+            >
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                <User size={18} className="text-white/60" />
+              </div>
+              <span className="hidden lg:block text-white/60 text-sm">تسجيل الدخول</span>
+            </Link>
+          )}
         </aside>
 
         {/* MAIN CONTENT */}
@@ -126,62 +161,32 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Trending */}
-          <div className="bg-white/[0.03] border border-white/5 rounded-2xl mt-4 overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/5">
-              <h2 className="text-white font-black text-lg">ما يحدث الآن</h2>
-            </div>
-            {[
-              { tag: '#ALLOUL_Q', count: '12.4K' },
-              { tag: '#الذكاء_الاصطناعي', count: '8.2K' },
-              { tag: '#شركات', count: '5.1K' },
-              { tag: '#إدارة_المهام', count: '3.8K' },
-            ].map((t) => (
-              <div key={t.tag} className="px-4 py-3 hover:bg-white/[0.03] transition-colors cursor-pointer">
-                <div className="text-white/50 text-[11px] mb-0.5">يتصدّر في الأعمال</div>
-                <div className="text-white font-bold text-sm">{t.tag}</div>
-                <div className="text-white/40 text-[11px] mt-0.5">{t.count} منشور</div>
+          {/* Brand promo card (no dummy data) */}
+          <div className="bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 border border-primary/20 rounded-2xl mt-4 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-logo flex items-center justify-center shadow-glow-primary">
+                <span className="text-white font-black text-xs">A<span className="text-secondary-200">Q</span></span>
               </div>
-            ))}
-            <div className="px-4 py-3 hover:bg-white/[0.03] transition-colors cursor-pointer">
-              <span className="text-accent text-sm">عرض المزيد</span>
-            </div>
-          </div>
-
-          {/* Who to follow */}
-          <div className="bg-white/[0.03] border border-white/5 rounded-2xl mt-4 overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/5">
-              <h2 className="text-white font-black text-lg">من تتابع</h2>
-            </div>
-            {[
-              { name: 'ALLOUL&Q', handle: '@alloul_q', bio: 'منصة الأعمال الذكية' },
-              { name: 'Alloul AI', handle: '@alloul_ai', bio: 'المساعد الذكي' },
-              { name: 'Alloul News', handle: '@alloul_news', bio: 'آخر التحديثات' },
-            ].map((u) => (
-              <div key={u.handle} className="px-4 py-3 flex items-center gap-3 hover:bg-white/[0.03] transition-colors">
-                <div className="w-11 h-11 rounded-full bg-gradient-logo flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-bold text-sm">{u.name[0]}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1">
-                    <span className="text-white font-bold text-sm truncate">{u.name}</span>
-                    <svg className="w-4 h-4 text-accent flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.866.25 1.336.25 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.356-.643.378-.022.003-.045.003-.067.003-.236 0-.463-.093-.63-.26l-2.503-2.5c-.347-.347-.347-.91 0-1.26.348-.345.91-.345 1.26 0l1.744 1.74 3.697-5.546c.272-.41.824-.52 1.233-.246.41.273.519.826.246 1.234z"/>
-                    </svg>
-                  </div>
-                  <div className="text-white/40 text-xs truncate">{u.handle}</div>
-                </div>
-                <button className="bg-white text-black px-4 py-1.5 rounded-full text-xs font-bold hover:bg-white/90 transition-colors flex-shrink-0">
-                  متابعة
-                </button>
+              <div>
+                <div className="text-white font-bold text-sm">ALLOUL&Q</div>
+                <div className="text-white/50 text-[11px]">منصة الأعمال الذكية</div>
               </div>
-            ))}
+            </div>
+            <p className="text-white/60 text-xs leading-relaxed mb-4">
+              مهام، مشاريع، اجتماعات، AI — كل شي في منصة واحدة.
+            </p>
+            <Link
+              href="/pricing"
+              className="block text-center bg-gradient-primary text-white text-sm font-bold py-2.5 rounded-full shadow-glow-primary hover:shadow-glow-accent transition-all"
+            >
+              الترقية
+            </Link>
           </div>
 
           {/* Footer mini */}
           <div className="mt-4 px-4 text-[11px] text-white/40 flex flex-wrap gap-x-3 gap-y-1">
             <Link href="/pricing" className="hover:text-white/70">الأسعار</Link>
-            <Link href="/about" className="hover:text-white/70">عن</Link>
+            <Link href="/enterprise" className="hover:text-white/70">Enterprise</Link>
             <a href="#" className="hover:text-white/70">الخصوصية</a>
             <a href="#" className="hover:text-white/70">الشروط</a>
             <span>© 2026 Alloul Digital</span>
