@@ -2,7 +2,7 @@
  * API Client for ALLOUL&Q subscription system
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.alloul.app'
 
 interface ApiResponse<T = any> {
   success: boolean
