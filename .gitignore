@@ -51,3 +51,5 @@ backend/firebase-service-account.json
 /ios
 /android
 .claude/
+web/.next/
+web/node_modules/

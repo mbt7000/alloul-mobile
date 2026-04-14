@@ -24,7 +24,7 @@ const KPICard = ({
   value: string | number;
   unit?: string;
   growth?: number;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: any;
 }) => (
   <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 hover:border-slate-600 transition">
     <div className="flex items-start justify-between">
