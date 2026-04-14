@@ -752,24 +752,49 @@ function OwnProfile() {
               ) : (
                 <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(56,232,255,0.08)" }} />
               )}
+              {/* top-left: ALLOUL&Q logo badge = world switcher */}
+              {canUseCompanyMode && (
+                <Pressable
+                  onPress={() => {
+                    setHomeMode("company");
+                    const rootNav = navigation.getParent?.() as any;
+                    rootNav?.navigate(ROOT_SHELL_ROUTES.company, {
+                      screen: getLastRoute("company") ?? "CompanyWorkspace",
+                    });
+                  }}
+                  hitSlop={8}
+                  style={{
+                    position: "absolute", top: 12, left: 12,
+                    flexDirection: "row", alignItems: "center", gap: 8,
+                    paddingHorizontal: 10, paddingVertical: 7,
+                    borderRadius: 20,
+                    backgroundColor: "rgba(5,8,16,0.72)",
+                    borderWidth: 1,
+                    borderColor: "rgba(46,139,255,0.4)",
+                  }}
+                >
+                  {/* Mini ALLOUL&Q mark */}
+                  <View style={{
+                    width: 22, height: 22, borderRadius: 11,
+                    backgroundColor: "#0F1626",
+                    alignItems: "center", justifyContent: "center",
+                    borderWidth: 1, borderColor: "rgba(46,139,255,0.5)",
+                  }}>
+                    <Image
+                      source={require("../../../assets/logo/alloul-icon-only.png")}
+                      style={{ width: 16, height: 16 }}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <AppText style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>
+                    التبديل للأعمال
+                  </AppText>
+                  <Ionicons name="chevron-back" size={12} color="rgba(255,255,255,0.7)" />
+                </Pressable>
+              )}
+
               {/* top-right action buttons */}
               <View style={{ position: "absolute", top: 12, right: 12, flexDirection: "row", gap: 8 }}>
-                {/* Compact world switcher (tiny arrow button) */}
-                {canUseCompanyMode && (
-                  <Pressable
-                    style={[styles.roundIcon, { backgroundColor: "rgba(0,0,0,0.5)" }]}
-                    onPress={() => {
-                      setHomeMode("company");
-                      const rootNav = navigation.getParent?.() as any;
-                      rootNav?.navigate(ROOT_SHELL_ROUTES.company, {
-                        screen: getLastRoute("company") ?? "CompanyWorkspace",
-                      });
-                    }}
-                    hitSlop={8}
-                  >
-                    <Ionicons name="briefcase-outline" size={16} color={colors.accentTeal} />
-                  </Pressable>
-                )}
                 <Pressable
                   style={styles.roundIcon}
                   onPress={() => {
