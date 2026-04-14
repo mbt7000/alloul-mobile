@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   Home, Search, Bell, MessageSquare, Bookmark, User, Briefcase,
-  MoreHorizontal, Plus, Menu, X, LogOut,
+  Plus, Menu, X, LogOut,
 } from 'lucide-react';
 import { getCachedUser, clearToken, type AuthUser } from '@/lib/auth';
 
@@ -28,11 +29,9 @@ function LogoMark({ size = 40 }: { size?: number }) {
   return (
     <div
       style={{ width: size, height: size }}
-      className="rounded-2xl bg-gradient-logo flex items-center justify-center shadow-glow-primary flex-shrink-0"
+      className="rounded-2xl overflow-hidden shadow-glow-primary flex-shrink-0 border border-primary/20"
     >
-      <span className="text-white font-black text-sm leading-none tracking-tight">
-        A<span className="text-secondary-200">Q</span>
-      </span>
+      <Image src="/icon.png" alt="ALLOUL&Q" width={size} height={size} priority />
     </div>
   );
 }
@@ -164,8 +163,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {/* Brand promo card (no dummy data) */}
           <div className="bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 border border-primary/20 rounded-2xl mt-4 p-5">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-logo flex items-center justify-center shadow-glow-primary">
-                <span className="text-white font-black text-xs">A<span className="text-secondary-200">Q</span></span>
+              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-glow-primary">
+                <Image src="/icon.png" alt="ALLOUL&Q" width={40} height={40} />
               </div>
               <div>
                 <div className="text-white font-bold text-sm">ALLOUL&Q</div>

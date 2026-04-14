@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Sparkles, Loader2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import StoriesBar from '@/components/StoriesBar';
 import FeedPost from '@/components/FeedPost';
+import LandingIntro from '@/components/LandingIntro';
 import { getPosts, ApiError, type ApiPost } from '@/lib/api-client';
-import { isAuthenticated } from '@/lib/auth';
+import { isAuthenticated, clearToken } from '@/lib/auth';
 
 const FEED_TABS = ['لك', 'متابَعون', 'الترند'];
 
@@ -27,14 +27,17 @@ function formatRelative(iso?: string | null): string {
 }
 
 export default function HomePage() {
-  const router = useRouter();
+  const [authed, setAuthed] = useState<boolean | null>(null);
   const [posts, setPosts] = useState<ApiPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      router.replace('/login');
+    // Client-side auth check — determines landing vs feed
+    const ok = isAuthenticated();
+    setAuthed(ok);
+    if (!ok) {
+      setLoading(false);
       return;
     }
     let mounted = true;
@@ -44,7 +47,8 @@ export default function HomePage() {
         if (mounted) setPosts(Array.isArray(data) ? data : []);
       } catch (e: any) {
         if (e instanceof ApiError && e.status === 401) {
-          router.replace('/login');
+          clearToken();
+          setAuthed(false);
           return;
         }
         if (mounted) setError(e?.message || 'فشل تحميل المنشورات');
@@ -53,8 +57,23 @@ export default function HomePage() {
       }
     })();
     return () => { mounted = false; };
-  }, [router]);
+  }, []);
 
+  // ─── Loading gate ─────────────────────────────────────────────────────
+  if (authed === null) {
+    return (
+      <div className="min-h-screen bg-dark-bg-900 flex items-center justify-center">
+        <Loader2 size={24} className="text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  // ─── Not authenticated → show marketing landing ───────────────────────
+  if (!authed) {
+    return <LandingIntro />;
+  }
+
+  // ─── Authenticated → show the feed ────────────────────────────────────
   return (
     <AppShell>
       <header className="sticky top-0 z-20 bg-dark-bg-900/85 backdrop-blur-xl border-b border-primary/10">
@@ -83,7 +102,7 @@ export default function HomePage() {
 
       <StoriesBar />
 
-      {/* Compose box */}
+      {/* Compose */}
       <div className="px-4 py-3 border-b border-primary/10">
         <div className="flex gap-3">
           <div className="w-11 h-11 rounded-full bg-gradient-logo flex items-center justify-center flex-shrink-0">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Lock, Mail, Loader2, AlertCircle, User as UserIcon } from 'lucide-react';
 import { login, register, loginWithFirebase, getCurrentUser } from '@/lib/api-client';
 import { setToken, setCachedUser, isAuthenticated } from '@/lib/auth';
@@ -75,8 +76,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative">
         {/* Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-logo items-center justify-center shadow-glow-primary mb-4">
-            <span className="text-white font-black text-xl">A<span className="text-secondary-200">Q</span></span>
+          <div className="inline-flex w-20 h-20 rounded-3xl overflow-hidden shadow-glow-primary mb-4 border border-primary/30">
+            <Image src="/icon.png" alt="ALLOUL&Q" width={80} height={80} priority />
           </div>
           <h1 className="text-white font-black text-3xl">ALLOUL<span className="text-secondary">&Q</span></h1>
           <p className="text-white/50 text-sm mt-2">منصة الأعمال الذكية</p>
