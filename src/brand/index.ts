@@ -20,20 +20,42 @@ export const BRAND = {
   supportEmail: "support@alloul.app",
   noreplyEmail: "noreply@alloul.app",
 
-  // Brand colors (ALLOUL&Q palette)
+  // Brand colors — extracted from the ALLOUL&Q logo (blue A → green Q)
   colors: {
-    primary: "#0066FF",      // ALLOUL Blue — main CTA
-    secondary: "#10B981",    // Success green — confirmations
-    accent: "#8B5CF6",       // Premium purple — highlights
-    success: "#10B981",
-    warning: "#F59E0B",
-    error: "#EF4444",
-    info: "#06B6D4",
+    // Primary palette — from the logo
+    primary: "#2E8BFF",      // Logo blue (the "A") — main CTA
+    secondary: "#14E0A4",    // Logo green (the "Q") — success, confirmations
+    accent: "#00D4FF",       // Logo lens cyan — highlights, pulse effects
+    success: "#14E0A4",
+    warning: "#F5A623",
+    error:   "#FF4757",
+    info:    "#00D4FF",
 
-    // Gradients
-    gradientPrimary: ["#0066FF", "#0052CC"] as const,
-    gradientAccent: ["#8B5CF6", "#6D28D9"] as const,
-    gradientSuccess: ["#10B981", "#059669"] as const,
+    // Backgrounds — dual theme
+    darkBg:      "#050810",  // Deep space (behind the logo)
+    darkBgAlt:   "#0A0F1A",  // Slightly elevated dark surface
+    darkCard:    "#0F1626",  // Card background
+    darkCardAlt: "#131B2E",  // Hover/elevated card
+    darkBorder:  "rgba(46,139,255,0.12)",
+    darkBorderStrong: "rgba(46,139,255,0.22)",
+
+    // Glassy theme (lighter variant matching logo style)
+    glassBg:      "#0B1220",
+    glassCard:    "rgba(46,139,255,0.05)",
+    glassCardAlt: "rgba(20,224,164,0.04)",
+    glassBorder:  "rgba(255,255,255,0.08)",
+
+    // Text
+    textPrimary:   "#FFFFFF",
+    textSecondary: "rgba(255,255,255,0.72)",
+    textMuted:     "rgba(255,255,255,0.42)",
+
+    // Gradients — from the logo itself
+    gradientLogo:    ["#2E8BFF", "#14E0A4"] as const, // A → Q (blue → green)
+    gradientPrimary: ["#2E8BFF", "#1E6BE0"] as const,
+    gradientAccent:  ["#00D4FF", "#2E8BFF"] as const,
+    gradientGreen:   ["#14E0A4", "#0AA578"] as const,
+    gradientDark:    ["#050810", "#0F1626"] as const,
   },
 
   // Logo assets — stored in assets/logo/

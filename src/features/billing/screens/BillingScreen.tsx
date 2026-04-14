@@ -1,27 +1,27 @@
 /**
- * BillingScreen — manage current subscription
+ * BillingScreen — current subscription management
+ * Uses /companies/subscription-status + /companies/cancel-subscription
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { View, ScrollView, Pressable, ActivityIndicator, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import * as WebBrowser from "expo-web-browser";
 import Screen from "../../../shared/layout/Screen";
 import AppText from "../../../shared/ui/AppText";
 import { BRAND } from "../../../brand";
 import {
-  getSubscription, cancelSubscription, createPortalSession,
-  type SubscriptionInfo,
+  getSubscriptionStatus, cancelSubscription, PLANS,
+  type SubscriptionStatus,
 } from "../../../api/billing.api";
 
 export default function BillingScreen() {
   const nav = useNavigation<any>();
-  const [sub, setSub] = useState<SubscriptionInfo | null>(null);
+  const [sub, setSub] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const data = await getSubscription();
+      const data = await getSubscriptionStatus();
       setSub(data);
     } finally {
       setLoading(false);
@@ -30,19 +30,10 @@ export default function BillingScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const handlePortal = async () => {
-    try {
-      const res = await createPortalSession();
-      await WebBrowser.openBrowserAsync(res.url);
-    } catch (e: any) {
-      Alert.alert("خطأ", e?.message || "تعذّر فتح بوابة الإدارة");
-    }
-  };
-
   const handleCancel = () => {
     Alert.alert(
       "إلغاء الاشتراك",
-      "سيستمر الوصول حتى نهاية الفترة الحالية. هل تريد المتابعة؟",
+      "سيستمر وصولك حتى نهاية الفترة الحالية. هل تريد المتابعة؟",
       [
         { text: "تراجع", style: "cancel" },
         {
@@ -52,6 +43,7 @@ export default function BillingScreen() {
             try {
               await cancelSubscription();
               await load();
+              Alert.alert("تم", "تم جدولة الإلغاء في نهاية الفترة الحالية");
             } catch (e: any) {
               Alert.alert("خطأ", e?.message || "فشل الإلغاء");
             }
@@ -61,10 +53,18 @@ export default function BillingScreen() {
     );
   };
 
+  const planKey = sub?.plan_id as string | null | undefined;
+  const plan = planKey && (planKey === "starter" || planKey === "pro" || planKey === "pro_plus")
+    ? PLANS[planKey]
+    : null;
+  const isAdminComp = planKey === "admin";
+  const noSub = !planKey;
+
   return (
-    <Screen edges={["top"]} style={{ backgroundColor: "#0b0b0b" }}>
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
+    <Screen edges={["top"]} style={{ backgroundColor: BRAND.colors.darkBg }}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        {/* Header */}
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 22 }}>
           <Pressable onPress={() => nav.goBack()} hitSlop={12}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </Pressable>
@@ -75,26 +75,53 @@ export default function BillingScreen() {
 
         {loading ? (
           <ActivityIndicator color={BRAND.colors.primary} style={{ marginTop: 40 }} />
-        ) : sub?.status === "none" || !sub?.tier ? (
+        ) : isAdminComp ? (
           <View style={{
-            backgroundColor: "#151515",
-            borderRadius: 18,
-            borderWidth: 1, borderColor: "#222",
+            backgroundColor: BRAND.colors.darkCard,
+            borderRadius: 20,
+            borderWidth: 1.5, borderColor: BRAND.colors.accent + "44",
             padding: 24, alignItems: "center",
           }}>
-            <Ionicons name="gift-outline" size={48} color={BRAND.colors.primary} />
+            <Ionicons name="shield-checkmark" size={48} color={BRAND.colors.accent} />
             <AppText style={{ color: "#fff", fontSize: 16, fontWeight: "800", marginTop: 12 }}>
+              حساب Admin
+            </AppText>
+            <AppText style={{ color: BRAND.colors.textMuted, fontSize: 12, marginTop: 6 }}>
+              وصول كامل — لا يحتاج اشتراك
+            </AppText>
+          </View>
+        ) : noSub ? (
+          <View style={{
+            backgroundColor: BRAND.colors.darkCard,
+            borderRadius: 20,
+            borderWidth: 1, borderColor: BRAND.colors.darkBorder,
+            padding: 32, alignItems: "center",
+          }}>
+            <View style={{
+              width: 72, height: 72, borderRadius: 36,
+              backgroundColor: BRAND.colors.primary + "22",
+              borderWidth: 1, borderColor: BRAND.colors.primary + "44",
+              alignItems: "center", justifyContent: "center",
+              marginBottom: 14,
+            }}>
+              <Ionicons name="gift-outline" size={32} color={BRAND.colors.primary} />
+            </View>
+            <AppText style={{ color: "#fff", fontSize: 17, fontWeight: "800" }}>
               لا يوجد اشتراك فعّال
             </AppText>
-            <AppText style={{ color: "#888", fontSize: 12, marginTop: 6, textAlign: "center" }}>
-              ابدأ تجربتك المجانية مع ALLOUL&Q
+            <AppText style={{ color: BRAND.colors.textMuted, fontSize: 13, marginTop: 8, textAlign: "center", lineHeight: 18 }}>
+              ابدأ تجربتك المجانية — 14 يوم بدون دفع
             </AppText>
             <Pressable
               onPress={() => nav.navigate("Pricing")}
               style={{
-                marginTop: 20,
+                marginTop: 22,
                 backgroundColor: BRAND.colors.primary,
-                paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14,
+                paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16,
+                shadowColor: BRAND.colors.primary,
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.4,
+                shadowRadius: 12,
               }}
             >
               <AppText style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>
@@ -106,74 +133,72 @@ export default function BillingScreen() {
           <>
             {/* Current plan card */}
             <View style={{
-              backgroundColor: "#151515",
-              borderRadius: 18,
-              borderWidth: 1.5, borderColor: BRAND.colors.primary,
-              padding: 20, marginBottom: 16,
+              backgroundColor: BRAND.colors.darkCard,
+              borderRadius: 22, overflow: "hidden",
+              borderWidth: 1.5,
+              borderColor: (plan?.accentColor ?? BRAND.colors.primary) + "66",
+              marginBottom: 18,
             }}>
-              <AppText style={{ color: "#888", fontSize: 11, fontWeight: "700" }}>
-                الخطة الحالية
-              </AppText>
-              <AppText style={{ color: "#fff", fontSize: 22, fontWeight: "900", marginTop: 4 }}>
-                {sub.tier?.toUpperCase()}
-              </AppText>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>
-                <View style={{
-                  width: 8, height: 8, borderRadius: 4,
-                  backgroundColor: sub.status === "active" ? BRAND.colors.success :
-                                   sub.status === "trialing" ? BRAND.colors.warning :
-                                   BRAND.colors.error,
-                }} />
-                <AppText style={{ color: "#ddd", fontSize: 12 }}>
-                  {sub.status === "active" ? "فعّال" :
-                   sub.status === "trialing" ? "فترة تجربة" :
-                   sub.status === "past_due" ? "متأخر الدفع" : sub.status}
+              <View style={{ height: 4, backgroundColor: plan?.accentColor ?? BRAND.colors.primary }} />
+              <View style={{ padding: 20 }}>
+                <AppText style={{ color: BRAND.colors.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, textTransform: "uppercase" }}>
+                  الخطة الحالية
                 </AppText>
+                <AppText style={{ color: "#fff", fontSize: 24, fontWeight: "900", marginTop: 6 }}>
+                  {plan?.nameAr ?? sub?.plan_id?.toUpperCase()}
+                </AppText>
+                {plan && (
+                  <AppText style={{ color: BRAND.colors.textSecondary, fontSize: 13, marginTop: 2 }}>
+                    ${plan.monthlyPriceUsd} / شهر · حتى {plan.employeeLimit} موظف
+                  </AppText>
+                )}
+
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14 }}>
+                  <View style={{
+                    width: 8, height: 8, borderRadius: 4,
+                    backgroundColor:
+                      sub?.status === "active" ? BRAND.colors.secondary :
+                      sub?.status === "trialing" ? BRAND.colors.warning :
+                      BRAND.colors.error,
+                  }} />
+                  <AppText style={{ color: "#ddd", fontSize: 12, fontWeight: "600" }}>
+                    {sub?.status === "active" ? "فعّال" :
+                     sub?.status === "trialing" ? "فترة تجربة" :
+                     sub?.status === "past_due" ? "متأخر الدفع" :
+                     sub?.status === "canceled" ? "ملغى" : sub?.status}
+                  </AppText>
+                </View>
+
+                {sub?.current_period_end && (
+                  <AppText style={{ color: BRAND.colors.textMuted, fontSize: 11, marginTop: 10 }}>
+                    {sub.cancel_at_period_end ? "ينتهي في" : "التجديد التالي"}:{" "}
+                    {new Date(sub.current_period_end).toLocaleDateString("ar")}
+                  </AppText>
+                )}
+                {sub?.trial_end && sub?.status === "trialing" && (
+                  <AppText style={{ color: BRAND.colors.warning, fontSize: 11, marginTop: 2, fontWeight: "600" }}>
+                    ⏰ التجربة تنتهي في {new Date(sub.trial_end).toLocaleDateString("ar")}
+                  </AppText>
+                )}
               </View>
-              {sub.current_period_end && (
-                <AppText style={{ color: "#888", fontSize: 11, marginTop: 8 }}>
-                  {sub.cancel_at_period_end ? "ينتهي في" : "التجديد التالي"}: {" "}
-                  {new Date(sub.current_period_end).toLocaleDateString("ar")}
-                </AppText>
-              )}
-              <AppText style={{ color: "#888", fontSize: 11, marginTop: 2 }}>
-                حد الموظفين: {sub.employee_limit}
-              </AppText>
             </View>
 
             {/* Actions */}
             <View style={{ gap: 10 }}>
-              <Pressable onPress={() => nav.navigate("Pricing")} style={actionStyle}>
-                <Ionicons name="trending-up" size={18} color={BRAND.colors.primary} />
-                <AppText style={{ color: "#fff", fontSize: 14, fontWeight: "600", flex: 1, marginRight: 12 }}>
-                  ترقية الخطة
-                </AppText>
-                <Ionicons name="chevron-back" size={16} color="#71767b" />
-              </Pressable>
-
-              <Pressable onPress={() => nav.navigate("Invoices")} style={actionStyle}>
-                <Ionicons name="document-text-outline" size={18} color={BRAND.colors.info} />
-                <AppText style={{ color: "#fff", fontSize: 14, fontWeight: "600", flex: 1, marginRight: 12 }}>
-                  الفواتير السابقة
-                </AppText>
-                <Ionicons name="chevron-back" size={16} color="#71767b" />
-              </Pressable>
-
-              <Pressable onPress={handlePortal} style={actionStyle}>
-                <Ionicons name="card-outline" size={18} color={BRAND.colors.accent} />
-                <AppText style={{ color: "#fff", fontSize: 14, fontWeight: "600", flex: 1, marginRight: 12 }}>
-                  إدارة طريقة الدفع
-                </AppText>
-                <Ionicons name="chevron-back" size={16} color="#71767b" />
-              </Pressable>
-
-              {!sub.cancel_at_period_end && (
-                <Pressable onPress={handleCancel} style={actionStyle}>
-                  <Ionicons name="close-circle-outline" size={18} color={BRAND.colors.error} />
-                  <AppText style={{ color: BRAND.colors.error, fontSize: 14, fontWeight: "600", flex: 1, marginRight: 12 }}>
-                    إلغاء الاشتراك
-                  </AppText>
-                </Pressable>
+              <ActionRow
+                icon="trending-up"
+                label="ترقية الخطة"
+                color={BRAND.colors.primary}
+                onPress={() => nav.navigate("Pricing")}
+              />
+              {!sub?.cancel_at_period_end && (
+                <ActionRow
+                  icon="close-circle-outline"
+                  label="إلغاء الاشتراك"
+                  color={BRAND.colors.error}
+                  danger
+                  onPress={handleCancel}
+                />
               )}
             </View>
           </>
@@ -183,13 +208,37 @@ export default function BillingScreen() {
   );
 }
 
-const actionStyle = {
-  flexDirection: "row" as const,
-  alignItems: "center" as const,
-  gap: 12,
-  backgroundColor: "#151515",
-  borderRadius: 14,
-  borderWidth: 1,
-  borderColor: "#222",
-  padding: 16,
-};
+function ActionRow({ icon, label, color, danger, onPress }: {
+  icon: any; label: string; color: string; danger?: boolean; onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: "row", alignItems: "center", gap: 14,
+        backgroundColor: BRAND.colors.darkCard,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: danger ? BRAND.colors.error + "22" : BRAND.colors.darkBorder,
+        padding: 16,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <View style={{
+        width: 38, height: 38, borderRadius: 10,
+        backgroundColor: color + "18",
+        borderWidth: 1, borderColor: color + "30",
+        alignItems: "center", justifyContent: "center",
+      }}>
+        <Ionicons name={icon} size={18} color={color} />
+      </View>
+      <AppText style={{
+        color: danger ? BRAND.colors.error : "#fff",
+        fontSize: 14, fontWeight: "600", flex: 1,
+      }}>
+        {label}
+      </AppText>
+      {!danger && <Ionicons name="chevron-back" size={16} color={BRAND.colors.textMuted} />}
+    </Pressable>
+  );
+}

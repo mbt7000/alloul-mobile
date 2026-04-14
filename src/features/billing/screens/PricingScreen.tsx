@@ -1,193 +1,230 @@
 /**
  * PricingScreen — ALLOUL&Q
- * Shows 3 plan tiers + Enterprise contact.
+ * Glassy dark UI matching the logo (blue → green gradient).
+ * Uses the canonical /companies/* Stripe endpoints.
  */
 import React, { useCallback, useState } from "react";
-import { View, ScrollView, Pressable, ActivityIndicator, Alert } from "react-native";
+import {
+  View, ScrollView, Pressable, ActivityIndicator, Alert, ImageBackground,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import * as WebBrowser from "expo-web-browser";
 import Screen from "../../../shared/layout/Screen";
 import AppText from "../../../shared/ui/AppText";
 import { BRAND } from "../../../brand";
-import {
-  createCheckoutSession, PLANS, type PlanTier, type BillingPeriod,
-} from "../../../api/billing.api";
+import { subscribe, PLANS, type PlanTier } from "../../../api/billing.api";
+
+type ActivePlanKey = "starter" | "pro" | "pro_plus";
+const PLAN_KEYS: ActivePlanKey[] = ["starter", "pro", "pro_plus"];
 
 export default function PricingScreen() {
   const nav = useNavigation<any>();
-  const [period, setPeriod] = useState<BillingPeriod>("monthly");
   const [loading, setLoading] = useState<PlanTier | null>(null);
 
-  const handleSelect = useCallback(async (tier: PlanTier) => {
+  const handleSelect = useCallback(async (tier: ActivePlanKey) => {
     setLoading(tier);
     try {
-      const res = await createCheckoutSession(tier, period);
-      await WebBrowser.openBrowserAsync(res.url);
+      const res = await subscribe(tier);
+      await WebBrowser.openBrowserAsync(res.checkout_url);
     } catch (e: any) {
-      Alert.alert("الاشتراك", e?.message || "تعذّر بدء الاشتراك");
+      Alert.alert("الاشتراك", e?.message || "تعذّر بدء عملية الاشتراك");
     } finally {
       setLoading(null);
     }
-  }, [period]);
+  }, []);
 
   return (
-    <Screen edges={["top"]} style={{ backgroundColor: "#0b0b0b" }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+    <Screen edges={["top"]} style={{ backgroundColor: BRAND.colors.darkBg }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Glow orbs in background */}
+        <View pointerEvents="none" style={{
+          position: "absolute", top: 60, left: 40,
+          width: 200, height: 200, borderRadius: 100,
+          backgroundColor: BRAND.colors.primary + "14",
+        }} />
+        <View pointerEvents="none" style={{
+          position: "absolute", top: 240, right: 30,
+          width: 260, height: 260, borderRadius: 130,
+          backgroundColor: BRAND.colors.secondary + "10",
+        }} />
+
         {/* Header */}
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 22 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 18 }}>
           <Pressable onPress={() => nav.goBack()} hitSlop={12}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </Pressable>
-          <AppText style={{ color: "#fff", fontSize: 20, fontWeight: "800", marginRight: 12 }}>
-            اختر خطتك
-          </AppText>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <AppText style={{ color: "#fff", fontSize: 22, fontWeight: "900" }}>
+              اختر خطتك
+            </AppText>
+            <AppText style={{ color: BRAND.colors.textMuted, fontSize: 12, marginTop: 2 }}>
+              ALLOUL&Q · 14 يوم تجربة مجانية
+            </AppText>
+          </View>
         </View>
 
-        <AppText style={{ color: "#fff", fontSize: 26, fontWeight: "900", marginBottom: 6 }}>
-          {BRAND.nameArabic}
-        </AppText>
-        <AppText style={{ color: "#888", fontSize: 14, marginBottom: 24 }}>
-          منصة الأعمال الذكية — ابدأ مجاناً لمدة 14 يوم
-        </AppText>
-
-        {/* Period toggle */}
+        {/* Brand accent strip */}
         <View style={{
-          flexDirection: "row",
-          backgroundColor: "#151515",
-          borderRadius: 14,
-          borderWidth: 1, borderColor: "#222",
-          padding: 4,
-          marginBottom: 24,
+          height: 4, borderRadius: 2, marginBottom: 24,
+          backgroundColor: BRAND.colors.primary,
         }}>
-          {(["monthly", "yearly"] as const).map((p) => (
-            <Pressable
-              key={p}
-              onPress={() => setPeriod(p)}
-              style={{
-                flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center",
-                backgroundColor: period === p ? BRAND.colors.primary : "transparent",
-              }}
-            >
-              <AppText style={{
-                color: period === p ? "#fff" : "#888",
-                fontSize: 13, fontWeight: "700",
-              }}>
-                {p === "monthly" ? "شهري" : "سنوي (خصم 17%)"}
-              </AppText>
-            </Pressable>
-          ))}
+          <View style={{
+            position: "absolute", top: 0, right: 0, bottom: 0,
+            width: "35%", borderRadius: 2,
+            backgroundColor: BRAND.colors.secondary,
+          }} />
         </View>
 
         {/* Plan cards */}
-        {(Object.keys(PLANS) as PlanTier[]).map((tier) => {
-          const plan = PLANS[tier];
-          const price = period === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
-          const isPro = tier === "professional";
-          const isLoading = loading === tier;
+        {PLAN_KEYS.map((key) => {
+          const plan = PLANS[key];
+          const isPro = key === "pro";
+          const isLoading = loading === key;
           return (
             <View
-              key={tier}
+              key={key}
               style={{
-                backgroundColor: "#151515",
-                borderRadius: 20,
-                borderWidth: isPro ? 2 : 1,
-                borderColor: isPro ? BRAND.colors.primary : "#222",
-                padding: 20,
-                marginBottom: 14,
+                marginBottom: 16,
+                borderRadius: 22,
+                overflow: "hidden",
+                borderWidth: isPro ? 1.5 : 1,
+                borderColor: isPro ? plan.accentColor : BRAND.colors.darkBorder,
+                backgroundColor: BRAND.colors.darkCard,
               }}
             >
+              {/* Top accent strip */}
+              <View style={{ height: 3, backgroundColor: plan.accentColor }} />
+
               {isPro && (
                 <View style={{
-                  position: "absolute", top: -10, right: 20,
-                  backgroundColor: BRAND.colors.primary,
-                  paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12,
+                  position: "absolute", top: 12, left: 16,
+                  backgroundColor: plan.accentColor,
+                  paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10,
                 }}>
-                  <AppText style={{ color: "#fff", fontSize: 10, fontWeight: "800" }}>
+                  <AppText style={{ color: "#041018", fontSize: 9, fontWeight: "900", letterSpacing: 0.3 }}>
                     الأكثر شعبية
                   </AppText>
                 </View>
               )}
-              <AppText style={{ color: "#fff", fontSize: 18, fontWeight: "800" }}>
-                {plan.nameAr}
-              </AppText>
-              <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: 8 }}>
-                <AppText style={{ color: "#fff", fontSize: 32, fontWeight: "900" }}>
-                  ${price}
-                </AppText>
-                <AppText style={{ color: "#888", fontSize: 13, marginRight: 4 }}>
-                  / {period === "monthly" ? "شهر" : "سنة"}
-                </AppText>
-              </View>
-              {plan.trialDays > 0 && (
-                <View style={{
-                  alignSelf: "flex-start",
-                  backgroundColor: "#10b98122",
-                  borderWidth: 1, borderColor: "#10b98144",
-                  paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10,
-                  marginTop: 6,
-                }}>
-                  <AppText style={{ color: "#10b981", fontSize: 10, fontWeight: "700" }}>
-                    {plan.trialDays} أيام تجربة مجانية
+
+              <View style={{ padding: 20 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10, marginTop: isPro ? 14 : 0 }}>
+                  <View style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    backgroundColor: plan.accentColor + "22",
+                    borderWidth: 1, borderColor: plan.accentColor + "44",
+                    alignItems: "center", justifyContent: "center",
+                  }}>
+                    <Ionicons
+                      name={
+                        key === "starter" ? "rocket-outline" :
+                        key === "pro" ? "diamond-outline" : "flash-outline"
+                      }
+                      size={18}
+                      color={plan.accentColor}
+                    />
+                  </View>
+                  <AppText style={{ color: "#fff", fontSize: 18, fontWeight: "800" }}>
+                    {plan.nameAr}
                   </AppText>
                 </View>
-              )}
-              <View style={{ marginTop: 14, gap: 8 }}>
-                {plan.features.map((f) => (
-                  <View key={f} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Ionicons name="checkmark-circle" size={14} color={BRAND.colors.success} />
-                    <AppText style={{ color: "#ddd", fontSize: 12 }}>{f}</AppText>
-                  </View>
-                ))}
-              </View>
-              <Pressable
-                onPress={() => void handleSelect(tier)}
-                disabled={isLoading}
-                style={{
-                  marginTop: 18, paddingVertical: 14, borderRadius: 14,
-                  backgroundColor: isPro ? BRAND.colors.primary : "#fff",
-                  alignItems: "center", justifyContent: "center",
-                  opacity: isLoading ? 0.6 : 1,
-                }}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color={isPro ? "#fff" : "#000"} />
-                ) : (
-                  <AppText style={{
-                    color: isPro ? "#fff" : "#000",
-                    fontSize: 14, fontWeight: "800",
-                  }}>
-                    اختر {plan.nameAr}
+
+                <View style={{ flexDirection: "row", alignItems: "baseline", marginBottom: 6 }}>
+                  <AppText style={{ color: "#fff", fontSize: 36, fontWeight: "900" }}>
+                    ${plan.monthlyPriceUsd}
                   </AppText>
-                )}
-              </Pressable>
+                  <AppText style={{ color: BRAND.colors.textMuted, fontSize: 13, marginRight: 6 }}>
+                    / شهر
+                  </AppText>
+                </View>
+
+                <View style={{
+                  alignSelf: "flex-start",
+                  backgroundColor: BRAND.colors.secondary + "18",
+                  borderWidth: 1, borderColor: BRAND.colors.secondary + "38",
+                  paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+                  marginBottom: 16,
+                }}>
+                  <AppText style={{ color: BRAND.colors.secondary, fontSize: 10, fontWeight: "700" }}>
+                    ⚡ {plan.trialDays} يوم تجربة مجانية
+                  </AppText>
+                </View>
+
+                <View style={{ gap: 10, marginBottom: 18 }}>
+                  {plan.features.map((f) => (
+                    <View key={f} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                      <View style={{
+                        width: 18, height: 18, borderRadius: 9,
+                        backgroundColor: plan.accentColor + "22",
+                        alignItems: "center", justifyContent: "center",
+                      }}>
+                        <Ionicons name="checkmark" size={11} color={plan.accentColor} />
+                      </View>
+                      <AppText style={{ color: BRAND.colors.textSecondary, fontSize: 13 }}>{f}</AppText>
+                    </View>
+                  ))}
+                </View>
+
+                <Pressable
+                  onPress={() => void handleSelect(key)}
+                  disabled={isLoading}
+                  style={({ pressed }) => ({
+                    paddingVertical: 14,
+                    borderRadius: 14,
+                    backgroundColor: isPro ? plan.accentColor : "rgba(255,255,255,0.08)",
+                    borderWidth: isPro ? 0 : 1,
+                    borderColor: plan.accentColor + "44",
+                    alignItems: "center",
+                    opacity: isLoading ? 0.6 : pressed ? 0.85 : 1,
+                    shadowColor: plan.accentColor,
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: isPro ? 0.35 : 0,
+                    shadowRadius: 14,
+                  })}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color={isPro ? "#041018" : "#fff"} />
+                  ) : (
+                    <AppText style={{
+                      color: isPro ? "#041018" : "#fff",
+                      fontSize: 14,
+                      fontWeight: "800",
+                    }}>
+                      اختر {plan.nameAr}
+                    </AppText>
+                  )}
+                </Pressable>
+              </View>
             </View>
           );
         })}
 
-        {/* Enterprise */}
+        {/* Enterprise card */}
         <Pressable
-          onPress={() => nav.navigate("EnterpriseContact")}
+          onPress={() => Alert.alert("Enterprise", "للفرق الكبيرة (34+ موظف) — تواصل مع المبيعات:\n\nsales@alloul.app")}
           style={{
-            marginTop: 6,
-            backgroundColor: "#151515",
-            borderRadius: 20,
-            borderWidth: 1, borderColor: "#222",
+            marginTop: 4,
             padding: 20,
+            borderRadius: 22,
+            borderWidth: 1,
+            borderColor: BRAND.colors.accent + "44",
+            backgroundColor: BRAND.colors.accent + "08",
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 6 }}>
-            <Ionicons name="business" size={20} color={BRAND.colors.accent} />
-            <AppText style={{ color: "#fff", fontSize: 16, fontWeight: "800" }}>
-              Enterprise
-            </AppText>
+            <Ionicons name="business-outline" size={20} color={BRAND.colors.accent} />
+            <AppText style={{ color: "#fff", fontSize: 16, fontWeight: "800" }}>Enterprise</AppText>
           </View>
-          <AppText style={{ color: "#888", fontSize: 12, lineHeight: 18 }}>
-            لأكثر من 32 موظف · تخصيصات · اتفاقية SLA · دعم مخصص
+          <AppText style={{ color: BRAND.colors.textSecondary, fontSize: 12, lineHeight: 18 }}>
+            للفرق الكبيرة · تخصيصات · اتفاقية SLA · دعم مخصص · موظفين غير محدودين
           </AppText>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
             <AppText style={{ color: BRAND.colors.accent, fontSize: 12, fontWeight: "700" }}>
-              تواصل معنا
+              تواصل مع المبيعات
             </AppText>
             <Ionicons name="chevron-back" size={14} color={BRAND.colors.accent} />
           </View>
