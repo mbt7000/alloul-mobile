@@ -28,6 +28,7 @@ import { useAuth } from "../../state/auth/AuthContext";
 import { useCompany } from "../../state/company/CompanyContext";
 import { useHomeMode } from "../../state/mode/HomeModeContext";
 import { ROOT_SHELL_ROUTES } from "../../config/routes";
+import { FEATURES } from "../../config/features";
 import {
   getPosts, likePost, unlikePost, type ApiPost,
   getUserProfile, followUser, unfollowUser, blockUser, type UserProfile,
@@ -925,34 +926,36 @@ function OwnProfile() {
                 borderWidth: 1, borderColor: colors.border,
                 backgroundColor: "rgba(255,255,255,0.03)",
               }}>
-                <Pressable
-                  onPress={() => {
-                    setHomeMode("public");
-                    const rootNav = navigation.getParent?.() as any;
-                    rootNav?.navigate(ROOT_SHELL_ROUTES.media, {
-                      screen: "MediaTabs",
-                      params: { screen: getLastRoute("public") ?? "Feed" },
-                    });
-                  }}
-                  style={{
-                    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                    gap: 6, paddingVertical: 9, borderRadius: 999,
-                    backgroundColor: currentHomeMode === "public" ? `${colors.accentBlue}22` : "transparent",
-                    borderWidth: currentHomeMode === "public" ? 1 : 0,
-                    borderColor: `${colors.accentBlue}55`,
-                  }}
-                >
-                  <Ionicons
-                    name="globe-outline" size={14}
-                    color={currentHomeMode === "public" ? colors.accentBlue : colors.textMuted}
-                  />
-                  <AppText style={{
-                    fontSize: 12, fontWeight: "700",
-                    color: currentHomeMode === "public" ? colors.accentBlue : colors.textMuted,
-                  }}>
-                    ميديا
-                  </AppText>
-                </Pressable>
+                {FEATURES.MEDIA_WORLD && (
+                  <Pressable
+                    onPress={() => {
+                      setHomeMode("public");
+                      const rootNav = navigation.getParent?.() as any;
+                      rootNav?.navigate(ROOT_SHELL_ROUTES.media, {
+                        screen: "MediaTabs",
+                        params: { screen: getLastRoute("public") ?? "Feed" },
+                      });
+                    }}
+                    style={{
+                      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                      gap: 6, paddingVertical: 9, borderRadius: 999,
+                      backgroundColor: currentHomeMode === "public" ? `${colors.accentBlue}22` : "transparent",
+                      borderWidth: currentHomeMode === "public" ? 1 : 0,
+                      borderColor: `${colors.accentBlue}55`,
+                    }}
+                  >
+                    <Ionicons
+                      name="globe-outline" size={14}
+                      color={currentHomeMode === "public" ? colors.accentBlue : colors.textMuted}
+                    />
+                    <AppText style={{
+                      fontSize: 12, fontWeight: "700",
+                      color: currentHomeMode === "public" ? colors.accentBlue : colors.textMuted,
+                    }}>
+                      ميديا
+                    </AppText>
+                  </Pressable>
+                )}
 
                 <Pressable
                   onPress={() => {
@@ -1040,21 +1043,23 @@ function OwnProfile() {
                       </GlassCard>
                     ) : null}
 
-                    <GlassCard style={[styles.card, styles.mediaPromptCard]}>
-                      <View style={styles.mediaPromptRow}>
-                        <View style={styles.mediaPromptCopy}>
-                          <AppText variant="bodySm" weight="bold">
-                            شارك آخر ما تعمل عليه
-                          </AppText>
-                          <AppText variant="caption" tone="muted" style={{ marginTop: 6 }}>
-                            نص، صورة، أو تحديث سريع يظهر فوراً في عالم الميديا.
-                          </AppText>
+                    {FEATURES.MEDIA_WORLD && (
+                      <GlassCard style={[styles.card, styles.mediaPromptCard]}>
+                        <View style={styles.mediaPromptRow}>
+                          <View style={styles.mediaPromptCopy}>
+                            <AppText variant="bodySm" weight="bold">
+                              شارك آخر ما تعمل عليه
+                            </AppText>
+                            <AppText variant="caption" tone="muted" style={{ marginTop: 6 }}>
+                              نص، صورة، أو تحديث سريع يظهر فوراً في عالم الميديا.
+                            </AppText>
+                          </View>
+                          <Pressable style={styles.mediaPromptBtn} onPress={() => navigation.navigate("CreatePost")}>
+                            <Ionicons name="add" size={18} color={colors.white} />
+                          </Pressable>
                         </View>
-                        <Pressable style={styles.mediaPromptBtn} onPress={() => navigation.navigate("CreatePost")}>
-                          <Ionicons name="add" size={18} color={colors.white} />
-                        </Pressable>
-                      </View>
-                    </GlassCard>
+                      </GlassCard>
+                    )}
 
                     {profilePostsLoading ? (
                       <View style={styles.loadingBlock}>
@@ -1068,7 +1073,7 @@ function OwnProfile() {
                           <MediaPostRow key={post.id} post={post} onLike={handleProfileLike} />
                         ))}
                       </View>
-                    ) : (
+                    ) : FEATURES.MEDIA_WORLD ? (
                       <GlassCard style={[styles.card, styles.emptyStateCard]}>
                         <Pressable style={styles.emptyPlusBox} onPress={() => navigation.navigate("CreatePost")}>
                           <Ionicons name="add" size={40} color={colors.textMuted} />
@@ -1080,7 +1085,7 @@ function OwnProfile() {
                           اضغط + لإنشاء أول منشور.
                         </AppText>
                       </GlassCard>
-                    )}
+                    ) : null}
                   </View>
                 ) : (
                   <View style={styles.pad}>

@@ -5,6 +5,7 @@ import { useHomeMode } from "../../state/mode/HomeModeContext";
 import { ROOT_SHELL_ROUTES } from "../../config/routes";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { FEATURES } from "../../config/features";
 
 export default function SearchGateway() {
   const navigation = useNavigation<any>();
@@ -24,12 +25,12 @@ export default function SearchGateway() {
   useFocusEffect(
     React.useCallback(() => {
       const inCompany = mode === "company" && canUseCompanyMode;
-      const targetShell = inCompany ? ROOT_SHELL_ROUTES.company : ROOT_SHELL_ROUTES.media;
+      const targetShell = inCompany ? ROOT_SHELL_ROUTES.company : (FEATURES.MEDIA_WORLD ? ROOT_SHELL_ROUTES.media : ROOT_SHELL_ROUTES.company);
       navigation.navigate(
         targetShell,
         inCompany
           ? { screen: "InternalSearch", params }
-          : { screen: "MediaTabs", params: { screen: "Search", params } }
+          : (FEATURES.MEDIA_WORLD ? { screen: "MediaTabs", params: { screen: "Search", params } } : { screen: "InternalSearch", params })
       );
     }, [canUseCompanyMode, mode, navigation, params])
   );

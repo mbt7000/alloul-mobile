@@ -1,37 +1,12 @@
 {
-  "cli": {
-    "version": ">= 18.0.0",
-    "appVersionSource": "local"
-  },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "channel": "development",
-      "ios": {
-        "simulator": true
-      }
-    },
-    "preview": {
-      "distribution": "internal",
-      "channel": "preview"
-    },
     "production": {
-      "channel": "production",
-      "credentialsSource": "remote",
-      "ios": {
-        "autoIncrement": true
-      },
-      "android": {
-        "autoIncrement": true
-      }
+      "ios": {}
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleId": "mbtalm1@gmail.com",
-        "appleTeamId": "XHN32R5SDV",
         "ascAppId": "6761030587"
       }
     }

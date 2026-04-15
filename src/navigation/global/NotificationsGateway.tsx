@@ -5,6 +5,7 @@ import { useHomeMode } from "../../state/mode/HomeModeContext";
 import { ROOT_SHELL_ROUTES } from "../../config/routes";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { useThemedStyles } from "../../theme/useThemedStyles";
+import { FEATURES } from "../../config/features";
 
 export default function NotificationsGateway() {
   const navigation = useNavigation<any>();
@@ -22,10 +23,10 @@ export default function NotificationsGateway() {
   useFocusEffect(
     React.useCallback(() => {
       const inCompany = mode === "company" && canUseCompanyMode;
-      const targetShell = inCompany ? ROOT_SHELL_ROUTES.company : ROOT_SHELL_ROUTES.media;
+      const targetShell = inCompany ? ROOT_SHELL_ROUTES.company : (FEATURES.MEDIA_WORLD ? ROOT_SHELL_ROUTES.media : ROOT_SHELL_ROUTES.company);
       navigation.navigate(
         targetShell,
-        inCompany ? { screen: "Inbox" } : { screen: "MediaTabs", params: { screen: "Inbox" } }
+        inCompany ? { screen: "Inbox" } : (FEATURES.MEDIA_WORLD ? { screen: "MediaTabs", params: { screen: "Inbox" } } : { screen: "Inbox" })
       );
     }, [canUseCompanyMode, mode, navigation])
   );

@@ -13,6 +13,7 @@ import { getDashboardActivity, getPosts, type ApiPost, type DashboardActivityIte
 import { useAppTheme } from "../../../theme/ThemeContext";
 import { useThemedStyles } from "../../../theme/useThemedStyles";
 import CompanyWorkModeTopBar from "../components/CompanyWorkModeTopBar";
+import { FEATURES } from "../../../config/features";
 
 function relativeTime(value?: string | null) {
   if (!value) return "Just now";
@@ -131,7 +132,9 @@ export default function CompanyFeedScreen() {
         title="الإعلانات"
         leftButton="none"
         rightActions={
-          <AppButton label="نشر" size="sm" onPress={() => navigation.navigate("CreatePost")} />
+          FEATURES.MEDIA_WORLD ? (
+            <AppButton label="نشر" size="sm" onPress={() => navigation.navigate("CreatePost")} />
+          ) : undefined
         }
       />
       <ScrollView
@@ -149,7 +152,9 @@ export default function CompanyFeedScreen() {
           ]}
           actions={
             <>
-              <AppButton label="New internal post" onPress={() => navigation.navigate("CreatePost")} />
+              {FEATURES.MEDIA_WORLD && (
+                <AppButton label="New internal post" onPress={() => navigation.navigate("CreatePost")} />
+              )}
               <AppButton label="View profile" tone="glass" onPress={() => navigation.navigate("Company")} />
             </>
           }
@@ -182,8 +187,8 @@ export default function CompanyFeedScreen() {
               icon="megaphone-outline"
               title="No announcements yet"
               subtitle="Publish the first internal update to start the company feed."
-              actionLabel="Create post"
-              onAction={() => navigation.navigate("CreatePost")}
+              actionLabel={FEATURES.MEDIA_WORLD ? "Create post" : undefined}
+              onAction={FEATURES.MEDIA_WORLD ? () => navigation.navigate("CreatePost") : undefined}
             />
           ) : (
             <View style={styles.stack}>
