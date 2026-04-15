@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useNotifications } from "../state/notifications/NotificationsContext";
 import { useHomeMode } from "../state/mode/HomeModeContext";
 import { MEDIA_TAB_ROUTES } from "../config/routes";
+import { FEATURES } from "../config/features";
 import FloatingMediaTabBar from "./FloatingMediaTabBar";
 
 import MediaHomeScreen from "../features/media/screens/MediaHomeScreen";
@@ -17,6 +18,8 @@ const Tab = createBottomTabNavigator();
 export default function MediaTabs() {
   const { displayUnreadCount } = useNotifications();
   const { setLastRoute } = useHomeMode();
+
+  if (!FEATURES.MEDIA_WORLD) return null;
 
   const screenOptions = React.useCallback(
     () => ({

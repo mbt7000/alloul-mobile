@@ -1,5 +1,6 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { FEATURES } from "../../config/features";
 import MediaTabs from "../MediaTabs";
 import CreatePostScreen from "../../features/media/screens/CreatePostScreen";
 import DiscoverScreen from "../../features/discover/screens/DiscoverScreen";
@@ -23,6 +24,8 @@ import BillingScreen from "../../features/billing/screens/BillingScreen";
 const Stack = createNativeStackNavigator();
 
 export default function MediaNavigator() {
+  if (!FEATURES.MEDIA_WORLD) return null;
+  
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MediaTabs" component={MediaTabs} />

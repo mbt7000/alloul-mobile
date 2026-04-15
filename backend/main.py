@@ -18,6 +18,7 @@ init_sentry()
 import database
 from config import settings
 from database import engine, Base
+from features import is_feature_enabled
 from routers import (
     auth, companies, webhooks, upload,
     posts, handover, memory, deals,
@@ -153,11 +154,12 @@ app.add_middleware(
 # ALLOUL&Q — Audit logging for compliance (GDPR/PDPL)
 from middleware import AuditMiddleware  # noqa: E402
 app.add_middleware(AuditMiddleware)
+
+# Core routers (always included)
 app.include_router(auth.router)
 app.include_router(companies.router)
 app.include_router(webhooks.router)
 app.include_router(upload.router)
-app.include_router(posts.router)
 app.include_router(handover.router)
 app.include_router(memory.router)
 app.include_router(deals.router)
@@ -165,32 +167,33 @@ app.include_router(dashboard.router)
 app.include_router(marketplace.router)
 app.include_router(search.router)
 app.include_router(agent.router)
-app.include_router(sendbird.router)
-app.include_router(stream_chat.router)
 app.include_router(daily_workspace.router)
 app.include_router(admin.router)
 app.include_router(ads.router)
-app.include_router(stories.router)
-app.include_router(follows.router)
 app.include_router(projects.router)
 app.include_router(notifications.router)
-app.include_router(communities.router)
 app.include_router(phone.router)
 app.include_router(meetings.router)
 app.include_router(channels.router)
-app.include_router(messages.router)
 app.include_router(cv.router)
 app.include_router(job_postings.router)
-app.include_router(calls.router)
-# AI structuring engine — parse (preview) + confirm (save)
 app.include_router(ai_extract.router)
 app.include_router(ai_confirm.router)
-# AI system — unified three-tier routing + RAG + model management
 app.include_router(ai_system.router)
-# billing routes live in companies.py (canonical, in production)
 app.include_router(security.router)
 app.include_router(ai_monitoring.router)
 app.include_router(settings.router)
+
+# Media World routers (conditionally included)
+if is_feature_enabled("MEDIA_WORLD"):
+    app.include_router(posts.router)
+    app.include_router(sendbird.router)
+    app.include_router(stream_chat.router)
+    app.include_router(stories.router)
+    app.include_router(follows.router)
+    app.include_router(communities.router)
+    app.include_router(messages.router)
+    app.include_router(calls.router)
 
 
 @app.get("/")
