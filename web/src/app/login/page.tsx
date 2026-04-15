@@ -4,7 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Lock, Mail, Loader2, AlertCircle, User as UserIcon } from 'lucide-react';
+import {
+  Lock, Mail, Loader2, AlertCircle, User as UserIcon,
+  Sparkles, CheckSquare, Users, TrendingUp, Calendar, MessageSquare,
+  Zap, Shield, Globe,
+} from 'lucide-react';
 import { login, register, loginWithFirebase, getCurrentUser } from '@/lib/api-client';
 import { setToken, setCachedUser, isAuthenticated } from '@/lib/auth';
 import { signInWithGoogle, signInWithGithub, signInWithApple } from '@/lib/firebase';
@@ -68,23 +72,87 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
       {/* Background orbs */}
-      <div className="pointer-events-none fixed top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-primary/20 blur-[140px]" />
-      <div className="pointer-events-none fixed bottom-[-20%] right-[-10%] w-[700px] h-[700px] rounded-full bg-secondary/15 blur-[160px]" />
+      <div className="pointer-events-none fixed top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-primary/20 blur-[140px] animate-float-orb" />
+      <div className="pointer-events-none fixed bottom-[-20%] right-[-10%] w-[700px] h-[700px] rounded-full bg-secondary/15 blur-[160px] animate-float-orb" />
+      <div className="pointer-events-none fixed top-[30%] left-[40%] w-[400px] h-[400px] rounded-full bg-accent/10 blur-[120px]" />
 
-      <div className="w-full max-w-md relative">
-        {/* Brand */}
-        <div className="text-center mb-8">
-          <div className="inline-flex w-20 h-20 rounded-3xl overflow-hidden shadow-glow-primary mb-4 border border-primary/30">
-            <Image src="/icon.png" alt="ALLOUL&Q" width={80} height={80} priority />
+      <div className="relative max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 px-4 py-10 lg:py-16 min-h-screen items-center">
+        {/* ═══════ Left: Smart presentation ═══════ */}
+        <div className="order-2 lg:order-1 space-y-8">
+          {/* Brand header */}
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-glow-primary border border-primary/30">
+              <Image src="/icon.png" alt="ALLOUL&Q" width={56} height={56} priority />
+            </div>
+            <div>
+              <h1 className="text-white font-black text-2xl leading-tight">
+                ALLOUL<span className="text-secondary">&Q</span>
+              </h1>
+              <p className="text-white/50 text-xs">منصة الأعمال الذكية</p>
+            </div>
           </div>
-          <h1 className="text-white font-black text-3xl">ALLOUL<span className="text-secondary">&Q</span></h1>
-          <p className="text-white/50 text-sm mt-2">منصة الأعمال الذكية</p>
+
+          {/* Headline */}
+          <div className="space-y-4">
+            <div className="glass-subtle gap-2 border-accent-500/40 text-accent-500">
+              <Sparkles size={14} />
+              <span>مدعوم بالذكاء الاصطناعي · Claude 4.5</span>
+            </div>
+            <h2 className="text-4xl lg:text-5xl font-black leading-tight">
+              مساحة عمل واحدة
+              <br />
+              <span className="bg-gradient-to-r from-primary-500 via-accent-500 to-secondary-500 bg-clip-text text-transparent">
+                لكل شيء تحتاجه شركتك
+              </span>
+            </h2>
+            <p className="text-white/70 text-base lg:text-lg leading-relaxed max-w-xl">
+              مهام، مشاريع، اجتماعات، CRM، مكالمات، وتسليمات ذكية — كلها في تطبيق واحد.
+              المساعد الذكي يلخّص، يحلّل، ويقترح خطوتك التالية.
+            </p>
+          </div>
+
+          {/* Feature grid */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { icon: Sparkles,      label: 'مساعد AI',      sub: 'تلخيص + تحليل', color: '#8B5CF6' },
+              { icon: CheckSquare,   label: 'مهام ومشاريع',  sub: 'تنظيم كامل',    color: '#2E8BFF' },
+              { icon: TrendingUp,    label: 'CRM وصفقات',    sub: 'خط أنابيب ذكي', color: '#FFB24D' },
+              { icon: Calendar,      label: 'اجتماعات',      sub: 'جدولة ذكية',    color: '#14E0A4' },
+              { icon: Users,         label: 'فريق العمل',    sub: 'أدوار وصلاحيات',color: '#00D4FF' },
+              { icon: MessageSquare, label: 'تواصل داخلي',   sub: 'شات + مكالمات', color: '#FF4757' },
+            ].map((f, i) => (
+              <div
+                key={i}
+                className="glass glass-hover p-4 flex items-start gap-3"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${f.color}22`, border: `1px solid ${f.color}55` }}
+                >
+                  <f.icon size={18} style={{ color: f.color }} />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">{f.label}</p>
+                  <p className="text-xs text-white/50">{f.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Trust badges */}
+          <div className="flex flex-wrap gap-3 pt-2">
+            <div className="glass-subtle gap-2"><Shield size={12} className="text-secondary-500" /><span>بيانات مشفّرة</span></div>
+            <div className="glass-subtle gap-2"><Zap size={12} className="text-accent-500" /><span>تجربة مجانية 14 يوم</span></div>
+            <div className="glass-subtle gap-2"><Globe size={12} className="text-primary-500" /><span>عربي + إنجليزي</span></div>
+          </div>
         </div>
 
-        {/* Card */}
-        <div className="rounded-3xl border border-primary/20 bg-dark-bg-800/80 backdrop-blur-xl p-7 shadow-glow-primary">
+        {/* ═══════ Right: Auth card ═══════ */}
+        <div className="order-1 lg:order-2 w-full max-w-md mx-auto lg:mx-0 lg:ml-auto">
+        <div className="glass-strong p-7 glass-ring-primary">
           {/* Mode tabs */}
           <div className="flex bg-white/5 rounded-full p-1 mb-6">
             {(['login', 'register'] as const).map((m) => (
@@ -206,6 +274,7 @@ export default function LoginPage() {
             {' '}و{' '}
             <Link href="/privacy" className="text-accent hover:underline">سياسة الخصوصية</Link>
           </div>
+        </div>
         </div>
       </div>
     </div>

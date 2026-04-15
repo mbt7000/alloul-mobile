@@ -242,3 +242,66 @@ export interface AIHealthResult {
 
 export const getAIHealth = () =>
   apiFetch<AIHealthResult>("/ai/health").catch(() => ({ ok: false }));
+
+// ─── Smart Summary Endpoints (Claude Haiku 4.5) ───────────────────────────
+// Added to match backend /agent/{handover,tasks,meetings}/summary endpoints.
+// These are the "smart helper" flows: one-tap AI digest with actionable output.
+
+export interface SummaryResponse {
+  summary: string;
+  count?: number;
+  title?: string;
+  handover_id?: number;
+  meeting_id?: number;
+}
+
+/** Generate a smart handover briefing (overview + action items + risks + contacts + start-today) */
+export const summarizeHandover = (handover_id: number, language: "ar" | "en" = "ar") =>
+  apiFetch<SummaryResponse>("/agent/handover/summary", {
+    method: "POST",
+    body: JSON.stringify({ handover_id, language }),
+  }, 90000);
+
+/** Analyze tasks and get AI priorities + blockers + delegation suggestions */
+export const summarizeTasks = (opts: {
+  project_id?: number;
+  status_filter?: "todo" | "in_progress" | "done";
+  language?: "ar" | "en";
+} = {}) =>
+  apiFetch<SummaryResponse>("/agent/tasks/summary", {
+    method: "POST",
+    body: JSON.stringify({ language: "ar", ...opts }),
+  }, 90000);
+
+/** Generate structured meeting notes: agenda, decisions, action items, next steps */
+export const summarizeMeeting = (meeting_id: number, language: "ar" | "en" = "ar") =>
+  apiFetch<SummaryResponse>("/agent/meetings/summary", {
+    method: "POST",
+    body: JSON.stringify({ meeting_id, language }),
+  }, 90000);
+
+// ─── Unified Company Insights ─────────────────────────────────────────────
+// Single call → full company AI briefing. Routes through Ollama first for
+// privacy when the local model is running on the server.
+
+export type InsightSection = "performance" | "tasks" | "meetings" | "deals" | "handovers";
+
+export interface CompanyInsightsResponse {
+  company_id: number;
+  company_name: string;
+  generated_at: string;
+  provider_tier: string;
+  sections: Record<
+    InsightSection,
+    { ok: true; content: string } | { ok: false; error: string }
+  >;
+}
+
+export const getCompanyInsights = (
+  sections?: InsightSection[],
+  language: "ar" | "en" = "ar",
+) =>
+  apiFetch<CompanyInsightsResponse>("/agent/company-insights", {
+    method: "POST",
+    body: JSON.stringify({ language, sections: sections ?? null }),
+  }, 180000); // 3 min — multiple AI calls happen server-side

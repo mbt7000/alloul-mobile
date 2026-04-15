@@ -11,6 +11,8 @@ import AppText from "../../../shared/ui/AppText";
 import { useAppTheme } from "../../../theme/ThemeContext";
 import CompanyWorkModeTopBar from "../../companies/components/CompanyWorkModeTopBar";
 import AIComposeSheet from "../../../shared/components/AIComposeSheet";
+import AISummaryModal from "../../../shared/components/AISummaryModal";
+import { summarizeHandover } from "../../../api/ai.api";
 import {
   getHandovers, createHandover, updateHandover, deleteHandover,
   analyzeHandover, importHandoversToKnowledge, type HandoverRow,
@@ -59,6 +61,7 @@ export default function HandoverScreen() {
   const [importing, setImporting] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showAICompose, setShowAICompose] = useState(false);
+  const [smartSummaryFor, setSmartSummaryFor] = useState<HandoverRow | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [newFrom, setNewFrom] = useState("");
   const [newTo, setNewTo] = useState("");
@@ -288,12 +291,20 @@ export default function HandoverScreen() {
 
                       <View style={{ flexDirection: "row", gap: 8 }}>
                         <TouchableOpacity
+                          onPress={() => setSmartSummaryFor(item)}
+                          style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: 12, backgroundColor: "rgba(0,212,255,0.14)", borderWidth: 1, borderColor: "#00D4FF" }}
+                        >
+                          <AppText style={{ fontSize: 13 }}>⚡</AppText>
+                          <AppText style={{ color: "#00D4FF", fontWeight: "800", fontSize: 12 }}>ملخص ذكي</AppText>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                           onPress={() => handleAnalyze(item)}
                           disabled={analyzingId === item.id}
                           style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 10, borderRadius: 12, backgroundColor: "rgba(96,165,250,0.12)", borderWidth: 1, borderColor: "#60A5FA", opacity: analyzingId === item.id ? 0.6 : 1 }}
                         >
                           {analyzingId === item.id ? <ActivityIndicator size="small" color="#60A5FA" /> : <AppText style={{ fontSize: 13 }}>✨</AppText>}
-                          <AppText style={{ color: "#60A5FA", fontWeight: "700", fontSize: 12 }}>تحليل ذكي</AppText>
+                          <AppText style={{ color: "#60A5FA", fontWeight: "700", fontSize: 12 }}>تحليل</AppText>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -358,6 +369,15 @@ export default function HandoverScreen() {
         mode="handover"
         onClose={() => setShowAICompose(false)}
         onSaved={() => { setShowAICompose(false); setLoading(true); void load(); }}
+      />
+
+      <AISummaryModal
+        visible={!!smartSummaryFor}
+        onClose={() => setSmartSummaryFor(null)}
+        title={`ملخص ذكي: ${smartSummaryFor?.title ?? ""}`}
+        subtitle="Overview · Action items · Risks · Start today with"
+        accentColor="#00D4FF"
+        fetcher={() => summarizeHandover(smartSummaryFor!.id)}
       />
     </Screen>
   );

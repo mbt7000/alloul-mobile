@@ -146,3 +146,122 @@ export const getDashboardActivity = (limit = 20) =>
 
 export const likePost = (id: number) => apiFetch(`/posts/${id}/like`, { method: 'POST' });
 export const unlikePost = (id: number) => apiFetch(`/posts/${id}/like`, { method: 'DELETE' });
+
+// ─── Company services (same endpoints as mobile) ───────────────────────────
+
+export interface CompanyMember {
+  id: number;
+  user_id: number;
+  user_name?: string | null;
+  user_email?: string | null;
+  role: string;
+  job_title?: string | null;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  description?: string | null;
+  status: string;
+  due_date?: string | null;
+  tasks_count?: number;
+  completed_count?: number;
+}
+
+export interface Task {
+  id: number;
+  project_id?: number | null;
+  title: string;
+  description?: string | null;
+  status: string;
+  priority: string;
+  assigned_to?: number | null;
+  due_date?: string | null;
+}
+
+export interface Meeting {
+  id: number;
+  title: string;
+  meeting_date?: string | null;
+  meeting_time?: string | null;
+  duration_minutes?: number;
+  location?: string | null;
+  status: string;
+}
+
+export interface HandoverRow {
+  id: number;
+  handover_title: string;
+  client_name?: string | null;
+  from_person?: string | null;
+  to_person?: string | null;
+  risk_level?: string | null;
+  deadline?: string | null;
+  created_at?: string | null;
+}
+
+export const getCompanyMembers = () =>
+  apiFetch<CompanyMember[]>('/companies/members');
+
+export const getProjects = () => apiFetch<Project[]>('/projects/');
+
+export const getMeetings = (upcoming = false) =>
+  apiFetch<Meeting[]>(`/meetings/${upcoming ? '?upcoming=true' : ''}`);
+
+export const getHandovers = () => apiFetch<HandoverRow[]>('/handover/');
+
+export const getCompanyDailyJoinUrl = () =>
+  apiFetch<{ join_url: string; room_name: string; provider: string }>('/daily/company-join');
+
+// ─── Calls ───────────────────────────────────────────────────────────────
+export interface CallHistoryItem {
+  id: number;
+  caller_id: number;
+  callee_id: number;
+  started_at?: string | null;
+  ended_at?: string | null;
+  duration_seconds?: number | null;
+  status?: string | null;
+  call_type?: string | null;
+}
+
+export const getCallHistory = () => apiFetch<CallHistoryItem[]>('/call/history');
+
+// ─── Deals / CRM ─────────────────────────────────────────────────────────
+export interface Deal {
+  id: number;
+  company: string;
+  contact_name?: string | null;
+  value: number;
+  stage: string;
+  probability?: number | null;
+  notes?: string | null;
+  expected_close_date?: string | null;
+  created_at?: string | null;
+}
+
+export const getDeals = () => apiFetch<Deal[]>('/deals/');
+
+// ─── AI helpers ──────────────────────────────────────────────────────────
+export interface AiHealth {
+  claude: boolean;
+  ollama: boolean;
+  ollama_models: string[] | null;
+  all_healthy: boolean;
+}
+
+export const getAiHealth = () => apiFetch<AiHealth>('/ai/health');
+
+export const summarizeHandover = (handover_id: number, language: 'ar' | 'en' = 'ar') =>
+  apiFetch<{ handover_id: number; title: string; summary: string }>('/agent/handover/summary', {
+    method: 'POST',
+    body: JSON.stringify({ handover_id, language }),
+  });
+
+export const summarizeTasks = (
+  opts: { project_id?: number; status_filter?: string; language?: 'ar' | 'en' } = {},
+) =>
+  apiFetch<{ summary: string; count: number }>('/agent/tasks/summary', {
+    method: 'POST',
+    body: JSON.stringify({ language: 'ar', ...opts }),
+  });

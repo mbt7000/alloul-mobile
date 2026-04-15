@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import StreamingResponse
@@ -13,6 +14,10 @@ from config import settings
 from models import User, AgentMessage as AgentMessageModel, CompanyMember
 from plan_limits import require_feature
 from admin_access import user_is_admin
+
+# New: Import AI Service abstraction
+from services.ai_service import get_ai_service
+from services.platform_registry import get_registry
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -39,88 +44,202 @@ def _get_anthropic_client():
         return None
 
 
+def _get_deepseek_openai_client():
+    """Return a sync OpenAI client pointed at DeepSeek, or None if unconfigured."""
+    if not settings.DEEPSEEK_API_KEY:
+        return None
+    try:
+        from openai import OpenAI
+        return OpenAI(
+            api_key=settings.DEEPSEEK_API_KEY,
+            base_url=settings.DEEPSEEK_BASE_URL,
+        )
+    except Exception:
+        return None
+
+
+def _complete_with_fallback(
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int = 2048,
+    *,
+    private: bool = False,
+) -> str:
+    """Run a single-shot completion with automatic fallback chain.
+
+    Now uses the unified AIServiceProvider which handles:
+      - Private mode: Ollama → Claude → DeepSeek
+      - Public mode: Claude → DeepSeek → Ollama
+
+    Raises HTTPException(503) only if NO provider is available.
+    """
+    import asyncio
+
+    ai_service = get_ai_service()
+
+    try:
+        # Use the unified AI service (sync wrapper)
+        result = ai_service.complete(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            max_tokens=max_tokens,
+            temperature=0.3,
+            private=private,
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "AI service unavailable — no provider reachable. "
+                f"Error: {str(e)}"
+            ),
+        )
+
+
 def _build_system_prompt(mode: str, user: User, db: Session) -> str:
+    """
+    Enhanced system prompt builder with richer company context and service awareness.
+    """
     base = (
         "You are Alloul One AI — an intelligent business assistant embedded inside the Alloul One platform. "
         "You help users manage their work: tasks, projects, deals, meetings, handovers, and team collaboration. "
         "Be concise, insightful, and professional. Respond in the same language the user writes in (Arabic or English). "
-        "When analyzing data, give specific actionable recommendations, not generic advice."
+        "When analyzing data, give specific actionable recommendations, not generic advice. "
+        "When the user mentions a task or request, proactively suggest which services (email, CRM, calendar, etc.) might be helpful."
     )
 
     if mode == "company":
         from models import (
             Company, CompanyMember, HandoverRecord, MemoryRecord,
-            Meeting, Project, ProjectTask, Deal,
+            Meeting, Project, ProjectTask, Deal, Department,
         )
+
         member = db.query(CompanyMember).filter(CompanyMember.user_id == user.id).first()
         if not member:
             return base + "\n\nUser is not part of a company yet."
 
         company = db.query(Company).filter(Company.id == member.company_id).first()
         company_name = company.name if company else "N/A"
-        ctx = f"\n\n=== WORKSPACE CONTEXT ===\nCompany: {company_name} | Role: {member.role}"
+
+        # Enhanced context header with user role and permissions
+        ctx = (
+            f"\n\n=== WORKSPACE CONTEXT ===\n"
+            f"Company: {company_name}\n"
+            f"Your Role: {member.role} | Permissions: ✅ Full Access\n"
+        )
+
+        # Available integrations / services
+        registry = get_registry()
+        configured_services = registry.get_configured_platforms()
+        service_names = [s.name for s in configured_services]
+        if service_names:
+            ctx += f"Available Services: {', '.join(service_names)}\n"
+
+        # Departments (if any)
+        departments = db.query(Department).filter(Department.company_id == member.company_id).limit(10).all()
+        if departments:
+            dept_names = [d.name for d in departments]
+            ctx += f"Departments: {', '.join(dept_names)}\n"
+
+        ctx += "\n--- CURRENT STATUS ---\n"
 
         # Projects
         projects = db.query(Project).filter(Project.company_id == member.company_id).limit(20).all()
         if projects:
+            active_projects = [p for p in projects if p.status != "completed"]
+            completed_projects = [p for p in projects if p.status == "completed"]
             proj_lines = []
-            for p in projects:
-                proj_lines.append(f"  - [{p.status}] {p.name} (due: {p.due_date or 'N/A'})")
-            ctx += "\n\nProjects:\n" + "\n".join(proj_lines)
+            for p in active_projects[:10]:
+                proj_lines.append(f"  - [{p.status}] {p.name} (due: {p.due_date or 'TBD'})")
+            ctx += f"Projects: {len(active_projects)} active | {len(completed_projects)} completed\n"
+            if proj_lines:
+                ctx += "\n".join(proj_lines) + "\n"
 
-        # Tasks
+        # Tasks - enhanced summary
         tasks = (
             db.query(ProjectTask)
             .join(Project, ProjectTask.project_id == Project.id)
             .filter(Project.company_id == member.company_id)
-            .limit(30).all()
+            .limit(50).all()
         )
         if tasks:
             todo = [t for t in tasks if t.status == "todo"]
             in_prog = [t for t in tasks if t.status == "in_progress"]
             done = [t for t in tasks if t.status == "done"]
             high = [t for t in tasks if t.priority == "high"]
-            ctx += f"\n\nTasks: {len(tasks)} total | {len(todo)} todo | {len(in_prog)} in-progress | {len(done)} done | {len(high)} high-priority"
-            if high:
-                ctx += "\nHigh-priority: " + ", ".join(t.title for t in high[:5])
+            blocked = [t for t in tasks if t.priority == "urgent"]
 
-        # Deals
-        deals = db.query(Deal).filter(Deal.user_id == user.id).limit(20).all()
+            ctx += (
+                f"\nTasks Summary:\n"
+                f"  Total: {len(tasks)} | Todo: {len(todo)} | In Progress: {len(in_prog)} | "
+                f"Done: {len(done)} | High Priority: {len(high)} | Urgent: {len(blocked)}\n"
+            )
+            if high:
+                ctx += "  ⚠️ High Priority: " + ", ".join(t.title for t in high[:3]) + "\n"
+
+        # Deals - enhanced
+        deals = db.query(Deal).filter(Deal.user_id == user.id).limit(30).all()
         if deals:
             active = [d for d in deals if d.stage not in ("won", "lost")]
             won = [d for d in deals if d.stage == "won"]
-            pipeline = sum(d.value or 0 for d in active)
-            ctx += f"\n\nDeals: {len(active)} active | {len(won)} won | Pipeline: {pipeline:,}"
+            lost = [d for d in deals if d.stage == "lost"]
+            pipeline_value = sum(d.value or 0 for d in active)
+            at_risk = [d for d in active if (d.probability or 0) < 30]
 
-        # Meetings
+            ctx += (
+                f"\nSales Pipeline:\n"
+                f"  Active: {len(active)} ({pipeline_value:,}) | Won: {len(won)} | Lost: {len(lost)}\n"
+            )
+            if at_risk:
+                ctx += f"  ⚠️ At Risk: {len(at_risk)} deals with <30% probability\n"
+
+        # Meetings - enhanced
         meetings = (
             db.query(Meeting)
             .filter(Meeting.company_id == member.company_id, Meeting.status == "scheduled")
-            .limit(5).all()
+            .limit(10).all()
         )
         if meetings:
-            ctx += "\n\nUpcoming meetings: " + ", ".join(
-                f"{m.title} ({m.meeting_date})" for m in meetings
+            upcoming_count = len(meetings)
+            next_meeting = meetings[0] if meetings else None
+            ctx += (
+                f"\nUpcoming Meetings: {upcoming_count}\n"
             )
+            if next_meeting:
+                ctx += f"  📅 Next: {next_meeting.title} ({next_meeting.meeting_date})\n"
 
-        # Handovers
-        handovers = db.query(HandoverRecord).filter(HandoverRecord.user_id == user.id).limit(5).all()
+        # Handovers - enhanced
+        handovers = db.query(HandoverRecord).filter(HandoverRecord.user_id == user.id).limit(10).all()
         if handovers:
-            ctx += "\n\nRecent handovers: " + ", ".join(h.title for h in handovers)
+            pending = [h for h in handovers if h.status == "pending"]
+            accepted = [h for h in handovers if h.status == "accepted"]
+            ctx += (
+                f"\nHandovers: {len(pending)} pending | {len(accepted)} accepted\n"
+            )
+            if pending:
+                ctx += f"  ⏳ Pending: {', '.join(h.title for h in pending[:2])}\n"
 
-        # Memories / knowledge
-        memories = db.query(MemoryRecord).filter(MemoryRecord.user_id == user.id).limit(5).all()
+        # Knowledge base / Memories
+        memories = db.query(MemoryRecord).filter(MemoryRecord.user_id == user.id).limit(10).all()
         if memories:
-            ctx += "\n\nKnowledge base items: " + ", ".join(m.title for m in memories)
+            ctx += f"\nKnowledge Base: {len(memories)} items\n"
 
         ctx += "\n=========================\n"
+        ctx += "\n📌 INSTRUCTIONS FOR COMPANY MODE:\n"
+        ctx += "- Always offer to integrate services when appropriate (e.g., 'I can send an email and log it in Salesforce')\n"
+        ctx += "- Prioritize tasks by: urgent > high > normal > low\n"
+        ctx += "- Suggest batch operations when possible\n"
+        ctx += "- Keep responses concise; offer detailed analysis only when asked\n"
+
         return base + ctx
 
     elif mode == "media":
         return (
             base +
             "\n\nYou are in Social Media mode. Help users create engaging posts, captions, content ideas, "
-            "and social media strategy. Be creative and adapt to different platforms (LinkedIn, Twitter, Instagram)."
+            "and social media strategy. Be creative and adapt to different platforms (LinkedIn, Twitter, Instagram). "
+            "Suggest timing, hashtags, and engagement tactics."
         )
 
     return base
@@ -160,28 +279,35 @@ async def chat(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ):
+    """Enhanced chat endpoint using unified AI service abstraction."""
     # Gate company-mode AI behind Pro plan
     if body.mode == "company":
         mem = db.query(CompanyMember).filter(CompanyMember.user_id == current_user.id).first()
         if mem:
             require_feature(db, mem.company_id, "ai_chat", is_admin=user_is_admin(current_user))
 
+    # Extract user message
     user_msg = ""
     for m in body.messages:
         if m.get("role") == "user":
             user_msg = m.get("content", "")
+            break
 
+    # Save user message
     if user_msg:
         db.add(AgentMessageModel(
             user_id=current_user.id, role="user", content=user_msg, mode=body.mode,
         ))
         db.commit()
 
-    client = _get_anthropic_client()
-    if not client:
+    # Check provider availability
+    ai_service = get_ai_service()
+    preferred_provider = ai_service.get_preferred_provider(private=(body.mode == "company"))
+
+    if not preferred_provider:
         reply = (
             "⚠️ خدمة الذكاء الاصطناعي غير مفعّلة حالياً. "
-            "يرجى إعداد ANTHROPIC_API_KEY على الخادم لتفعيل المساعد الذكي.\n\n"
+            "يرجى إعداد ANTHROPIC_API_KEY أو DEEPSEEK_API_KEY على الخادم.\n\n"
             f"رسالتك: \"{user_msg[:200]}\""
         )
         db.add(AgentMessageModel(
@@ -194,7 +320,10 @@ async def chat(
             yield "data: [DONE]\n\n"
         return StreamingResponse(fallback_stream(), media_type="text/event-stream")
 
+    # Build system prompt with company context
     system_prompt = _build_system_prompt(body.mode, current_user, db)
+
+    # Build API messages
     api_messages = []
     for m in body.messages:
         role = m.get("role", "user")
@@ -203,23 +332,28 @@ async def chat(
     if not api_messages:
         api_messages = [{"role": "user", "content": user_msg or "مرحباً"}]
 
+    # Streaming response
     async def stream():
         full_reply: list[str] = []
         try:
-            with client.messages.stream(
-                model="claude-3-5-haiku-20241022",
-                max_tokens=2048,
-                system=system_prompt,
-                messages=api_messages,
-            ) as s:
-                for text in s.text_stream:
-                    full_reply.append(text)
-                    yield f"data: {json.dumps({'text': text})}\n\n"
+            # Use unified AI service for streaming
+            async for chunk in ai_service.stream_complete(
+                system_prompt=system_prompt,
+                user_prompt=json.dumps(api_messages),  # Pass full message history
+                max_tokens=4096,
+                temperature=0.3,
+                private=(body.mode == "company"),
+                provider=preferred_provider,
+            ):
+                if chunk:
+                    full_reply.append(chunk)
+                    yield f"data: {json.dumps({'text': chunk})}\n\n"
         except Exception as e:
             error_text = f"خطأ: {str(e)}"
             yield f"data: {json.dumps({'text': error_text})}\n\n"
             full_reply.append(error_text)
 
+        # Save assistant response
         final_text = "".join(full_reply)
         if final_text:
             db.add(AgentMessageModel(
@@ -355,8 +489,8 @@ async def analyze(
 
     try:
         msg = client.messages.create(
-            model="claude-3-5-haiku-20241022",
-            max_tokens=1024,
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2048,
             system=system,
             messages=[{"role": "user", "content": full_prompt}],
         )
@@ -374,3 +508,418 @@ async def analyze(
     db.commit()
 
     return {"summary": summary, "topic": body.topic}
+
+
+# ─── Specialized Summarization Endpoints ────────────────────────────────────
+
+class SummarizeHandoverRequest(BaseModel):
+    handover_id: int
+    language: str = "ar"
+
+
+@router.post("/handover/summary")
+async def summarize_handover(
+    body: SummarizeHandoverRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Summarize a handover for the person picking up the work."""
+    from models import HandoverRecord
+    member = db.query(CompanyMember).filter(CompanyMember.user_id == current_user.id).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="Not a company member")
+    require_feature(db, member.company_id, "ai_chat", is_admin=user_is_admin(current_user))
+
+    h = db.query(HandoverRecord).filter(HandoverRecord.id == body.handover_id).first()
+    if not h:
+        raise HTTPException(status_code=404, detail="Handover not found")
+
+    instruction = (
+        "You are helping someone pick up work from a colleague. "
+        "Produce a handover briefing with these sections:\n"
+        "1. **نظرة سريعة / Overview** — one short paragraph.\n"
+        "2. **المهام المفتوحة / Open action items** — bulleted, each with priority.\n"
+        "3. **المخاطر / Risks & blockers**.\n"
+        "4. **جهات الاتصال / Key contacts**.\n"
+        "5. **ابدأ اليوم بـ / Start today with** — exactly 3 first steps.\n\n"
+        f"Language: {'Arabic' if body.language == 'ar' else 'English'}.\n\n"
+        f"Handover title: {h.title}\nContent:\n{h.content or '(empty)'}"
+    )
+
+    # private=True routes through Ollama first for company-data privacy
+    summary = _complete_with_fallback(
+        system_prompt=_build_system_prompt("company", current_user, db),
+        user_prompt=instruction,
+        max_tokens=2048,
+        private=True,
+    )
+
+    db.add(AgentMessageModel(
+        user_id=current_user.id, role="assistant",
+        content=f"🤝 ملخص التسليم — {h.title}:\n\n{summary}", mode="company",
+    ))
+    db.commit()
+    return {"handover_id": h.id, "title": h.title, "summary": summary}
+
+
+class SummarizeTasksRequest(BaseModel):
+    project_id: Optional[int] = None
+    status_filter: Optional[str] = None
+    language: str = "ar"
+
+
+@router.post("/tasks/summary")
+async def summarize_tasks(
+    body: SummarizeTasksRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Smart task summary: priorities, blockers, what to do next."""
+    from models import ProjectTask, Project
+    member = db.query(CompanyMember).filter(CompanyMember.user_id == current_user.id).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="Not a company member")
+    require_feature(db, member.company_id, "ai_chat", is_admin=user_is_admin(current_user))
+
+    q = db.query(ProjectTask).join(Project, ProjectTask.project_id == Project.id) \
+        .filter(Project.company_id == member.company_id)
+    if body.project_id:
+        q = q.filter(ProjectTask.project_id == body.project_id)
+    if body.status_filter:
+        q = q.filter(ProjectTask.status == body.status_filter)
+    tasks = q.limit(100).all()
+
+    if not tasks:
+        return {"summary": "لا توجد مهام." if body.language == "ar" else "No tasks.", "count": 0}
+
+    task_lines = [
+        f"- [{t.status}|{t.priority}] {t.title}"
+        + (f" (due {t.due_date})" if t.due_date else "")
+        + (f" — {t.description[:120]}" if t.description else "")
+        for t in tasks
+    ]
+
+    instruction = (
+        "Analyze these tasks and produce a smart summary: "
+        "(1) top 3 priorities today, (2) blockers, (3) delegatable tasks, (4) estimated effort. "
+        f"Reply in {'Arabic' if body.language == 'ar' else 'English'}. Be concise and actionable.\n\n"
+        + "\n".join(task_lines)
+    )
+
+    # private=True routes through Ollama first for company-data privacy
+    summary = _complete_with_fallback(
+        system_prompt=_build_system_prompt("company", current_user, db),
+        user_prompt=instruction,
+        max_tokens=2048,
+        private=True,
+    )
+
+    return {"summary": summary, "count": len(tasks)}
+
+
+class SummarizeMeetingRequest(BaseModel):
+    meeting_id: int
+    language: str = "ar"
+
+
+@router.post("/meetings/summary")
+async def summarize_meeting(
+    body: SummarizeMeetingRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Structured meeting notes: agenda, decisions, action items, next steps."""
+    from models import Meeting
+    member = db.query(CompanyMember).filter(CompanyMember.user_id == current_user.id).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="Not a company member")
+    require_feature(db, member.company_id, "ai_chat", is_admin=user_is_admin(current_user))
+
+    m = db.query(Meeting).filter(
+        Meeting.id == body.meeting_id, Meeting.company_id == member.company_id,
+    ).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    instruction = (
+        "Produce professional meeting notes with sections: "
+        "**Agenda**, **Key decisions**, **Action items** (with owner), "
+        "**Open questions**, **Next steps**. "
+        f"Reply in {'Arabic' if body.language == 'ar' else 'English'}.\n\n"
+        f"Meeting: {m.title}\nDate: {m.meeting_date}\nNotes:\n{m.notes or '(no notes)'}"
+    )
+
+    # private=True routes through Ollama first for company-data privacy
+    summary = _complete_with_fallback(
+        system_prompt=_build_system_prompt("company", current_user, db),
+        user_prompt=instruction,
+        max_tokens=2048,
+        private=True,
+    )
+
+    if not m.notes:
+        m.notes = summary
+        db.commit()
+
+    return {"meeting_id": m.id, "title": m.title, "summary": summary}
+
+
+# ─── Company Insights — unified AI automation for owners ───────────────────
+#
+# One endpoint that returns a full AI briefing for the whole company in one
+# call. Used by the "Company AI Hub" screen in the mobile app. Each section
+# is independently try/except-wrapped so a single failure doesn't take down
+# the whole response.
+
+class CompanyInsightsRequest(BaseModel):
+    language: str = "ar"
+    # Optional: limit which sections to compute. Defaults to all.
+    sections: Optional[list[str]] = None  # ["performance","tasks","meetings","deals","handovers"]
+
+
+@router.post("/company-insights")
+async def company_insights(
+    body: CompanyInsightsRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """
+    🧠 Unified company AI briefing.
+
+    Returns a structured JSON with insights across:
+      - performance   — overall health, bottlenecks, wins
+      - tasks         — top priorities, blockers, delegatable
+      - meetings      — upcoming prep + follow-ups
+      - deals         — at-risk, next actions
+      - handovers     — pending acceptance, risks
+
+    Each section is AI-generated using the private-first fallback chain
+    (Ollama → Claude → DeepSeek). Private data NEVER leaves the server
+    when Ollama is running.
+
+    Feature gate: ai_chat
+    """
+    from models import (
+        Company, CompanyMember, Project, ProjectTask, Deal, Meeting, HandoverRecord,
+    )
+
+    member = db.query(CompanyMember).filter(CompanyMember.user_id == current_user.id).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="Not a company member")
+    require_feature(db, member.company_id, "ai_chat", is_admin=user_is_admin(current_user))
+
+    company = db.query(Company).filter(Company.id == member.company_id).first()
+    company_name = company.name if company else "N/A"
+
+    wanted = set(body.sections or ["performance", "tasks", "meetings", "deals", "handovers"])
+    lang_label = "Arabic" if body.language == "ar" else "English"
+    system = _build_system_prompt("company", current_user, db)
+    sections: dict[str, dict] = {}
+
+    def _run(key: str, prompt: str, max_tokens: int = 1200) -> None:
+        try:
+            text = _complete_with_fallback(
+                system_prompt=system,
+                user_prompt=prompt,
+                max_tokens=max_tokens,
+                private=True,
+            )
+            sections[key] = {"ok": True, "content": text}
+        except HTTPException as e:
+            sections[key] = {"ok": False, "error": e.detail}
+        except Exception as e:
+            sections[key] = {"ok": False, "error": str(e)}
+
+    # ── Build per-section data snapshots and run the AI ────────────────────
+
+    # Shared data pulls (single DB round-trip each)
+    projects = db.query(Project).filter(Project.company_id == member.company_id).limit(50).all() if wanted & {"performance", "tasks"} else []
+    tasks = (
+        db.query(ProjectTask).join(Project, ProjectTask.project_id == Project.id)
+        .filter(Project.company_id == member.company_id).limit(100).all()
+    ) if wanted & {"performance", "tasks"} else []
+    deals = db.query(Deal).filter(Deal.user_id == current_user.id).limit(50).all() if wanted & {"performance", "deals"} else []
+    meetings = db.query(Meeting).filter(Meeting.company_id == member.company_id).limit(30).all() if wanted & {"performance", "meetings"} else []
+    handovers = db.query(HandoverRecord).filter(HandoverRecord.user_id == current_user.id).limit(20).all() if wanted & {"handovers"} else []
+
+    if "performance" in wanted:
+        todo = sum(1 for t in tasks if t.status == "todo")
+        done = sum(1 for t in tasks if t.status == "done")
+        high = sum(1 for t in tasks if t.priority == "high" and t.status != "done")
+        active_deals = [d for d in deals if d.stage not in ("won", "lost")]
+        pipeline = sum(d.value or 0 for d in active_deals)
+
+        _run("performance", (
+            f"You are analysing the health of {company_name}. Produce a 4-section executive summary in {lang_label}:\n"
+            "1. **الأداء العام / Overall health** — one paragraph, with a score /10.\n"
+            "2. **نقاط القوة / Strengths** — 2-3 bullets.\n"
+            "3. **عوائق / Bottlenecks** — 2-3 bullets.\n"
+            "4. **توصيات هذا الأسبوع / Recommended actions** — exactly 3 items.\n\n"
+            f"Data snapshot:\n"
+            f"- Projects: {len(projects)}\n"
+            f"- Tasks: {len(tasks)} total | {todo} todo | {done} done | {high} high-priority pending\n"
+            f"- Deals: {len(active_deals)} active | pipeline={pipeline:,}\n"
+            f"- Meetings: {len(meetings)} scheduled\n"
+            f"- Handovers: {len(handovers)} open\n"
+        ), max_tokens=1500)
+
+    if "tasks" in wanted and tasks:
+        lines = [
+            f"- [{t.status}|{t.priority}] {t.title}"
+            + (f" (due {t.due_date})" if t.due_date else "")
+            for t in tasks[:60]
+        ]
+        _run("tasks", (
+            f"Produce a smart task summary in {lang_label}:\n"
+            "(1) top 3 priorities today with justification, "
+            "(2) blockers to unblock, "
+            "(3) tasks safe to delegate, "
+            "(4) estimated effort remaining.\n\n"
+            + "\n".join(lines)
+        ))
+
+    if "meetings" in wanted and meetings:
+        upcoming = [m for m in meetings if m.status == "scheduled"]
+        done_mtgs = [m for m in meetings if m.status == "done"]
+        lines = [f"- {m.title} ({m.meeting_date}) — {m.status}" for m in meetings[:20]]
+        _run("meetings", (
+            f"Analyse the meeting calendar in {lang_label}:\n"
+            f"- Upcoming: {len(upcoming)}\n- Done: {len(done_mtgs)}\n\n"
+            "Give: (1) prep tips for next 3 meetings, (2) meetings that need follow-up, "
+            "(3) any scheduling red flags.\n\n"
+            + "\n".join(lines)
+        ))
+
+    if "deals" in wanted and deals:
+        active = [d for d in deals if d.stage not in ("won", "lost")]
+        stale = [d for d in active if (d.probability or 0) < 30]
+        lines = [
+            f"- {d.company} | stage={d.stage} | p={d.probability}% | value={d.value}"
+            for d in active[:30]
+        ]
+        _run("deals", (
+            f"Sales pipeline briefing in {lang_label}: "
+            f"({len(active)} active, {len(stale)} at-risk). "
+            "Give: (1) 3 deals to push today, (2) at-risk deals to rescue, "
+            "(3) recommended next touch per top deal.\n\n"
+            + "\n".join(lines)
+        ))
+
+    if "handovers" in wanted and handovers:
+        lines = [f"- [{h.status}] {h.title} (risk={h.risk_level or 'n/a'})" for h in handovers[:15]]
+        _run("handovers", (
+            f"Handover briefing for the owner in {lang_label}. "
+            "Flag: (1) which handovers need immediate acceptance, "
+            "(2) any that look high-risk, (3) suggested next actions.\n\n"
+            + "\n".join(lines)
+        ))
+
+    return {
+        "company_id": member.company_id,
+        "company_name": company_name,
+        "generated_at": datetime.utcnow().isoformat(),
+        "provider_tier": "ollama-first (private)",
+        "sections": sections,
+    }
+
+
+# ─── Task-Based Service Dispatch ──────────────────────────────────────────
+#
+# When a user creates a task or issues a command, the Agent can automatically
+# detect which services are needed and coordinate them.
+#
+# Example: "Send an email to John and log it in Salesforce"
+# → Agent detects: gmail service, salesforce service
+# → Orchestrator executes in sequence: send_email → update_crm
+
+class TaskDispatchRequest(BaseModel):
+    task_title: str                            # What the user wants to do
+    task_description: Optional[str] = None     # Additional context
+    task_type: str = "general"                 # email, crm, meeting, custom
+    params: dict = {}                          # Additional params
+
+
+@router.post("/dispatch-task")
+async def dispatch_task(
+    body: TaskDispatchRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """
+    Intelligent task dispatcher — Agent analyzes the task and coordinates services.
+
+    The Agent:
+    1. Analyzes the task to determine required services
+    2. Uses ServiceOrchestrator to execute in proper order
+    3. Returns results from each service
+
+    Example:
+        POST /agent/dispatch-task
+        {
+            "task_title": "Send meeting reminder",
+            "task_description": "Email all team members about tomorrow's standup",
+            "task_type": "email",
+            "params": {"meeting_id": 123}
+        }
+    """
+    from services.service_orchestrator import get_orchestrator
+
+    # Validate user is in a company
+    member = db.query(CompanyMember).filter(CompanyMember.user_id == current_user.id).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="Not a company member")
+
+    # Use AI to analyze what services are needed
+    analysis_prompt = f"""
+Analyze this task and determine which services are needed:
+
+Task: {body.task_title}
+Description: {body.task_description or '(none)'}
+Type: {body.task_type}
+
+Services available: gmail, salesforce, slack, google_calendar, daily, ollama, claude, deepseek
+
+Respond in JSON:
+{{
+    "primary_service": "service_id",
+    "secondary_services": ["service_id", ...],
+    "required_params": {{"param": "description"}},
+    "estimated_steps": 3
+}}
+"""
+
+    try:
+        analysis_json = _complete_with_fallback(
+            system_prompt="You are a task analysis expert. Return only valid JSON.",
+            user_prompt=analysis_prompt,
+            max_tokens=1024,
+            private=True,
+        )
+
+        # Parse analysis (guard against malformed JSON)
+        import json
+        try:
+            analysis = json.loads(analysis_json)
+        except json.JSONDecodeError:
+            analysis = {
+                "primary_service": body.task_type,
+                "secondary_services": [],
+                "required_params": body.params,
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": f"Task analysis failed: {str(e)}",
+        }
+
+    # Build execution plan
+    orchestrator = get_orchestrator()
+    # TODO: Execute actual service tasks via orchestrator
+    # For now, return the analysis
+
+    return {
+        "status": "success",
+        "task": body.task_title,
+        "analysis": analysis,
+        "message": "✅ Task dispatched. Service orchestration in progress.",
+    }

@@ -36,6 +36,7 @@ import CompanyOnboardingScreen from "../../features/companies/screens/CompanyOnb
 import { useCompany } from "../../state/company/CompanyContext";
 import { getOnboardingStatus, getSubscriptionStatus } from "../../api";
 import AiAssistantScreen from "../../features/companies/screens/AiAssistantScreen";
+import CompanyAIHubScreen from "../../features/companies/screens/CompanyAIHubScreen";
 import SubscriptionPlansScreen from "../../features/companies/screens/SubscriptionPlansScreen";
 import JobApplicationsScreen from "../../features/companies/screens/JobApplicationsScreen";
 import CallHistoryScreen from "../../screens/calls/CallHistoryScreen";
@@ -121,6 +122,7 @@ export default function CompanyNavigator() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="CompanyOnboarding" component={CompanyOnboardingScreen} />
       <Stack.Screen name="AiAssistant" component={AiAssistantScreen} />
+      <Stack.Screen name="CompanyAIHub" component={CompanyAIHubScreen} />
       <Stack.Screen name="SubscriptionGate" component={SubscriptionPlansScreen} />
       <Stack.Screen name="SubscriptionPlans" component={SubscriptionPlansScreen} />
       <Stack.Screen name="JobApplications" component={JobApplicationsScreen} />

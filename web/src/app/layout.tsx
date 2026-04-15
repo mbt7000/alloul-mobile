@@ -51,9 +51,11 @@ export default function RootLayout({
       <head>
         <meta charSet="utf-8" />
         <meta name="theme-color" content="#0F172A" />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/icon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/icon.png" />
       </head>
       <body className="min-h-screen bg-dark-bg-900 text-white antialiased font-arabic overflow-x-hidden">
+        <div className="bg-ambient" aria-hidden="true" />
         {children}
       </body>
     </html>

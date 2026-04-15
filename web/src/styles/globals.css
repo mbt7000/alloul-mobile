@@ -73,11 +73,64 @@ html {
   }
 
   .card {
-    @apply rounded-lg border border-dark-bg-700 bg-dark-bg-800 p-6 shadow-lg;
+    @apply rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-6 shadow-lg shadow-black/20;
   }
 
   .card-hover {
-    @apply card hover:shadow-xl hover:border-primary transition-all cursor-pointer;
+    @apply card hover:border-primary/50 hover:bg-white/[0.06] hover:shadow-glow-primary transition-all cursor-pointer;
+  }
+
+  /* ─── Glassmorphism system ─────────────────────────────────────────────
+     Frosted-glass surfaces inspired by iOS/visionOS. Layer order:
+       glass          → default surface (cards, tiles, list rows)
+       glass-strong   → heavier frost for modals, dialogs, popovers
+       glass-chrome   → top navigation / sticky headers (highest frost)
+       glass-subtle   → inline chips, tag pills, inline badges
+     All use bg-white/* + border-white/* + backdrop-blur for that premium
+     layered look, with a soft inner highlight from the border gradient. */
+
+  .glass {
+    @apply relative rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl
+           shadow-[0_8px_32px_rgba(0,0,0,0.35)];
+  }
+
+  .glass-strong {
+    @apply relative rounded-3xl border border-white/15 bg-white/[0.07] backdrop-blur-2xl
+           shadow-[0_20px_60px_rgba(0,0,0,0.5)];
+  }
+
+  .glass-chrome {
+    @apply relative border-b border-white/10 bg-dark-bg-900/70 backdrop-blur-2xl
+           shadow-[0_1px_0_rgba(255,255,255,0.06)_inset];
+  }
+
+  .glass-subtle {
+    @apply inline-flex items-center rounded-full border border-white/10 bg-white/[0.05]
+           backdrop-blur-md px-3 py-1 text-xs font-medium;
+  }
+
+  .glass-hover {
+    @apply transition-all duration-300 hover:border-white/20 hover:bg-white/[0.07]
+           hover:-translate-y-0.5 hover:shadow-[0_16px_48px_rgba(46,139,255,0.2)];
+  }
+
+  /* Gradient ring accent — place inside a .glass element for a lit edge */
+  .glass-ring-primary {
+    box-shadow:
+      0 0 0 1px rgba(46, 139, 255, 0.25) inset,
+      0 0 40px rgba(46, 139, 255, 0.15);
+  }
+
+  .glass-ring-accent {
+    box-shadow:
+      0 0 0 1px rgba(0, 212, 255, 0.25) inset,
+      0 0 40px rgba(0, 212, 255, 0.15);
+  }
+
+  .glass-ring-secondary {
+    box-shadow:
+      0 0 0 1px rgba(20, 224, 164, 0.25) inset,
+      0 0 40px rgba(20, 224, 164, 0.15);
   }
 
   .input-field {
@@ -149,6 +202,29 @@ html {
   }
 }
 
+/* ─── Ambient background orbs — soft colored gradients that float.
+   Use .bg-ambient on a wrapper to layer behind glass surfaces. */
+@keyframes floatOrb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(30px, -40px) scale(1.05); }
+  66%      { transform: translate(-20px, 30px) scale(0.95); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 0.7; transform: scale(1.03); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes aiOrbSpin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 0.3s ease-in-out;
@@ -160,6 +236,49 @@ html {
 
   .animate-slide-in-down {
     animation: slideInDown 0.4s ease-out;
+  }
+
+  .animate-float-orb    { animation: floatOrb 20s ease-in-out infinite; }
+  .animate-pulse-glow   { animation: pulseGlow 3s ease-in-out infinite; }
+  .animate-ai-orb-spin  { animation: aiOrbSpin 8s linear infinite; }
+
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* Ambient background — three soft gradient orbs floating behind the UI.
+     Place once at the root of a page: <div className="bg-ambient" />  */
+  .bg-ambient {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    background: radial-gradient(ellipse at top, #0A1428 0%, #050810 60%);
+  }
+  .bg-ambient::before,
+  .bg-ambient::after {
+    content: "";
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.35;
+  }
+  .bg-ambient::before {
+    background: #2E8BFF;
+    top: -10%;
+    left: -10%;
+    animation: floatOrb 25s ease-in-out infinite;
+  }
+  .bg-ambient::after {
+    background: #00D4FF;
+    bottom: -15%;
+    right: -10%;
+    animation: floatOrb 30s ease-in-out infinite reverse;
   }
 
   .truncate-lines-2 {

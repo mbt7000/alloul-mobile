@@ -19,8 +19,13 @@ stripe==11.3.0
 # Azure Blob Storage
 azure-storage-blob==12.19.0
 
-# AI
+# AI — Three-Tier System (Claude + DeepSeek + Ollama + HF)
 anthropic==0.39.0
+openai==1.54.4
+httpx>=0.27.0
+chromadb>=0.5.0
+sentence-transformers>=3.0.0
+huggingface-hub>=0.24.0
 
 # Env
 python-dotenv==1.0.1
@@ -30,3 +35,8 @@ sentry-sdk[fastapi,sqlalchemy]>=2.8.0
 stripe>=11.1.0
 sendgrid>=6.11.0
 pyotp>=2.9.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+httpx>=0.24.0

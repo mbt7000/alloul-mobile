@@ -56,7 +56,6 @@ export default function XSettingsScreen() {
         { key: "edit-profile", icon: "create-outline", title: "تعديل الملف الشخصي", subtitle: "الاسم، الصورة، النبذة", route: "EditProfile" },
         { key: "account-info", icon: "person-outline", title: "معلومات الحساب", subtitle: user?.email, route: "UserProfile" },
         { key: "security", icon: "lock-closed-outline", title: "الأمان وكلمة المرور", subtitle: "حماية حسابك", route: "ChangePassword" },
-        { key: "cv", icon: "document-text-outline", title: "السيرة الذاتية", subtitle: "عرض وتحرير", route: "CVScreen" },
         { key: "subscription", icon: "card-outline", title: "الاشتراك والفواتير", subtitle: "إدارة الخطة", route: "Billing" },
       ],
     },

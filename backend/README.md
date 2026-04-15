@@ -1,9 +1,19 @@
-# Alloul One Backend (FastAPI)
+# ALLOUL&Q Backend (FastAPI)
 
-Auth API for the mobile/web app: email/password and optional Firebase (Google) / Azure AD (Microsoft).
+Comprehensive communication and project management platform with integrated AI services, real-time collaboration, and multi-platform integrations.
 
-- **GET /** — quick JSON (links to `/health`, `/docs`, auth routes)
-- **GET /health** — `{ "status": "ok" }` (used by the mobile “Test server” button)
+**Core Features:**
+- **AI Service Abstraction** — Unified interface for OpenAI, DeepSeek, Claude, Ollama with automatic fallback chains
+- **Platform Registry** — Centralized management of 10+ integrations (Slack, Gmail, Stripe, Google Calendar, etc.)
+- **Service Orchestrator** — Workflow engine with task dependency resolution and context sharing
+- **Settings Management** — Encrypted credential storage (Fernet encryption) and per-company configuration
+- **Authentication** — Email/password and OAuth (Firebase Google/Apple, Azure AD Microsoft)
+
+**API Documentation:**
+- OpenAPI/Swagger: `http://localhost:8000/docs`
+- Architecture & Services: See [SERVICES_GUIDE.md](./SERVICES_GUIDE.md)
+- API Endpoints: See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
+- Deployment & QA: See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
 
 ## Client language (optional)
 
@@ -28,6 +38,43 @@ Mobile and web clients can send **`Accept-Language`** (e.g. `ar`, `en`, `fr`, `e
 | **Microsoft** | Azure AD id_token → `POST /auth/azure-ad` | Validates JWT with Microsoft JWKS | `MICROSOFT_CLIENT_ID`, `MICROSOFT_TENANT_ID` |
 
 So **Google is not “OAuth to the backend directly”**: the backend trusts **Firebase only**. The app must obtain a **Firebase ID token** first, then the API verifies it.
+
+## Integration Platforms
+
+The backend supports seamless integration with external services through the **Platform Registry**. Companies can configure and manage multiple platforms with encrypted credentials.
+
+### Supported Platforms
+
+| Category | Platforms |
+|----------|-----------|
+| **AI** | OpenAI, DeepSeek, Claude (Anthropic), Ollama (local), Hugging Face |
+| **Communication** | Slack, Gmail, Daily.co (video), Stream Chat |
+| **CRM** | Salesforce, HubSpot |
+| **Calendar** | Google Calendar |
+| **Payments** | Stripe |
+
+### Managing Integrations
+
+```bash
+# Get all integrations for your company
+curl -H “Authorization: Bearer $TOKEN” https://api.alloul.io/settings/integrations
+
+# Save credentials for a platform (encrypted at rest)
+curl -X POST https://api.alloul.io/settings/integrations/openai \
+  -H “Authorization: Bearer $TOKEN” \
+  -H “Content-Type: application/json” \
+  -d '{“api_key”: “sk-...”}'
+
+# Test connection
+curl -X POST https://api.alloul.io/settings/integrations/openai/test \
+  -H “Authorization: Bearer $TOKEN”
+
+# Deactivate without deleting
+curl -X POST https://api.alloul.io/settings/integrations/openai/deactivate \
+  -H “Authorization: Bearer $TOKEN”
+```
+
+All API keys are **encrypted at rest** using Fernet symmetric encryption. Masked credentials are returned in API responses (e.g., `***abc123`).
 
 ### Not implemented yet (security roadmap)
 

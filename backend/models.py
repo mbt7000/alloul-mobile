@@ -227,10 +227,48 @@ class PostComment(Base):
     post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     content = Column(Text, nullable=False)
+    likes_count = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     post = relationship("Post", back_populates="comments")
     author = relationship("User")
+    likes = relationship("CommentLike", back_populates="comment", cascade="all, delete-orphan")
+
+
+class CommentLike(Base):
+    """Per-user likes on a comment (X-style). Uniqueness enforced."""
+    __tablename__ = "comment_likes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("post_comments.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    comment = relationship("PostComment", back_populates="likes")
+
+    __table_args__ = (
+        UniqueConstraint("comment_id", "user_id", name="uq_comment_like"),
+    )
+
+
+class PostReaction(Base):
+    """Rich emoji reactions on posts (beyond simple like).
+
+    One row per (user, post) — switching emoji overwrites the old one.
+    Supported emojis: 👍 ❤️ 🔥 😂 😮 👏 (enforced in the router, not here).
+    """
+    __tablename__ = "post_reactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    emoji = Column(String(8), nullable=False)  # small unicode, up to 4 bytes + joiner
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("post_id", "user_id", name="uq_post_reaction"),
+    )
 
 
 class PostRepost(Base):
@@ -771,3 +809,31 @@ class OtpCode(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
     verified = Column(Boolean, default=False)
     attempts = Column(Integer, default=0)
+
+
+# ─── API Credentials (Platform Integrations) ──────────────────────────────────
+#
+# Securely store encrypted API keys for platform integrations (OpenAI, Slack, Gmail, etc).
+# Keys are encrypted at rest and should only be decrypted when actually used.
+
+class APICredential(Base):
+    __tablename__ = "api_credentials"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    platform_id = Column(String(64), nullable=False, index=True)        # e.g., "openai", "slack", "gmail"
+    api_key = Column(String(512), nullable=True)                        # Encrypted
+    api_secret = Column(String(512), nullable=True)                     # Encrypted
+    custom_params = Column(Text, nullable=True)                         # JSON dict for platform-specific config
+    is_active = Column(Boolean, default=True, index=True)
+    last_tested_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Unique constraint: one credential per company per platform
+    __table_args__ = (
+        UniqueConstraint('company_id', 'platform_id', name='uq_company_platform'),
+    )
+
+    company = relationship("Company", foreign_keys=[company_id])

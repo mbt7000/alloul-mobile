@@ -1,345 +1,488 @@
 'use client';
 
+/**
+ * ALLOUL&Q — Cinematic Landing
+ * ----------------------------
+ * Premium, immersive, scroll-driven landing inspired by the craft of
+ * high-end studio sites (Lusion, Active Theory). Not a copy — the
+ * language is adapted to our story: "الذكاء الذي يدير شركتك".
+ *
+ * Sections:
+ *   1. Hero — full-viewport, logo + massive display type + CTA
+ *   2. Manifesto — long scroll-pinned statement
+ *   3. Capabilities — 6 tiles with scroll reveal + gradient rings
+ *   4. AI showcase — product story with chat mock + feature list
+ *   5. Marquee — infinite horizontal strip of service keywords
+ *   6. CTA — final "start free" block
+ */
+
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useRef } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import {
-  Sparkles, CheckSquare, Video, Users, Briefcase, MessageSquare,
-  TrendingUp, Shield, Zap, Globe, ArrowLeft, Play,
+  Sparkles, CheckSquare, Video, Users, TrendingUp,
+  Briefcase, Zap, ArrowUpRight, Play,
 } from 'lucide-react';
+import CinematicCursor from './CinematicCursor';
 
-// First-visit marketing intro — only shown on web (not mobile app).
-// After user signs in or clicks CTA, they go to /login.
+// ═══ Content ══════════════════════════════════════════════════════════════
 
-const FEATURES = [
-  {
-    icon: CheckSquare,
-    title: 'مهام ومشاريع',
-    desc: 'نظّم عملك بلوحات Kanban وقوائم وتقويم — كل شي في مكان واحد',
-    color: '#2E8BFF',
-  },
-  {
-    icon: Video,
-    title: 'اجتماعات فيديو',
-    desc: 'غرفة Daily.co مدمجة لكل شركة — بدون رسوم إضافية',
-    color: '#14E0A4',
-  },
-  {
-    icon: Sparkles,
-    title: 'ذكاء اصطناعي',
-    desc: 'AI Assistant يحلل المهام، يلخص التقارير، ويقترح الحلول',
-    color: '#00D4FF',
-  },
-  {
-    icon: Users,
-    title: 'إدارة الفريق',
-    desc: 'شجرة هيكل تنظيمي، أدوار وصلاحيات، حضور لحظي',
-    color: '#8B5CF6',
-  },
-  {
-    icon: TrendingUp,
-    title: 'CRM ومبيعات',
-    desc: 'تتبع الصفقات، خط الأنابيب، والعملاء الجدد',
-    color: '#F59E0B',
-  },
-  {
-    icon: MessageSquare,
-    title: 'تواصل موحّد',
-    desc: 'دردشة، قنوات، ورسائل مباشرة — كل المحادثات في منصة',
-    color: '#EC4899',
-  },
-  {
-    icon: Briefcase,
-    title: 'تسليم واستلام',
-    desc: 'سجلات تسليم بين الموظفين مع تحليل AI للمخاطر',
-    color: '#FF4757',
-  },
-  {
-    icon: Shield,
-    title: 'أمان المؤسسات',
-    desc: '2FA، Audit Logs، SSO، وحماية بيانات متقدمة',
-    color: '#10B981',
-  },
-  {
-    icon: Globe,
-    title: 'متعدد اللغات',
-    desc: 'عربي، إنجليزي، فرنسي، إسباني، هندي — RTL كامل',
-    color: '#3B82F6',
-  },
+const CAPABILITIES = [
+  { icon: Sparkles,      title: 'مساعد AI ذكي',   desc: 'تلخيص، تحليل، واقتراحات من Claude 4.5.',                color: '#00D4FF' },
+  { icon: CheckSquare,   title: 'مهام ومشاريع',    desc: 'Kanban، قوائم، تقويم — كل شيء مترابط.',               color: '#2E8BFF' },
+  { icon: TrendingUp,    title: 'CRM وصفقات',      desc: 'خط أنابيب مرئي، توقعات، وتحليل للفرص.',               color: '#FFB24D' },
+  { icon: Video,         title: 'اجتماعات مدمجة',   desc: 'غرفة مكالمات Daily.co لكل شركة — بدون إعداد.',         color: '#14E0A4' },
+  { icon: Users,         title: 'فريق بلا حدود',    desc: 'أدوار، صلاحيات، هيكل تنظيمي، وحضور لحظي.',            color: '#8B5CF6' },
+  { icon: Briefcase,     title: 'تسليمات ذكية',    desc: 'AI يلخّص للمستلم: أولويات، مخاطر، ابدأ-اليوم-بـ.',      color: '#FF4757' },
 ];
 
-const STEPS = [
-  { n: 1, title: 'أنشئ حسابك', desc: 'بإيميلك أو Google أو Apple أو GitHub — خلال 30 ثانية' },
-  { n: 2, title: 'أنشئ أو انضم لشركة', desc: 'ابدأ فريقك وادعُ الموظفين بـ I-Code أو رابط دعوة' },
-  { n: 3, title: 'استخدم المنصة', desc: 'مهام، اجتماعات، AI — ابدأ عملك فوراً بلا إعدادات معقّدة' },
+const MARQUEE_WORDS = [
+  'AI', 'مهام', 'اجتماعات', 'CRM', 'تسليمات', 'تقارير', 'مكالمات',
+  'قنوات', 'وثائق', 'توظيف', 'قاعدة معرفة', 'تحليلات',
 ];
+
+// ═══ Component ════════════════════════════════════════════════════════════
 
 export default function LandingIntro() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 30);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
   return (
-    <div className="min-h-screen bg-dark-bg-900 text-white relative overflow-x-hidden">
-      {/* Background orbs */}
-      <div className="pointer-events-none fixed top-[-15%] left-[-10%] w-[700px] h-[700px] rounded-full bg-primary/15 blur-[160px]" />
-      <div className="pointer-events-none fixed top-[20%] right-[-15%] w-[800px] h-[800px] rounded-full bg-secondary/10 blur-[180px]" />
-      <div className="pointer-events-none fixed bottom-[-10%] left-[20%] w-[600px] h-[600px] rounded-full bg-accent/10 blur-[140px]" />
+    <main className="relative min-h-screen bg-dark-bg-900 text-white overflow-x-hidden">
+      <CinematicCursor />
 
-      {/* Sticky header */}
-      <header className={`sticky top-0 z-50 transition-all ${scrolled ? 'bg-dark-bg-900/85 backdrop-blur-xl border-b border-primary/10' : ''}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-glow-primary">
-              <Image src="/icon.png" alt="ALLOUL&Q" width={40} height={40} />
-            </div>
-            <div className="hidden sm:block">
-              <div className="text-white font-black text-lg leading-none">
-                ALLOUL<span className="text-secondary">&Q</span>
-              </div>
-              <div className="text-white/40 text-[10px] mt-0.5">منصة الأعمال الذكية</div>
-            </div>
+      {/* Top nav — minimal */}
+      <header className="fixed top-0 inset-x-0 z-50 px-6 lg:px-10 py-5 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/10 group-hover:border-accent-500/60 transition-colors">
+            <Image src="/icon.png" alt="ALLOUL&Q" width={36} height={36} />
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="text-white/70 hover:text-white text-sm font-medium">
-              تسجيل الدخول
-            </Link>
-            <Link
-              href="/login"
-              className="bg-gradient-primary text-white px-5 py-2 rounded-full text-sm font-bold shadow-glow-primary hover:shadow-glow-accent transition-all"
-            >
-              ابدأ مجاناً
-            </Link>
-          </div>
-        </div>
+          <span className="font-black text-base tracking-tight">
+            ALLOUL<span className="text-accent-500">&Q</span>
+          </span>
+        </Link>
+
+        <nav className="hidden md:flex items-center gap-8 text-sm text-white/70">
+          <a href="#capabilities" className="hover:text-white transition-colors">الإمكانيات</a>
+          <a href="#ai" className="hover:text-white transition-colors">الذكاء الاصطناعي</a>
+          <a href="#manifesto" className="hover:text-white transition-colors">الفكرة</a>
+          <Link href="/pricing" className="hover:text-white transition-colors">الأسعار</Link>
+        </nav>
+
+        <Link
+          href="/login"
+          className="glass-subtle glass-hover px-5 py-2 border-white/20 text-sm font-bold"
+        >
+          دخول / تسجيل
+        </Link>
       </header>
 
-      <main className="relative">
-        {/* ═══════════════ HERO ═══════════════ */}
-        <section className="pt-16 pb-20 md:pt-28 md:pb-32 relative">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            {/* Large logo */}
-            <div className="flex justify-center mb-8">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-logo rounded-3xl blur-3xl opacity-40 animate-pulse" />
-                <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-3xl overflow-hidden shadow-glow-primary border border-primary/30">
-                  <Image src="/logo.png" alt="ALLOUL&Q" width={128} height={128} priority />
-                </div>
-              </div>
+      <Hero />
+      <Manifesto />
+      <Capabilities />
+      <AIShowcase />
+      <Marquee />
+      <FinalCTA />
+
+      <footer className="relative px-6 lg:px-10 py-12 border-t border-white/5 text-center text-white/40 text-xs">
+        © 2026 ALLOUL&Q · صُنع بعناية · مشروع تطبيق وويب
+      </footer>
+    </main>
+  );
+}
+
+// ═══ 1. Hero ═════════════════════════════════════════════════════════════
+
+function Hero() {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start start', 'end start'],
+  });
+  const y = useTransform(scrollYProgress, [0, 1], ['0%', '50%']);
+  const opacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  const scale = useTransform(scrollYProgress, [0, 1], [1, 0.85]);
+
+  return (
+    <section ref={ref} className="relative min-h-screen flex items-center justify-center px-6 pt-24 pb-10">
+      {/* Ambient orbs */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-[-10%] left-[-5%] w-[700px] h-[700px] rounded-full bg-primary-500/25 blur-[160px] animate-float-orb" />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[800px] h-[800px] rounded-full bg-accent-500/15 blur-[180px] animate-float-orb" />
+        <div className="absolute top-[30%] right-[20%] w-[400px] h-[400px] rounded-full bg-secondary-500/10 blur-[140px]" />
+      </div>
+
+      <motion.div style={{ y, opacity, scale }} className="relative text-center max-w-5xl mx-auto">
+        {/* Logo as cinematic centerpiece */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.5, rotate: -15 }}
+          animate={{ opacity: 1, scale: 1, rotate: 0 }}
+          transition={{ duration: 1.4, ease: [0.2, 0.8, 0.2, 1] }}
+          className="relative w-40 h-40 md:w-52 md:h-52 mx-auto mb-10"
+        >
+          {/* Outer halo — spinning conic gradient */}
+          <div
+            className="absolute -inset-2 rounded-full animate-ai-orb-spin opacity-70 blur-[3px]"
+            style={{
+              background:
+                'conic-gradient(from 180deg at 50% 50%, #2E8BFF, #00D4FF, #14E0A4, #2E8BFF)',
+            }}
+          />
+          {/* Pulsing glow */}
+          <div className="absolute inset-0 rounded-full animate-pulse-glow bg-primary-500/30 blur-2xl" />
+          {/* Logo core */}
+          <div className="absolute inset-[4px] rounded-full bg-dark-bg-900 overflow-hidden border border-white/15">
+            <Image
+              src="/icon.png"
+              alt="ALLOUL&Q"
+              width={200}
+              height={200}
+              className="w-full h-full object-cover"
+              priority
+            />
+          </div>
+        </motion.div>
+
+        {/* Eyebrow */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8, duration: 0.6 }}
+          className="inline-flex items-center gap-2 glass-subtle border-accent-500/40 text-accent-500 mb-6"
+        >
+          <Sparkles size={12} />
+          <span>منصة الأعمال الذكية · مدعومة بـ Claude 4.5</span>
+        </motion.div>
+
+        {/* Headline — massive display */}
+        <motion.h1
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1, duration: 0.9, ease: [0.2, 0.8, 0.2, 1] }}
+          className="font-black leading-[0.95] tracking-tight text-[clamp(3rem,9vw,8rem)] mb-6"
+        >
+          الذكاء الذي
+          <br />
+          <span className="bg-gradient-to-r from-primary-500 via-accent-500 to-secondary-500 bg-clip-text text-transparent">
+            يدير شركتك
+          </span>
+        </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.3, duration: 0.8 }}
+          className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-10"
+        >
+          مهام، مشاريع، اجتماعات، CRM، ومساعد ذكي — كلها في مساحة عمل واحدة، بتصميم يواكب ٢٠٢٦.
+        </motion.p>
+
+        {/* CTAs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.5, duration: 0.6 }}
+          className="flex flex-wrap items-center justify-center gap-4"
+        >
+          <Link
+            href="/login"
+            data-cursor="grow"
+            className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 text-white font-bold text-base shadow-glow-primary hover:shadow-glow-accent transition-all hover:scale-[1.03]"
+          >
+            <span>ابدأ التجربة المجانية</span>
+            <ArrowUpRight size={18} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+          </Link>
+
+          <Link
+            href="#ai"
+            data-cursor="grow"
+            className="inline-flex items-center gap-3 px-8 py-4 rounded-full glass glass-hover font-bold text-base"
+          >
+            <Play size={16} className="text-accent-500" />
+            <span>شاهد كيف يعمل</span>
+          </Link>
+        </motion.div>
+
+        {/* Scroll hint */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2, duration: 1 }}
+          className="absolute bottom-[-60px] left-1/2 -translate-x-1/2 text-white/40 text-xs flex flex-col items-center gap-2"
+        >
+          <span>اسحب للأسفل</span>
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+            className="w-px h-8 bg-gradient-to-b from-white/40 to-transparent"
+          />
+        </motion.div>
+      </motion.div>
+    </section>
+  );
+}
+
+// ═══ 2. Manifesto (scroll-pinned statement) ═══════════════════════════════
+
+function Manifesto() {
+  const words = 'نحن نبني مساحة عمل لا تشبه غيرها — ذكية، جميلة، وتعرف شركتك'.split(' ');
+
+  return (
+    <section
+      id="manifesto"
+      className="relative py-40 px-6 lg:px-10 max-w-6xl mx-auto"
+    >
+      <div className="flex items-baseline gap-4 mb-10">
+        <span className="text-accent-500 text-sm font-mono">01 —</span>
+        <h2 className="text-sm font-bold uppercase tracking-[0.3em] text-white/50">الفكرة</h2>
+      </div>
+
+      <h3 className="font-black text-[clamp(2rem,5.5vw,5rem)] leading-[1.1]">
+        {words.map((word, i) => (
+          <motion.span
+            key={i}
+            initial={{ opacity: 0.15, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.6 }}
+            transition={{ duration: 0.6, delay: i * 0.08, ease: [0.2, 0.8, 0.2, 1] }}
+            className="inline-block mr-3"
+          >
+            {word}
+          </motion.span>
+        ))}
+      </h3>
+    </section>
+  );
+}
+
+// ═══ 3. Capabilities grid ════════════════════════════════════════════════
+
+function Capabilities() {
+  return (
+    <section id="capabilities" className="relative py-32 px-6 lg:px-10 max-w-7xl mx-auto">
+      <div className="flex items-baseline gap-4 mb-12">
+        <span className="text-accent-500 text-sm font-mono">02 —</span>
+        <h2 className="text-sm font-bold uppercase tracking-[0.3em] text-white/50">الإمكانيات</h2>
+      </div>
+
+      <h3 className="font-black text-[clamp(2rem,5vw,4.5rem)] leading-[1.1] max-w-3xl mb-16">
+        كل ما يحتاجه فريقك في <span className="text-accent-500">مكان واحد</span>
+      </h3>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {CAPABILITIES.map((cap, i) => (
+          <motion.div
+            key={cap.title}
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.6, delay: i * 0.08, ease: [0.2, 0.8, 0.2, 1] }}
+            className="glass glass-hover p-7 group"
+            style={{ borderColor: `${cap.color}25` }}
+            data-cursor="grow"
+          >
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform"
+              style={{
+                background: `${cap.color}20`,
+                border: `1px solid ${cap.color}50`,
+                boxShadow: `0 0 30px ${cap.color}25`,
+              }}
+            >
+              <cap.icon size={24} style={{ color: cap.color }} />
             </div>
+            <h4 className="text-xl font-bold mb-2">{cap.title}</h4>
+            <p className="text-sm text-white/60 leading-relaxed">{cap.desc}</p>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/30 mb-8 backdrop-blur-sm">
-              <Sparkles size={14} className="text-accent" />
-              <span className="text-accent text-xs font-bold">منصة الأعمال الذكية #1 في المنطقة</span>
-            </div>
+// ═══ 4. AI Showcase ══════════════════════════════════════════════════════
 
-            {/* Title */}
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white mb-8 leading-[1.05] tracking-tight">
-              كل أدوات عملك
-              <br />
-              في <span className="bg-gradient-logo bg-clip-text text-transparent">منصة واحدة</span>
-            </h1>
+function AIShowcase() {
+  return (
+    <section id="ai" className="relative py-32 px-6 lg:px-10 max-w-7xl mx-auto">
+      <div className="flex items-baseline gap-4 mb-12">
+        <span className="text-accent-500 text-sm font-mono">03 —</span>
+        <h2 className="text-sm font-bold uppercase tracking-[0.3em] text-white/50">المساعد الذكي</h2>
+      </div>
 
-            <p className="text-lg md:text-2xl text-white/60 mb-12 max-w-3xl mx-auto leading-relaxed">
-              مهام، اجتماعات، AI Assistant، CRM، ومكالمات فيديو — كل شي يحتاجه فريقك الحديث.
-              <br className="hidden md:block" />
-              ابدأ مجاناً لمدة <span className="text-accent font-bold">14 يوم</span>، بدون بطاقة ائتمان.
-            </p>
+      <div className="grid lg:grid-cols-2 gap-12 items-center">
+        {/* Left: story */}
+        <motion.div
+          initial={{ opacity: 0, x: -40 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.8 }}
+        >
+          <h3 className="font-black text-[clamp(2rem,4.5vw,4rem)] leading-[1.05] mb-6">
+            ذكاء حقيقي،
+            <br />
+            <span className="bg-gradient-to-r from-accent-500 to-secondary-500 bg-clip-text text-transparent">
+              ليس مجرد دردشة
+            </span>
+          </h3>
 
-            {/* CTAs */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-              <Link
-                href="/login"
-                className="group w-full sm:w-auto px-10 py-4 rounded-2xl bg-gradient-primary text-white text-base font-bold shadow-glow-primary hover:shadow-glow-accent transition-all flex items-center justify-center gap-2"
+          <p className="text-base md:text-lg text-white/70 mb-8 leading-relaxed">
+            المساعد يقرأ مهام شركتك، يحلّل التسليمات، يلخّص الاجتماعات، ويقترح خطوتك التالية — بكل ذكاء Claude 4.5.
+          </p>
+
+          <ul className="space-y-4 mb-8">
+            {[
+              'تلخيص Handover ذكي لمن يستلم الشغل',
+              'أولويات اليوم من بين عشرات المهام',
+              'تحليل الصفقات وخط الأنابيب',
+              'notes اجتماعات منظمة تلقائياً',
+            ].map((item, i) => (
+              <motion.li
+                key={i}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="flex items-start gap-3"
               >
-                <span>ابدأ تجربتك المجانية</span>
-                <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-              </Link>
-              <Link
-                href="/pricing"
-                className="w-full sm:w-auto px-10 py-4 rounded-2xl bg-white/5 border border-white/10 text-white text-base font-bold hover:bg-white/10 transition-all flex items-center justify-center gap-2"
-              >
-                <Play size={16} />
-                <span>عرض الأسعار</span>
-              </Link>
-            </div>
-
-            {/* Trust row */}
-            <div className="flex flex-wrap items-center justify-center gap-6 text-white/40 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-secondary" />
-                14 يوم مجاناً
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-secondary" />
-                بدون بطاقة ائتمان
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-secondary" />
-                إلغاء في أي وقت
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-secondary" />
-                iOS + Android + Web
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ═══════════════ HOW IT WORKS ═══════════════ */}
-        <section className="py-20 relative">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-14">
-              <div className="inline-block px-3 py-1 rounded-full bg-accent/10 border border-accent/30 mb-4">
-                <span className="text-accent text-xs font-bold">كيف يعمل</span>
-              </div>
-              <h2 className="text-3xl md:text-5xl font-black text-white mb-4">
-                ابدأ خلال <span className="bg-gradient-logo bg-clip-text text-transparent">3 خطوات</span>
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-              {/* Connector line (desktop) */}
-              <div className="hidden md:block absolute top-[60px] right-[16%] left-[16%] h-[2px] bg-gradient-to-l from-primary/30 via-secondary/30 to-accent/30" />
-
-              {STEPS.map((s, i) => (
-                <div key={s.n} className="relative group">
-                  <div className="relative rounded-3xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-primary/30 p-8 backdrop-blur-sm text-center transition-all">
-                    <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-gradient-logo flex items-center justify-center shadow-glow-primary text-white font-black text-2xl group-hover:shadow-glow-accent transition-shadow">
-                      {s.n}
-                    </div>
-                    <h3 className="text-white font-bold text-xl mb-2">{s.title}</h3>
-                    <p className="text-white/50 text-sm leading-relaxed">{s.desc}</p>
-                  </div>
+                <div className="w-6 h-6 rounded-full bg-accent-500/20 border border-accent-500/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Zap size={12} className="text-accent-500" />
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
+                <span className="text-white/80">{item}</span>
+              </motion.li>
+            ))}
+          </ul>
 
-        {/* ═══════════════ FEATURES GRID ═══════════════ */}
-        <section className="py-20 relative">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-14">
-              <div className="inline-block px-3 py-1 rounded-full bg-secondary/10 border border-secondary/30 mb-4">
-                <span className="text-secondary text-xs font-bold">الخدمات</span>
+          <Link
+            href="/login"
+            data-cursor="grow"
+            className="inline-flex items-center gap-2 text-accent-500 font-bold hover:gap-3 transition-all"
+          >
+            <span>جرّب المساعد الآن</span>
+            <ArrowUpRight size={18} />
+          </Link>
+        </motion.div>
+
+        {/* Right: chat mockup */}
+        <motion.div
+          initial={{ opacity: 0, x: 40 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.8 }}
+          className="relative"
+        >
+          <div className="glass-strong p-6 glass-ring-accent space-y-4">
+            {/* Fake chat messages */}
+            <div className="flex justify-start">
+              <div className="bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[80%] text-sm">
+                ما أولويات اليوم؟
               </div>
-              <h2 className="text-3xl md:text-5xl font-black text-white mb-4">
-                كل شي تحتاجه <span className="bg-gradient-logo bg-clip-text text-transparent">لإدارة أعمالك</span>
-              </h2>
-              <p className="text-white/50 max-w-2xl mx-auto text-base md:text-lg">
-                9 خدمات أساسية — مصممة خصيصاً للفرق العربية الحديثة
-              </p>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {FEATURES.map((f) => (
-                <div
-                  key={f.title}
-                  className="group rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-primary/30 p-6 transition-all backdrop-blur-sm relative overflow-hidden"
-                >
-                  {/* Hover glow */}
-                  <div
-                    className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-20 transition-opacity"
-                    style={{ background: f.color }}
-                  />
-                  <div
-                    className="relative w-12 h-12 rounded-xl flex items-center justify-center mb-4 border"
-                    style={{
-                      background: `${f.color}22`,
-                      borderColor: `${f.color}44`,
-                    }}
-                  >
-                    <f.icon size={20} style={{ color: f.color }} />
-                  </div>
-                  <h3 className="text-white font-bold text-lg mb-2 relative">{f.title}</h3>
-                  <p className="text-white/50 text-sm leading-relaxed relative">{f.desc}</p>
-                </div>
-              ))}
+            <div className="flex justify-end">
+              <div className="glass rounded-2xl rounded-tr-sm px-4 py-3 max-w-[85%] text-sm space-y-2">
+                <p className="font-bold text-accent-500">أولوياتك اليوم:</p>
+                <ul className="space-y-1 text-white/80">
+                  <li>⚡ مراجعة عرض العميل (ahmed@co) — تأخر ٢ يوم</li>
+                  <li>📊 اجتماع فريق التسويق الساعة ١١</li>
+                  <li>✅ تسليم مشروع الـ API قبل الجمعة</li>
+                </ul>
+              </div>
             </div>
-          </div>
-        </section>
-
-        {/* ═══════════════ STATS BAR ═══════════════ */}
-        <section className="py-20 relative">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 backdrop-blur-xl p-10 md:p-14 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-logo opacity-5" />
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 relative">
-                {[
-                  { value: '33', label: 'موظف في أكبر خطة' },
-                  { value: '5', label: 'لغات مدعومة' },
-                  { value: '14', label: 'يوم تجربة مجانية' },
-                  { value: '24/7', label: 'دعم VIP' },
-                ].map((s) => (
-                  <div key={s.label} className="text-center">
-                    <div className="text-4xl md:text-6xl font-black bg-gradient-logo bg-clip-text text-transparent mb-2">
-                      {s.value}
-                    </div>
-                    <div className="text-white/50 text-xs md:text-sm">{s.label}</div>
-                  </div>
-                ))}
+            <div className="flex justify-start">
+              <div className="bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[80%] text-sm">
+                لخّص لي آخر تسليم
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <div className="glass rounded-2xl rounded-tr-sm px-4 py-3 max-w-[85%] text-sm">
+                <span className="inline-block w-2 h-4 bg-accent-500 animate-pulse-glow" /> يفكّر...
               </div>
             </div>
           </div>
-        </section>
 
-        {/* ═══════════════ FINAL CTA ═══════════════ */}
-        <section className="py-24 relative">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <div className="relative rounded-3xl overflow-hidden border border-primary/30 p-12 md:p-16 bg-gradient-to-br from-dark-bg-800 to-dark-bg-700">
-              <div className="absolute inset-0 bg-gradient-logo opacity-10" />
-              <div className="absolute -top-20 -right-20 w-60 h-60 bg-primary/20 rounded-full blur-3xl" />
-              <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-secondary/20 rounded-full blur-3xl" />
-              <div className="relative">
-                <div className="flex justify-center mb-6">
-                  <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-glow-primary">
-                    <Image src="/icon.png" alt="ALLOUL&Q" width={64} height={64} />
-                  </div>
-                </div>
-                <h2 className="text-3xl md:text-5xl font-black text-white mb-4">
-                  جاهز تبدأ؟
-                </h2>
-                <p className="text-white/60 text-lg md:text-xl mb-10 max-w-2xl mx-auto">
-                  انضم لفرق كثيرة غيّرت طريقة عملها مع ALLOUL&Q
-                </p>
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 px-10 py-4 rounded-2xl bg-gradient-primary text-white text-base font-bold shadow-glow-primary hover:shadow-glow-accent transition-all group"
-                >
-                  <span>ابدأ تجربتك المجانية</span>
-                  <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-                </Link>
-              </div>
+          {/* Floating AI orb badge */}
+          <motion.div
+            animate={{ y: [0, -8, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute -top-6 -left-6 w-16 h-16"
+          >
+            <div
+              className="absolute inset-0 rounded-full animate-ai-orb-spin opacity-80"
+              style={{
+                background:
+                  'conic-gradient(from 180deg at 50% 50%, #2E8BFF, #00D4FF, #14E0A4, #2E8BFF)',
+              }}
+            />
+            <div className="absolute inset-[3px] rounded-full bg-dark-bg-900 overflow-hidden">
+              <Image src="/icon.png" alt="AI" width={64} height={64} className="w-full h-full object-cover" />
             </div>
-          </div>
-        </section>
+          </motion.div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
 
-        {/* ═══════════════ FOOTER ═══════════════ */}
-        <footer className="py-12 border-t border-primary/10 relative">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg overflow-hidden">
-                  <Image src="/icon.png" alt="ALLOUL&Q" width={32} height={32} />
-                </div>
-                <span className="text-white/60 text-sm">© 2026 ALLOUL&Q · منصة الأعمال الذكية</span>
-              </div>
-              <div className="flex items-center gap-6 text-white/40 text-xs">
-                <Link href="/pricing" className="hover:text-white">الأسعار</Link>
-                <Link href="/enterprise" className="hover:text-white">Enterprise</Link>
-                <a href="#" className="hover:text-white">الخصوصية</a>
-                <a href="#" className="hover:text-white">الشروط</a>
-              </div>
-            </div>
-          </div>
-        </footer>
-      </main>
-    </div>
+// ═══ 5. Marquee ══════════════════════════════════════════════════════════
+
+function Marquee() {
+  const words = [...MARQUEE_WORDS, ...MARQUEE_WORDS];
+  return (
+    <section className="relative py-20 border-y border-white/5 overflow-hidden" data-cursor="grow">
+      <motion.div
+        className="flex gap-12 whitespace-nowrap"
+        animate={{ x: ['0%', '-50%'] }}
+        transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
+      >
+        {words.map((w, i) => (
+          <span
+            key={i}
+            className="font-black text-[clamp(3rem,7vw,7rem)] tracking-tight text-white/5 hover:text-accent-500/80 transition-colors"
+            style={{ WebkitTextStroke: '1px rgba(255,255,255,0.15)' }}
+          >
+            {w} ✦
+          </span>
+        ))}
+      </motion.div>
+    </section>
+  );
+}
+
+// ═══ 6. Final CTA ════════════════════════════════════════════════════════
+
+function FinalCTA() {
+  return (
+    <section className="relative py-40 px-6 lg:px-10 max-w-5xl mx-auto text-center">
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8 }}
+      >
+        <div className="flex items-baseline gap-4 mb-8 justify-center">
+          <span className="text-accent-500 text-sm font-mono">04 —</span>
+          <h2 className="text-sm font-bold uppercase tracking-[0.3em] text-white/50">ابدأ الآن</h2>
+        </div>
+
+        <h3 className="font-black text-[clamp(2.5rem,7vw,6rem)] leading-[0.95] mb-8">
+          جاهز لتحويل
+          <br />
+          <span className="bg-gradient-to-r from-primary-500 via-accent-500 to-secondary-500 bg-clip-text text-transparent">
+            طريقة عملك؟
+          </span>
+        </h3>
+
+        <p className="text-lg text-white/70 mb-10 max-w-2xl mx-auto">
+          ١٤ يوم تجربة مجانية · بدون بطاقة ائتمان · إلغاء في أي وقت
+        </p>
+
+        <Link
+          href="/login"
+          data-cursor="grow"
+          className="inline-flex items-center gap-3 px-10 py-5 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 text-white font-bold text-lg shadow-glow-primary hover:shadow-glow-accent transition-all hover:scale-[1.03]"
+        >
+          <span>ابدأ تجربتك المجانية</span>
+          <ArrowUpRight size={22} />
+        </Link>
+      </motion.div>
+    </section>
   );
 }

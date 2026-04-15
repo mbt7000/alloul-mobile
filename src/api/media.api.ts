@@ -48,6 +48,8 @@ export interface ApiComment {
   author_username?: string | null;
   author_avatar?: string | null;
   created_at?: string | null;
+  likes_count?: number;
+  liked_by_me?: boolean;
 }
 
 export const getPostComments = (postId: number, limit = 50, offset = 0) =>
@@ -58,6 +60,37 @@ export const createComment = (postId: number, content: string) =>
 
 export const deleteComment = (postId: number, commentId: number) =>
   apiFetch(`/posts/${postId}/comments/${commentId}`, { method: "DELETE" });
+
+// ─── Comment likes (X-style) ───────────────────────────────────────────
+export const likeComment = (commentId: number) =>
+  apiFetch(`/posts/comments/${commentId}/like`, { method: "POST" });
+
+export const unlikeComment = (commentId: number) =>
+  apiFetch(`/posts/comments/${commentId}/like`, { method: "DELETE" });
+
+// ─── Post reactions (emoji) ────────────────────────────────────────────
+export const SUPPORTED_REACTIONS = ["👍", "❤️", "🔥", "😂", "😮", "👏"] as const;
+export type ReactionEmoji = typeof SUPPORTED_REACTIONS[number];
+
+export interface ReactionSummaryItem { emoji: string; count: number; }
+export interface PostReactionsResponse {
+  post_id: number;
+  total: number;
+  my_reaction: ReactionEmoji | null;
+  breakdown: ReactionSummaryItem[];
+}
+
+export const getPostReactions = (postId: number) =>
+  apiFetch<PostReactionsResponse>(`/posts/${postId}/reactions`);
+
+export const reactToPost = (postId: number, emoji: ReactionEmoji) =>
+  apiFetch<PostReactionsResponse>(`/posts/${postId}/react`, {
+    method: "POST",
+    body: JSON.stringify({ emoji }),
+  });
+
+export const unreactToPost = (postId: number) =>
+  apiFetch<PostReactionsResponse>(`/posts/${postId}/react`, { method: "DELETE" });
 
 export const getPost = (postId: number) =>
   apiFetch<ApiPost>(`/posts/${postId}`);

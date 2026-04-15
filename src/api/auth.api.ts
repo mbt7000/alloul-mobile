@@ -17,6 +17,9 @@ export interface AuthUser {
   posts_count?: number;
   created_at?: string;
   is_admin?: boolean;
+  // Extended profile fields (X/LinkedIn parity)
+  location?: string | null;
+  skills?: string | null;   // used as "headline" in the UI
 }
 
 export interface UpdateMeBody {
@@ -25,6 +28,8 @@ export interface UpdateMeBody {
   avatar_url?: string | null;
   cover_url?: string | null;
   username?: string | null;
+  location?: string | null;
+  skills?: string | null;
 }
 
 export const updateMe = (body: UpdateMeBody) =>

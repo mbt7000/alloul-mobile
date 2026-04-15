@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   Briefcase, CheckSquare, Calendar, Users, Folder, BookOpen,
   TrendingUp, Video, MessageSquare, Sparkles, ArrowLeft, BarChart3, Loader2,
+  Phone, UserPlus, PieChart,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import {
@@ -15,21 +16,29 @@ import {
 import { isAuthenticated, getCachedUser } from '@/lib/auth';
 
 const QUICK_ACTIONS = [
-  { icon: Sparkles,      label: 'المساعد',  color: '#8B5CF6' },
-  { icon: Video,         label: 'اجتماع',   color: '#14E0A4' },
-  { icon: CheckSquare,   label: 'مهمة',     color: '#2E8BFF' },
-  { icon: MessageSquare, label: 'دردشة',    color: '#00D4FF' },
-  { icon: TrendingUp,    label: 'صفقات',   color: '#FF4757' },
-  { icon: Briefcase,     label: 'تسليم',   color: '#FFB24D' },
+  { icon: Sparkles,      label: 'المساعد الذكي', color: '#8B5CF6', href: '/workspace/ai' },
+  { icon: Video,         label: 'اجتماع',   color: '#14E0A4', href: '/workspace/meetings' },
+  { icon: CheckSquare,   label: 'مهمة',     color: '#2E8BFF', href: '/workspace/tasks' },
+  { icon: MessageSquare, label: 'دردشة',    color: '#00D4FF', href: '/messages' },
+  { icon: TrendingUp,    label: 'صفقات',   color: '#FF4757', href: '/workspace/services' },
+  { icon: Briefcase,     label: 'تسليم',   color: '#FFB24D', href: '/workspace/handover' },
 ];
 
 const SERVICES = [
-  { icon: Users,       label: 'الفريق',     sub: 'الموظفون والأدوار',  color: '#8B5CF6' },
-  { icon: Folder,      label: 'المشاريع',   sub: 'كل المشاريع',        color: '#00D4FF' },
-  { icon: CheckSquare, label: 'المهام',     sub: 'قائمة كاملة',        color: '#2E8BFF' },
-  { icon: Calendar,    label: 'الاجتماعات', sub: 'الجدولة والفريق',    color: '#14E0A4' },
-  { icon: BookOpen,    label: 'المعرفة',    sub: 'الملفات والوثائق',   color: '#FFB24D' },
-  { icon: BarChart3,   label: 'التقارير',   sub: 'الأداء والتحليل',    color: '#FF4757' },
+  { icon: Sparkles,    label: 'المساعد الذكي', sub: 'AI للمهام والتسليمات', color: '#8B5CF6', href: '/workspace/ai' },
+  { icon: Users,       label: 'الفريق',        sub: 'الموظفون والأدوار',  color: '#A78BFA', href: '/workspace/team' },
+  { icon: Folder,      label: 'المشاريع',      sub: 'كل المشاريع',        color: '#00D4FF', href: '/workspace/tasks' },
+  { icon: CheckSquare, label: 'المهام',        sub: 'قائمة كاملة',        color: '#2E8BFF', href: '/workspace/tasks' },
+  { icon: Calendar,    label: 'الاجتماعات',    sub: 'الجدولة والفريق',    color: '#14E0A4', href: '/workspace/meetings' },
+  { icon: Phone,       label: 'المكالمات',     sub: 'صوت وفيديو',         color: '#14E0A4', href: '/workspace/calls' },
+  { icon: TrendingUp,  label: 'CRM',           sub: 'إدارة الصفقات',      color: '#FFB24D', href: '/workspace/crm' },
+  { icon: MessageSquare, label: 'دردشة الشركة', sub: 'قنوات وشات',        color: '#00D4FF', href: '/workspace/chat' },
+  { icon: Briefcase,   label: 'التسليمات',     sub: 'handover ذكي',       color: '#FFB24D', href: '/workspace/handover' },
+  { icon: BookOpen,    label: 'الأخبار',       sub: 'تحديثات الشركة',     color: '#FFB24D', href: '/workspace/news' },
+  { icon: BookOpen,    label: 'قاعدة المعرفة', sub: 'مستندات + بحث ذكي',  color: '#8B5CF6', href: '/workspace/knowledge' },
+  { icon: UserPlus,    label: 'التوظيف',       sub: 'مرشحون ومقابلات',    color: '#14E0A4', href: '/workspace/hiring' },
+  { icon: PieChart,    label: 'التقارير',      sub: 'إحصائيات الشركة',    color: '#00D4FF', href: '/workspace/reports' },
+  { icon: BarChart3,   label: 'الخدمات',       sub: 'كل الخدمات',         color: '#FF4757', href: '/workspace/services' },
 ];
 
 export default function WorkspacePage() {

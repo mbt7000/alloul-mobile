@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from auth import get_current_user
 from database import get_db
-from models import User, Post, PostLike, PostComment, PostRepost, PostSave
+from models import User, Post, PostLike, PostComment, PostRepost, PostSave, CommentLike, PostReaction
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -47,6 +47,8 @@ class CommentResponse(BaseModel):
     author_username: Optional[str] = None
     author_avatar: Optional[str] = None
     created_at: Optional[str] = None
+    likes_count: int = 0
+    liked_by_me: bool = False
 
 
 class CommentCreate(BaseModel):
@@ -259,6 +261,17 @@ def list_comments(
         .order_by(PostComment.created_at.asc())
         .all()
     )
+    # Efficient batch lookup: which of these comments has the current user liked?
+    comment_ids = [c.id for c in comments]
+    my_likes: set[int] = set()
+    if comment_ids:
+        rows = (
+            db.query(CommentLike.comment_id)
+            .filter(CommentLike.user_id == current_user.id, CommentLike.comment_id.in_(comment_ids))
+            .all()
+        )
+        my_likes = {r[0] for r in rows}
+
     return [
         CommentResponse(
             id=c.id,
@@ -269,6 +282,8 @@ def list_comments(
             author_username=c.author.username if c.author else None,
             author_avatar=c.author.avatar_url if c.author else None,
             created_at=c.created_at.isoformat() if c.created_at else None,
+            likes_count=c.likes_count or 0,
+            liked_by_me=(c.id in my_likes),
         )
         for c in comments
     ]
@@ -493,3 +508,156 @@ def posts_by_hashtag(
     reposted_ids = {r[0] for r in db.query(PostRepost.post_id).filter(PostRepost.post_id.in_(post_ids), PostRepost.user_id == current_user.id).all()} if post_ids else set()
     saved_ids = {r[0] for r in db.query(PostSave.post_id).filter(PostSave.post_id.in_(post_ids), PostSave.user_id == current_user.id).all()} if post_ids else set()
     return [_post_to_response(p, current_user.id, db, liked=p.id in liked_ids, reposted=p.id in reposted_ids, saved=p.id in saved_ids) for p in posts]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Comment Likes (X-style: users can like individual comments)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.post("/comments/{comment_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+def like_comment(
+    comment_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Toggle-on: add a like from the current user to the comment."""
+    comment = db.query(PostComment).filter(PostComment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    existing = db.query(CommentLike).filter(
+        CommentLike.comment_id == comment_id,
+        CommentLike.user_id == current_user.id,
+    ).first()
+    if existing:
+        return  # idempotent
+    db.add(CommentLike(comment_id=comment_id, user_id=current_user.id))
+    comment.likes_count = (comment.likes_count or 0) + 1
+    db.commit()
+
+
+@router.delete("/comments/{comment_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+def unlike_comment(
+    comment_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Toggle-off: remove the current user's like from the comment."""
+    comment = db.query(PostComment).filter(PostComment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    like = db.query(CommentLike).filter(
+        CommentLike.comment_id == comment_id,
+        CommentLike.user_id == current_user.id,
+    ).first()
+    if like:
+        db.delete(like)
+        comment.likes_count = max(0, (comment.likes_count or 0) - 1)
+        db.commit()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Post Reactions (rich emoji reactions beyond the simple like)
+# Supported emojis are fixed to prevent spam / storage bloat.
+# ═══════════════════════════════════════════════════════════════════════════
+
+SUPPORTED_REACTIONS = {"👍", "❤️", "🔥", "😂", "😮", "👏"}
+
+
+class ReactionRequest(BaseModel):
+    emoji: str  # must be in SUPPORTED_REACTIONS
+
+
+class ReactionSummary(BaseModel):
+    emoji: str
+    count: int
+
+
+class ReactionsResponse(BaseModel):
+    post_id: int
+    total: int
+    my_reaction: Optional[str] = None
+    breakdown: list[ReactionSummary]
+
+
+def _reaction_summary(db: Session, post_id: int, user_id: int) -> ReactionsResponse:
+    from sqlalchemy import func as _func
+    rows = (
+        db.query(PostReaction.emoji, _func.count(PostReaction.id))
+        .filter(PostReaction.post_id == post_id)
+        .group_by(PostReaction.emoji)
+        .all()
+    )
+    breakdown = [ReactionSummary(emoji=e, count=c) for (e, c) in rows]
+    total = sum(item.count for item in breakdown)
+    my = db.query(PostReaction).filter(
+        PostReaction.post_id == post_id, PostReaction.user_id == user_id,
+    ).first()
+    return ReactionsResponse(
+        post_id=post_id,
+        total=total,
+        my_reaction=my.emoji if my else None,
+        breakdown=sorted(breakdown, key=lambda s: s.count, reverse=True),
+    )
+
+
+@router.get("/{post_id}/reactions", response_model=ReactionsResponse)
+def get_reactions(
+    post_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return _reaction_summary(db, post_id, current_user.id)
+
+
+@router.post("/{post_id}/react", response_model=ReactionsResponse)
+def react_to_post(
+    post_id: int,
+    body: ReactionRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Set (or change) the current user's reaction on a post.
+
+    If the user already reacted, the emoji is updated in place.
+    """
+    if body.emoji not in SUPPORTED_REACTIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Emoji not supported. Allowed: {' '.join(sorted(SUPPORTED_REACTIONS))}",
+        )
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    existing = db.query(PostReaction).filter(
+        PostReaction.post_id == post_id,
+        PostReaction.user_id == current_user.id,
+    ).first()
+    if existing:
+        existing.emoji = body.emoji
+    else:
+        db.add(PostReaction(
+            post_id=post_id, user_id=current_user.id, emoji=body.emoji,
+        ))
+    db.commit()
+    return _reaction_summary(db, post_id, current_user.id)
+
+
+@router.delete("/{post_id}/react", response_model=ReactionsResponse)
+def unreact_to_post(
+    post_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Remove the current user's reaction from a post."""
+    existing = db.query(PostReaction).filter(
+        PostReaction.post_id == post_id,
+        PostReaction.user_id == current_user.id,
+    ).first()
+    if existing:
+        db.delete(existing)
+        db.commit()
+    return _reaction_summary(db, post_id, current_user.id)

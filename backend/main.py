@@ -24,7 +24,7 @@ from routers import (
     dashboard, marketplace, search, agent, sendbird, stream_chat, daily_workspace, admin, ads,
     stories, follows, projects, notifications, communities, phone,
     meetings, channels, messages, cv, job_postings, calls,
-    ai_extract, ai_confirm, security, ai_system, ai_monitoring,
+    ai_extract, ai_confirm, security, ai_system, ai_monitoring, settings,
 )
 
 @asynccontextmanager
@@ -190,6 +190,7 @@ app.include_router(ai_system.router)
 # billing routes live in companies.py (canonical, in production)
 app.include_router(security.router)
 app.include_router(ai_monitoring.router)
+app.include_router(settings.router)
 
 
 @app.get("/")

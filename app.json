@@ -26,7 +26,7 @@
         "NSMicrophoneUsageDescription": "Required for video and audio calls",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "14",
+      "buildNumber": "18",
       "runtimeVersion": "1.0.0"
     },
     "android": {

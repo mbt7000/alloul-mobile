@@ -20,16 +20,6 @@ const FEED_PREVIEW = [
   { id: "2", line: "Hiring: Senior React Native — remote friendly", author: "HR" },
 ];
 
-const JOBS_SNAPSHOT = [
-  { id: "1", title: "Engineering Lead", type: "Full-time" },
-  { id: "2", title: "Growth Marketer", type: "Contract" },
-];
-
-const MARKETPLACE_SNAPSHOT = [
-  { id: "1", title: "Enterprise SSO pack", price: "From $199/mo" },
-  { id: "2", title: "Handover templates", price: "Free" },
-];
-
 const DISCOVERY = [
   { id: "1", name: "Sara M.", role: "Product · 12 mutuals" },
   { id: "2", name: "Omar K.", role: "Design · 8 mutuals" },
@@ -147,51 +137,7 @@ export default function PublicHomeSections({ navigation }: { navigation: any }) 
         ))}
       </ScrollView>
 
-      <View style={styles.twoCol}>
-        <GlassCard style={styles.halfCard}>
-          <AppText variant="micro" tone="muted" weight="bold" style={styles.kicker}>
-            Jobs
-          </AppText>
-          {JOBS_SNAPSHOT.map((j) => (
-            <View key={j.id} style={styles.miniRow}>
-              <Ionicons name="briefcase-outline" size={16} color={colors.accentCyan} />
-              <View style={{ flex: 1 }}>
-                <AppText variant="caption" weight="bold" numberOfLines={1}>
-                  {j.title}
-                </AppText>
-                <AppText variant="micro" tone="muted">
-                  {j.type}
-                </AppText>
-              </View>
-            </View>
-          ))}
-          <Pressable style={{ marginTop: 8 }} onPress={() => navigation.getParent()?.navigate("Jobs")}>
-            <AppText variant="micro" tone="cyan" weight="bold">
-              Browse jobs →
-            </AppText>
-          </Pressable>
-        </GlassCard>
-        <GlassCard style={styles.halfCard}>
-          <AppText variant="micro" tone="muted" weight="bold" style={styles.kicker}>
-            Marketplace
-          </AppText>
-          {MARKETPLACE_SNAPSHOT.map((m) => (
-            <View key={m.id} style={styles.miniRow}>
-              <Ionicons name="storefront-outline" size={16} color={colors.accentTeal} />
-              <View style={{ flex: 1 }}>
-                <AppText variant="caption" weight="bold" numberOfLines={2}>
-                  {m.title}
-                </AppText>
-                <AppText variant="micro" tone="muted">
-                  {m.price}
-                </AppText>
-              </View>
-            </View>
-          ))}
-        </GlassCard>
-      </View>
-
-      <AppText variant="micro" tone="muted" weight="bold" style={styles.kicker}>
+<AppText variant="micro" tone="muted" weight="bold" style={styles.kicker}>
         Suggested for you
       </AppText>
       <GlassCard style={styles.card}>
@@ -226,12 +172,6 @@ export default function PublicHomeSections({ navigation }: { navigation: any }) 
           subtitle="People, companies, jobs, services"
           iconLeft="compass-outline"
           onPress={() => navigation.navigate("Search", { source: "home" })}
-        />
-        <ListRow
-          title="Jobs"
-          subtitle="Apply with your profile and skills"
-          iconLeft="briefcase-outline"
-          onPress={() => navigation.getParent()?.navigate("Jobs")}
         />
         <ListRow title="Open Feed" subtitle="Posts, media, reactions" iconLeft="radio-outline" onPress={() => navigation.navigate("Feed")} />
         <ListRow

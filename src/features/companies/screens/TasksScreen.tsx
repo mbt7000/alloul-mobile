@@ -28,6 +28,8 @@ import {
   type TaskRow,
   type ProjectRow,
 } from "../../../api";
+import AISummaryModal from "../../../shared/components/AISummaryModal";
+import { summarizeTasks } from "../../../api/ai.api";
 import CompanyWorkModeTopBar from "../components/CompanyWorkModeTopBar";
 import AIComposeSheet from "../../../shared/components/AIComposeSheet";
 
@@ -88,6 +90,7 @@ export default function TasksScreen() {
   const [newDue, setNewDue] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [showAICompose, setShowAICompose] = useState(false);
+  const [showSmartSummary, setShowSmartSummary] = useState(false);
 
   // ─── Load ────────────────────────────────────────────────────────────────
 
@@ -176,6 +179,9 @@ export default function TasksScreen() {
         leftButton={projectId ? "back" : "none"}
         rightActions={
           <View style={{ flexDirection: "row", gap: 8 }}>
+            <Pressable onPress={() => setShowSmartSummary(true)} style={[styles.addBtn, { backgroundColor: "rgba(0,212,255,0.18)", borderWidth: 1, borderColor: "#00D4FF" }]}>
+              <Ionicons name="flash" size={16} color="#00D4FF" />
+            </Pressable>
             <Pressable onPress={() => setShowAICompose(true)} style={[styles.addBtn, { backgroundColor: `${colors.accentCyan}22` }]}>
               <Ionicons name="sparkles-outline" size={18} color={colors.accentCyan} />
             </Pressable>
@@ -337,6 +343,18 @@ export default function TasksScreen() {
         projectId={selectedProject ?? projectId}
         onClose={() => setShowAICompose(false)}
         onSaved={() => { setShowAICompose(false); setLoading(true); void load(); }}
+      />
+
+      <AISummaryModal
+        visible={showSmartSummary}
+        onClose={() => setShowSmartSummary(false)}
+        title="ملخص المهام الذكي"
+        subtitle="أولويات اليوم · Blockers · Delegation"
+        accentColor="#00D4FF"
+        fetcher={() => summarizeTasks({
+          project_id: selectedProject ?? projectId ?? undefined,
+          status_filter: filter === "all" ? undefined : (filter as "todo" | "in_progress" | "done"),
+        })}
       />
     </Screen>
   );

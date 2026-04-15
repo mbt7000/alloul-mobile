@@ -29,6 +29,8 @@ import {
   unrepostPost,
   savePost,
   unsavePost,
+  likeComment,
+  unlikeComment,
 } from "../../../api";
 
 function timeAgo(dateStr?: string | null): string {
@@ -243,6 +245,27 @@ export default function PostDetailScreen() {
           renderItem={({ item }) => {
             const isOwn = item.user_id === user?.id;
             const cInitials = (item.author_name || "U").slice(0, 2).toUpperCase();
+            const liked = item.liked_by_me === true;
+            const likesCount = item.likes_count ?? 0;
+
+            const handleLikeComment = async () => {
+              // Optimistic update
+              setComments((prev) => prev.map((x) =>
+                x.id === item.id
+                  ? { ...x, liked_by_me: !liked, likes_count: Math.max(0, likesCount + (liked ? -1 : 1)) }
+                  : x,
+              ));
+              try {
+                if (liked) await unlikeComment(item.id);
+                else await likeComment(item.id);
+              } catch {
+                // Revert on failure
+                setComments((prev) => prev.map((x) =>
+                  x.id === item.id ? { ...x, liked_by_me: liked, likes_count: likesCount } : x,
+                ));
+              }
+            };
+
             return (
               <TouchableOpacity
                 activeOpacity={0.8}
@@ -260,9 +283,38 @@ export default function PostDetailScreen() {
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
                     <AppText variant="caption" weight="bold">{item.author_name || item.author_username || "User"}</AppText>
                     <AppText variant="micro" tone="muted">· {timeAgo(item.created_at)}</AppText>
-                    {isOwn && <AppText variant="micro" tone="muted">(اضغط مطولاً للحذف)</AppText>}
                   </View>
                   <AppText variant="caption">{item.content}</AppText>
+
+                  {/* Comment actions row — like + reply hint */}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginTop: 8 }}>
+                    <TouchableOpacity
+                      onPress={handleLikeComment}
+                      hitSlop={8}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                    >
+                      <Ionicons
+                        name={liked ? "heart" : "heart-outline"}
+                        size={14}
+                        color={liked ? c.accentRose : c.textMuted}
+                      />
+                      {likesCount > 0 ? (
+                        <AppText variant="micro" style={{ color: liked ? c.accentRose : c.textMuted, fontWeight: "700" }}>
+                          {likesCount}
+                        </AppText>
+                      ) : null}
+                    </TouchableOpacity>
+                    {isOwn ? (
+                      <TouchableOpacity
+                        onPress={() => handleDeleteComment(item.id)}
+                        hitSlop={8}
+                      >
+                        <AppText variant="micro" style={{ color: c.accentRose, fontWeight: "700" }}>
+                          حذف
+                        </AppText>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
                 </View>
               </TouchableOpacity>
             );

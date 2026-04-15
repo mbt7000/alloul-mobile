@@ -28,6 +28,8 @@ import {
   type ProjectRow,
 } from "../../../api";
 import CompanyWorkModeTopBar from "../../companies/components/CompanyWorkModeTopBar";
+import AISummaryModal from "../../../shared/components/AISummaryModal";
+import { summarizeMeeting } from "../../../api/ai.api";
 import { openMeetingProvider } from "../openMeetingLinks";
 import { useCompanyDailyRoom } from "../../../lib/useCompanyDailyRoom";
 
@@ -75,6 +77,8 @@ export default function MeetingsScreen() {
   const [filter, setFilter] = useState<"all" | "scheduled" | "done">("all");
 
   const [showCreate, setShowCreate] = useState(false);
+  const [smartSummaryMeetingId, setSmartSummaryMeetingId] = useState<number | null>(null);
+  const [smartSummaryMeetingTitle, setSmartSummaryMeetingTitle] = useState<string>("");
   const [newTitle, setNewTitle] = useState("");
   const [newDate, setNewDate] = useState(todayISO());
   const [newTime, setNewTime] = useState("10:00");
@@ -232,6 +236,7 @@ export default function MeetingsScreen() {
               }}
               onDone={() => { setDoneTarget(m); setDoneNotes(m.notes ?? ""); setDoneActions(m.action_items ?? ""); }}
               onCancel={() => handleCancel(m)}
+              onSummarize={() => { setSmartSummaryMeetingId(m.id); setSmartSummaryMeetingTitle(m.title); }}
             />
           ))
         )}
@@ -321,15 +326,25 @@ export default function MeetingsScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <AISummaryModal
+        visible={smartSummaryMeetingId !== null}
+        onClose={() => setSmartSummaryMeetingId(null)}
+        title={`ملخص الاجتماع: ${smartSummaryMeetingTitle}`}
+        subtitle="Agenda · Decisions · Action items · Next steps"
+        accentColor="#00D4FF"
+        fetcher={() => summarizeMeeting(smartSummaryMeetingId!)}
+      />
     </Screen>
   );
 }
 
 function MeetingCard({
-  meeting, colors, projects, onJoin, onDone, onCancel,
+  meeting, colors, projects, onJoin, onDone, onCancel, onSummarize,
 }: {
   meeting: MeetingRow; colors: any; projects: ProjectRow[];
   onJoin: () => void; onDone: () => void; onCancel: () => void;
+  onSummarize: () => void;
 }) {
   const st = stOf(meeting.status);
   const loc = locOf(meeting.location);
@@ -397,8 +412,12 @@ function MeetingCard({
           </Pressable>
         </View>
       ) : (
-        <View style={[styles.actionsRow, { opacity: 0.5 }]}>
-          <View style={[styles.actionBtn, { borderColor: st.color + "40", backgroundColor: st.bg, flex: 1 }]}>
+        <View style={styles.actionsRow}>
+          <Pressable style={[styles.actionBtn, { borderColor: "#00D4FF60", backgroundColor: "#00D4FF14", flex: 1 }]} onPress={onSummarize}>
+            <Ionicons name="flash" size={14} color="#00D4FF" />
+            <AppText variant="micro" weight="bold" style={{ color: "#00D4FF" }}>ملخص ذكي</AppText>
+          </Pressable>
+          <View style={[styles.actionBtn, { borderColor: st.color + "40", backgroundColor: st.bg, flex: 1, opacity: 0.6 }]}>
             <Ionicons name={st.icon} size={13} color={st.color} />
             <AppText variant="micro" style={{ color: st.color }}>{st.label}</AppText>
           </View>

@@ -53,3 +53,4 @@ backend/firebase-service-account.json
 .claude/
 web/.next/
 web/node_modules/
+.vercel

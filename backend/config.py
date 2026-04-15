@@ -70,10 +70,33 @@ class Settings(BaseSettings):
     # AI (Anthropic Claude)
     ANTHROPIC_API_KEY: Optional[str] = None
 
+    # DeepSeek — OpenAI-compatible Chinese/Arabic LLM, used as Claude fallback.
+    # Much cheaper than Claude (~10× less), strong on Arabic business tasks.
+    DEEPSEEK_API_KEY: Optional[str] = None
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
+    DEEPSEEK_MODEL: str = "deepseek-chat"
+
     # Daily.co — غرف فيديو + شات داخل الجلسة (قسم الشركات)
     DAILY_API_KEY: Optional[str] = None
     # النطاق الفرعي فقط، مثال: alloul → https://alloul.daily.co
     DAILY_SUBDOMAIN: Optional[str] = None
+
+    # Ollama (local AI)
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
+    OLLAMA_MODEL: str = "llama3.2:3b"
+    OLLAMA_TIMEOUT: int = 120
+
+    # Hugging Face
+    HF_API_TOKEN: Optional[str] = None
+
+    # ChromaDB (RAG embeddings)
+    CHROMA_PERSIST_DIR: str = "/data/alloul-chroma"
+    EMBEDDING_MODEL: str = "nomic-embed-text"
+
+    # AI System
+    AI_DEFAULT_PROVIDER: str = "auto"  # auto, claude, ollama
+    AI_MAX_TOKENS: int = 4096
+    AI_TEMPERATURE: float = 0.3
 
     @computed_field
     @property

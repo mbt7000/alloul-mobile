@@ -36,10 +36,10 @@ import { useCompanyDailyRoom } from "../../../lib/useCompanyDailyRoom";
 // ─── Service definitions ─────────────────────────────────────────────────────
 
 const QUICK_ACTIONS = [
+  { key: "aihub",    icon: "flash"             as const, label: "تحليل ذكي",  route: "CompanyAIHub", color: "#00D4FF" },
   { key: "ai",       icon: "sparkles"          as const, label: "المساعد",    route: "AiAssistant",  color: "#a855f7" },
   { key: "meet",     icon: "videocam"          as const, label: "اجتماع",     route: "Meetings",     color: "#10b981" },
   { key: "task",     icon: "checkmark-circle"  as const, label: "مهمة",       route: "Tasks",        color: "#3b82f6" },
-  { key: "chat",     icon: "chatbubbles"       as const, label: "دردشة",      route: "Chat",         color: "#0ea5e9" },
   { key: "handover", icon: "swap-horizontal"   as const, label: "تسليم",      route: "Handover",     color: "#f59e0b" },
   { key: "deals",    icon: "trending-up"       as const, label: "صفقات",      route: "CRM",          color: "#ef4444" },
 ];

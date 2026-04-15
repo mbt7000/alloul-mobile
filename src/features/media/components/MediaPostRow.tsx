@@ -1,8 +1,10 @@
-import React, { useMemo } from "react";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import React, { useMemo, useCallback, useState } from "react";
+import { Image, Modal, Pressable, Share, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import * as Haptics from "expo-haptics";
 import type { ApiPost } from "../../../api";
+import { SUPPORTED_REACTIONS, type ReactionEmoji, reactToPost, unreactToPost } from "../../../api";
 import AppText from "../../../shared/ui/AppText";
 import { useAppTheme } from "../../../theme/ThemeContext";
 
@@ -34,6 +36,62 @@ export default function MediaPostRow({ post, onLike, onRepost, onSave }: Props) 
   const navigation = useNavigation<any>();
   const initials = (post.author_name || "U").slice(0, 2).toUpperCase();
   const hasVisual = Boolean(post.image_url);
+
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+  const [myReaction, setMyReaction] = useState<ReactionEmoji | null>(null);
+
+  const hapticLight = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }, []);
+
+  const handleLike = useCallback(() => {
+    hapticLight();
+    onLike(post.id);
+  }, [hapticLight, onLike, post.id]);
+
+  const handleRepost = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    onRepost?.(post.id);
+  }, [onRepost, post.id]);
+
+  const handleSave = useCallback(() => {
+    hapticLight();
+    onSave?.(post.id);
+  }, [hapticLight, onSave, post.id]);
+
+  const handleShare = useCallback(async () => {
+    hapticLight();
+    try {
+      const authorLabel = post.author_name || post.author_username || "ALLOUL&Q";
+      await Share.share({
+        message: `${authorLabel}:\n\n${post.content}\n\n— ALLOUL&Q`,
+      });
+    } catch {
+      // user cancelled
+    }
+  }, [hapticLight, post.content, post.author_name, post.author_username]);
+
+  const openReactionPicker = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setReactionPickerOpen(true);
+  }, []);
+
+  const chooseReaction = useCallback(async (emoji: ReactionEmoji) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    setReactionPickerOpen(false);
+    // Optimistic
+    const previous = myReaction;
+    setMyReaction(previous === emoji ? null : emoji);
+    try {
+      if (previous === emoji) {
+        await unreactToPost(post.id);
+      } else {
+        await reactToPost(post.id, emoji);
+      }
+    } catch {
+      setMyReaction(previous);
+    }
+  }, [myReaction, post.id]);
 
   const styles = useMemo(
     () =>
@@ -129,7 +187,12 @@ export default function MediaPostRow({ post, onLike, onRepost, onSave }: Props) 
   );
 
   return (
-    <Pressable onPress={() => navigation.navigate("PostDetail", { post, postId: post.id })} style={styles.row}>
+    <Pressable
+      onPress={() => navigation.navigate("PostDetail", { post, postId: post.id })}
+      onLongPress={openReactionPicker}
+      delayLongPress={350}
+      style={styles.row}
+    >
       <View style={styles.header}>
         <Pressable onPress={(e) => { e.stopPropagation?.(); navigation.navigate("UserProfile", { userId: post.user_id }); }}>
           {post.author_avatar ? (
@@ -175,14 +238,22 @@ export default function MediaPostRow({ post, onLike, onRepost, onSave }: Props) 
       {post.image_url ? <Image source={{ uri: post.image_url }} style={styles.postImage} resizeMode="cover" /> : null}
 
       <View style={styles.actions}>
-        <Pressable style={styles.actionBtn} onPress={(e) => { e.stopPropagation?.(); navigation.navigate("PostDetail", { post, postId: post.id }); }}>
+        <Pressable
+          style={styles.actionBtn}
+          hitSlop={8}
+          onPress={(e) => { e.stopPropagation?.(); navigation.navigate("PostDetail", { post, postId: post.id }); }}
+        >
           <Ionicons name="chatbubble-outline" size={18} color={colors.textMuted} />
           <AppText variant="caption" tone="muted" weight="bold">
             {formatCount(post.comments_count)}
           </AppText>
         </Pressable>
 
-        <Pressable style={styles.actionBtn} onPress={(e) => { e.stopPropagation?.(); onRepost?.(post.id); }}>
+        <Pressable
+          style={styles.actionBtn}
+          hitSlop={8}
+          onPress={(e) => { e.stopPropagation?.(); handleRepost(); }}
+        >
           <Ionicons
             name="repeat-outline"
             size={18}
@@ -198,7 +269,11 @@ export default function MediaPostRow({ post, onLike, onRepost, onSave }: Props) 
           </AppText>
         </Pressable>
 
-        <Pressable style={styles.actionBtn} onPress={(e) => { e.stopPropagation?.(); onLike(post.id); }}>
+        <Pressable
+          style={styles.actionBtn}
+          hitSlop={8}
+          onPress={(e) => { e.stopPropagation?.(); handleLike(); }}
+        >
           <Ionicons
             name={post.liked_by_me ? "heart" : "heart-outline"}
             size={18}
@@ -214,12 +289,24 @@ export default function MediaPostRow({ post, onLike, onRepost, onSave }: Props) 
           </AppText>
         </Pressable>
 
-        <Pressable style={styles.actionBtn} onPress={(e) => { e.stopPropagation?.(); onSave?.(post.id); }}>
+        <Pressable
+          style={styles.actionBtn}
+          hitSlop={8}
+          onPress={(e) => { e.stopPropagation?.(); handleSave(); }}
+        >
           <Ionicons
             name={post.saved_by_me ? "bookmark" : "bookmark-outline"}
             size={18}
             color={post.saved_by_me ? colors.accentBlue : colors.textMuted}
           />
+        </Pressable>
+
+        <Pressable
+          style={styles.actionBtn}
+          hitSlop={8}
+          onPress={(e) => { e.stopPropagation?.(); void handleShare(); }}
+        >
+          <Ionicons name="share-outline" size={18} color={colors.textMuted} />
         </Pressable>
       </View>
     </Pressable>
