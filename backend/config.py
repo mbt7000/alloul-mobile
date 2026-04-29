@@ -54,9 +54,9 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: Optional[str] = None
     STRIPE_PUBLISHABLE_KEY: Optional[str] = None
     STRIPE_WEBHOOK_SECRET: Optional[str] = None
-    STRIPE_PRICE_STARTER: Optional[str] = "price_1TCmhyGPIIEnFHbUxri6Zbcw"
-    STRIPE_PRICE_PRO: Optional[str] = "price_1TCmiqGPIIEnFHbUahgCLsew"
-    STRIPE_PRICE_PRO_PLUS: Optional[str] = "price_1TCmjpGPIIEnFHbUSeG8GkZK"
+    STRIPE_PRICE_STARTER: Optional[str] = "price_1TPS2BGPIIEnFHbUv19A4YVu"   # $45/mo — 5 employees
+    STRIPE_PRICE_PRO: Optional[str] = "price_1TPS2QGPIIEnFHbUifufCcWZ"       # $225/mo — 30 employees, 14d trial
+    STRIPE_PRICE_PRO_PLUS: Optional[str] = None                               # Business — contact us
     FRONTEND_URL: str = "https://alloul.app"
 
     # Azure AD / Microsoft SSO (optional – for POST /auth/azure-ad)
@@ -76,6 +76,9 @@ class Settings(BaseSettings):
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
     DEEPSEEK_MODEL: str = "deepseek-chat"
 
+    # Google Gemini — free 1500 req/day via AI Studio key
+    GEMINI_API_KEY: Optional[str] = None
+
     # Daily.co — غرف فيديو + شات داخل الجلسة (قسم الشركات)
     DAILY_API_KEY: Optional[str] = None
     # النطاق الفرعي فقط، مثال: alloul → https://alloul.daily.co
@@ -92,6 +95,10 @@ class Settings(BaseSettings):
     # ChromaDB (RAG embeddings)
     CHROMA_PERSIST_DIR: str = "/data/alloul-chroma"
     EMBEDDING_MODEL: str = "nomic-embed-text"
+
+    # ALLOUL Agent (custom private SQL/data agent on the company server)
+    ALLOUL_AGENT_URL: str = "http://34.147.168.15:8001"
+    ALLOUL_AGENT_KEY: Optional[str] = None  # Set via ALLOUL_AGENT_KEY env var — never hardcode
 
     # AI System
     AI_DEFAULT_PROVIDER: str = "auto"  # auto, claude, ollama

@@ -77,11 +77,13 @@ class CompanyMemberResponse(BaseModel):
     role: str
     department_id: Optional[int] = None
     i_code: str
+    work_id: Optional[str] = None
     manager_id: Optional[int] = None
     job_title: Optional[str] = None
     phone: Optional[str] = None
     user_name: Optional[str] = None
     user_email: Optional[str] = None
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True

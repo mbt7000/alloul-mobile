@@ -12,14 +12,11 @@ export interface AuthUser {
   i_code?: string;
   phone?: string;
   verified?: number;
-  followers_count?: number;
-  following_count?: number;
-  posts_count?: number;
   created_at?: string;
   is_admin?: boolean;
-  // Extended profile fields (X/LinkedIn parity)
   location?: string | null;
   skills?: string | null;   // used as "headline" in the UI
+  voice_profile_url?: string | null;
 }
 
 export interface UpdateMeBody {
@@ -30,6 +27,7 @@ export interface UpdateMeBody {
   username?: string | null;
   location?: string | null;
   skills?: string | null;
+  voice_profile_url?: string | null;
 }
 
 export const updateMe = (body: UpdateMeBody) =>
@@ -68,6 +66,15 @@ export async function loginWithFirebase(idToken: string) {
   const res = await apiFetch<{ access_token: string }>("/auth/firebase", {
     method: "POST",
     body: JSON.stringify({ id_token: idToken }),
+  });
+  await persistAccessToken(res.access_token);
+  return res;
+}
+
+export async function loginWithAppleNative(identityToken: string, nonce: string) {
+  const res = await apiFetch<{ access_token: string }>("/auth/apple-native", {
+    method: "POST",
+    body: JSON.stringify({ identity_token: identityToken, nonce }),
   });
   await persistAccessToken(res.access_token);
   return res;

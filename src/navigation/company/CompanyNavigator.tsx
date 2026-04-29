@@ -5,7 +5,6 @@ import CompanyDashboardScreen from "../../features/companies/screens/CompanyDash
 import CompanyServicesScreen from "../../features/companies/screens/CompanyServicesScreen";
 import CompanyProfileMenuScreen from "../../features/companies/screens/CompanyProfileMenuScreen";
 import CompanyTeamHierarchyScreen from "../../features/companies/screens/CompanyTeamHierarchyScreen";
-import CompanyNewsScreen from "../../features/companies/screens/CompanyNewsScreen";
 import CompanyEditServicesScreen from "../../features/companies/screens/CompanyEditServicesScreen";
 import ApprovalsScreen from "../../features/companies/screens/ApprovalsScreen";
 import TeamScreen from "../../features/companies/screens/TeamScreen";
@@ -26,7 +25,6 @@ import BillingScreen from "../../features/billing/screens/BillingScreen";
 import AdminHubScreen from "../../features/settings/screens/AdminHubScreen";
 import ApprovalDetailScreen from "../../features/companies/screens/ApprovalDetailScreen";
 import CompanyProfileScreen from "../../shared/screens/CompanyProfileScreen";
-import CompanyFeedScreen from "../../features/companies/screens/CompanyFeedScreen";
 import CompanyFilesScreen from "../../features/companies/screens/CompanyFilesScreen";
 import HiringBoardScreen from "../../features/companies/screens/HiringBoardScreen";
 import NotificationsScreen from "../../features/notifications/screens/NotificationsScreen";
@@ -39,7 +37,13 @@ import AiAssistantScreen from "../../features/companies/screens/AiAssistantScree
 import CompanyAIHubScreen from "../../features/companies/screens/CompanyAIHubScreen";
 import SubscriptionPlansScreen from "../../features/companies/screens/SubscriptionPlansScreen";
 import JobApplicationsScreen from "../../features/companies/screens/JobApplicationsScreen";
+import JobsScreen from "../../features/companies/screens/JobsScreen";
+import WorkIdScreen from "../../features/companies/screens/WorkIdScreen";
 import CallHistoryScreen from "../../screens/calls/CallHistoryScreen";
+import AccountingScreen from "../../features/companies/screens/AccountingScreen";
+import DirectMessageScreen from "../../features/chat/screens/DirectMessageScreen";
+import PublicProfileScreen from "../../features/profile/screens/PublicProfileScreen";
+import InfoPlaceholderScreen from "../../shared/screens/InfoPlaceholderScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -91,7 +95,6 @@ export default function CompanyNavigator() {
       <Stack.Screen name="Apps" component={CompanyServicesScreen} />
       <Stack.Screen name="EditServices" component={CompanyEditServicesScreen} />
       <Stack.Screen name="TeamHierarchy" component={CompanyTeamHierarchyScreen} />
-      <Stack.Screen name="CompanyNews" component={CompanyNewsScreen} />
       <Stack.Screen name="Inbox" component={ApprovalsScreen} />
       <Stack.Screen name="Profile" component={CompanyProfileMenuScreen} />
       <Stack.Screen name="Teams" component={TeamScreen} />
@@ -113,7 +116,6 @@ export default function CompanyNavigator() {
       <Stack.Screen name="AdminHub" component={AdminHubScreen} />
       <Stack.Screen name="ApprovalDetail" component={ApprovalDetailScreen} />
       <Stack.Screen name="Company" component={CompanyProfileScreen} />
-      <Stack.Screen name="CompanyFeed" component={CompanyFeedScreen} />
       <Stack.Screen name="CompanyFiles" component={CompanyFilesScreen} />
       <Stack.Screen name="Members" component={TeamScreen} />
       <Stack.Screen name="Roles" component={RolesScreen} />
@@ -125,8 +127,16 @@ export default function CompanyNavigator() {
       <Stack.Screen name="CompanyAIHub" component={CompanyAIHubScreen} />
       <Stack.Screen name="SubscriptionGate" component={SubscriptionPlansScreen} />
       <Stack.Screen name="SubscriptionPlans" component={SubscriptionPlansScreen} />
+      <Stack.Screen name="Jobs" component={JobsScreen} />
       <Stack.Screen name="JobApplications" component={JobApplicationsScreen} />
+      <Stack.Screen name="WorkId" component={WorkIdScreen} />
       <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
+      <Stack.Screen name="Accounting" component={AccountingScreen} />
+      <Stack.Screen name="DirectMessage" component={DirectMessageScreen} />
+      <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+      <Stack.Screen name="UserProfile" component={PublicProfileScreen} />
+      <Stack.Screen name="Conversation" component={DirectMessageScreen} />
+      <Stack.Screen name="PostDetail" component={InfoPlaceholderScreen} />
     </Stack.Navigator>
   );
 }
